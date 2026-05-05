@@ -1,0 +1,107 @@
+# Laravel Storage Symlink Alternative for Shared Hosting
+# 
+# If your hosting provider doesn't support symlinks, you can use this .htaccess
+# file as an alternative. This will redirect storage requests to the actual
+# storage directory.
+#
+# Instructions:
+# 1. Rename this file to .htaccess-storage-backup
+# 2. Add the rules below to your main .htaccess file
+# 3. Or replace your .htaccess file with this one (backup your original first)
+
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+
+    # Handle Authorization Header
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Redirect Trailing Slashes If Not A Folder...
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} (.+)/$
+    RewriteRule ^ %1 [L,R=301]
+
+    # Send Requests To Front Controller...
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+
+    # Storage Symlink Alternative - Redirect storage requests to actual storage directory
+    RewriteCond %{REQUEST_URI} ^/storage/(.*)$
+    RewriteCond %{DOCUMENT_ROOT}/../storage/app/public/%1 -f
+    RewriteRule ^storage/(.*)$ ../storage/app/public/$1 [L]
+
+    # Alternative storage path (if the above doesn't work)
+    # RewriteCond %{REQUEST_URI} ^/storage/(.*)$
+    # RewriteCond %{DOCUMENT_ROOT}/storage/app/public/%1 -f
+    # RewriteRule ^storage/(.*)$ storage/app/public/$1 [L]
+</IfModule>
+
+# Security Headers
+<IfModule mod_headers.c>
+    # Prevent access to sensitive files
+    <FilesMatch "\.(env|log|sql|htaccess|htpasswd)$">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+    
+    # Cache static assets
+    <FilesMatch "\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$">
+        Header set Cache-Control "max-age=31536000, public"
+    </FilesMatch>
+</IfModule>
+
+# Prevent directory browsing
+Options -Indexes
+
+# Protect sensitive directories
+<Directory "storage">
+    Order allow,deny
+    Deny from all
+</Directory>
+
+<Directory "bootstrap">
+    Order allow,deny
+    Deny from all
+</Directory>
+
+<Directory "config">
+    Order allow,deny
+    Deny from all
+</Directory>
+
+<Directory "database">
+    Order allow,deny
+    Deny from all
+</Directory>
+
+<Directory "resources">
+    Order allow,deny
+    Deny from all
+</Directory>
+
+<Directory "routes">
+    Order allow,deny
+    Deny from all
+</Directory>
+
+<Directory "tests">
+    Order allow,deny
+    Deny from all
+</Directory>
+
+<Directory "vendor">
+    Order allow,deny
+    Deny from all
+</Directory>
+
+
+
+
+
+
+

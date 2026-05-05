@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Form</title>
+</head>
+<body>
+    <h1>Test Form Submission</h1>
+    
+    <form action="/debug-form" method="POST" id="test-form">
+        <input type="hidden" name="_token" value="">
+        <input type="text" name="test_field" value="test value" required>
+        <button type="submit" id="test-btn">Test Submit</button>
+    </form>
+    
+    <div id="result"></div>
+    
+    <script>
+        // Get CSRF token from meta tag or cookie
+        function getCSRFToken() {
+            const token = document.querySelector('meta[name="csrf-token"]');
+            if (token) {
+                return token.getAttribute('content');
+            }
+            return '';
+        }
+        
+        document.getElementById('test-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Set the CSRF token
+            const tokenInput = this.querySelector('input[name="_token"]');
+            tokenInput.value = getCSRFToken();
+            
+            const formData = new FormData(this);
+            const btn = document.getElementById('test-btn');
+            const result = document.getElementById('result');
+            
+            btn.disabled = true;
+            btn.textContent = 'Submitting...';
+            
+            fetch('/debug-form', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': getCSRFToken()
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                result.innerHTML = '<p style="color: green;">Success: ' + JSON.stringify(data) + '</p>';
+                btn.disabled = false;
+                btn.textContent = 'Test Submit';
+            })
+            .catch(error => {
+                result.innerHTML = '<p style="color: red;">Error: ' + error.message + '</p>';
+                btn.disabled = false;
+                btn.textContent = 'Test Submit';
+            });
+        });
+    </script>
+</body>
+</html>
