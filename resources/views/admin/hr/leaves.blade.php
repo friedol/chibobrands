@@ -110,7 +110,7 @@
                                     </form>
                                     <button class="btn btn-sm btn-danger py-0 px-2 ms-1"
                                             data-bs-toggle="modal" data-bs-target="#rejectModal"
-                                            onclick="document.getElementById('rejectLeaveId').value='{{ $leave->id }}'"
+                                            onclick="openRejectModal({{ $leave->id }})"
                                             title="Reject">
                                         <i class="fas fa-times"></i>
                                     </button>
@@ -215,10 +215,9 @@
 
 @push('scripts')
 <script>
-document.getElementById('rejectLeaveId').addEventListener('change', function() {
-    document.getElementById('rejectForm').action = `/admin/hr/leaves/${this.value}/reject`;
-});
-// Intercept the hidden input change via mutation / direct set
-const origSet = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+function openRejectModal(leaveId) {
+    document.getElementById('rejectLeaveId').value = leaveId;
+    document.getElementById('rejectForm').action = `/admin/hr/leaves/${leaveId}/reject`;
+}
 </script>
 @endpush

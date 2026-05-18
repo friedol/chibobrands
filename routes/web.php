@@ -609,29 +609,28 @@ Route::post('/admin/test-form-submission', function(\Illuminate\Http\Request $re
 
         // HR Module
         Route::prefix('hr')->name('hr.')->group(function () {
+            // Index + store (non-wildcard)
             Route::get('/', [\App\Http\Controllers\Admin\HRController::class, 'index'])->name('index');
             Route::post('/', [\App\Http\Controllers\Admin\HRController::class, 'store'])->name('store');
-            Route::get('/{employee}', [\App\Http\Controllers\Admin\HRController::class, 'show'])->name('show');
-            Route::put('/{employee}', [\App\Http\Controllers\Admin\HRController::class, 'update'])->name('update');
-            Route::delete('/{employee}', [\App\Http\Controllers\Admin\HRController::class, 'destroy'])->name('destroy');
 
-            // Attendance
+            // Static sub-routes MUST come before /{employee} wildcard
             Route::get('/attendance/daily', [\App\Http\Controllers\Admin\HRController::class, 'attendance'])->name('attendance');
             Route::post('/attendance/bulk', [\App\Http\Controllers\Admin\HRController::class, 'bulkAttendance'])->name('attendance.bulk');
             Route::post('/attendance/single', [\App\Http\Controllers\Admin\HRController::class, 'storeAttendance'])->name('attendance.store');
             Route::get('/attendance/report', [\App\Http\Controllers\Admin\HRController::class, 'attendanceReport'])->name('attendance.report');
 
-            // Leave Management
             Route::get('/leaves', [\App\Http\Controllers\Admin\HRController::class, 'leaves'])->name('leaves');
             Route::post('/leaves', [\App\Http\Controllers\Admin\HRController::class, 'storeLeave'])->name('leaves.store');
             Route::put('/leaves/{leave}/approve', [\App\Http\Controllers\Admin\HRController::class, 'approveLeave'])->name('leaves.approve');
             Route::put('/leaves/{leave}/reject', [\App\Http\Controllers\Admin\HRController::class, 'rejectLeave'])->name('leaves.reject');
 
-            // KPI Evaluations
             Route::get('/kpis', [\App\Http\Controllers\Admin\HRController::class, 'kpis'])->name('kpis');
             Route::post('/kpis', [\App\Http\Controllers\Admin\HRController::class, 'storeKpi'])->name('kpis.store');
 
-            // Employee Documents
+            // Wildcard employee routes LAST
+            Route::get('/{employee}', [\App\Http\Controllers\Admin\HRController::class, 'show'])->name('show');
+            Route::put('/{employee}', [\App\Http\Controllers\Admin\HRController::class, 'update'])->name('update');
+            Route::delete('/{employee}', [\App\Http\Controllers\Admin\HRController::class, 'destroy'])->name('destroy');
             Route::post('/{employee}/documents', [\App\Http\Controllers\Admin\HRController::class, 'uploadDocument'])->name('documents.store');
             Route::delete('/{employee}/documents/{document}', [\App\Http\Controllers\Admin\HRController::class, 'deleteDocument'])->name('documents.destroy');
         });

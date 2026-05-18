@@ -33,6 +33,8 @@
         body {
             font-family: 'Nunito Sans', sans-serif !important;
         }
+        .x-small { font-size: 0.75rem; }
+        .cursor-pointer { cursor: pointer; }
     </style>
     <style>
         /* Technical Support Floating Button */
