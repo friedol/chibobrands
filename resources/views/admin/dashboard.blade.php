@@ -369,6 +369,237 @@
             </div>
         </div>
 
+        <!-- DAILY LEAD COUNT WIDGET -->
+        @if(in_array(auth()->user()->role, ['admin','super_admin','saler','accountant']))
+        <div class="row g-2 g-md-3 mb-4">
+            <div class="col-6 col-md-4 col-lg-2">
+                <a href="{{ route('admin.leads.index') }}" class="text-decoration-none">
+                    <div class="card shadow-sm h-100 border-0 border-start border-4 border-primary hover-lift">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="icon-circle bg-primary bg-opacity-10 text-primary me-2">
+                                    <i class="fas fa-user-plus"></i>
+                                </div>
+                                <span class="text-uppercase x-small fw-bold text-muted">New Today</span>
+                            </div>
+                            <div class="h3 mb-0 fw-bold text-primary">{{ $leadStats['today_new'] }}</div>
+                            <div class="x-small text-muted mt-1">Leads added today</div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
+                <a href="{{ route('admin.leads.follow-up-center', ['follow_up_status' => 'today']) }}" class="text-decoration-none">
+                    <div class="card shadow-sm h-100 border-0 border-start border-4 border-warning hover-lift">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="icon-circle bg-warning bg-opacity-10 text-warning me-2">
+                                    <i class="fas fa-phone-alt"></i>
+                                </div>
+                                <span class="text-uppercase x-small fw-bold text-muted">Follow-Ups Today</span>
+                            </div>
+                            <div class="h3 mb-0 fw-bold text-warning">{{ $leadStats['today_follow_ups'] }}</div>
+                            <div class="x-small text-muted mt-1">Due for contact today</div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
+                <a href="{{ route('admin.leads.index', ['status' => 'converted']) }}" class="text-decoration-none">
+                    <div class="card shadow-sm h-100 border-0 border-start border-4 border-success hover-lift">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="icon-circle bg-success bg-opacity-10 text-success me-2">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <span class="text-uppercase x-small fw-bold text-muted">Converted Today</span>
+                            </div>
+                            <div class="h3 mb-0 fw-bold text-success">{{ $leadStats['today_conversions'] }}</div>
+                            <div class="x-small text-muted mt-1">Closed as converted</div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
+                <a href="{{ route('admin.leads.overdue') }}" class="text-decoration-none">
+                    <div class="card shadow-sm h-100 border-0 border-start border-4 border-danger hover-lift">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="icon-circle bg-danger bg-opacity-10 text-danger me-2">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                                <span class="text-uppercase x-small fw-bold text-muted">Overdue</span>
+                            </div>
+                            <div class="h3 mb-0 fw-bold text-danger">{{ $leadStats['overdue_count'] }}</div>
+                            <div class="x-small text-muted mt-1">Missed follow-up date</div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
+                <a href="{{ route('admin.leads.index', ['status' => 'pending']) }}" class="text-decoration-none">
+                    <div class="card shadow-sm h-100 border-0 border-start border-4 border-secondary hover-lift">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="icon-circle bg-secondary bg-opacity-10 text-secondary me-2">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                                <span class="text-uppercase x-small fw-bold text-muted">Total Pending</span>
+                            </div>
+                            <div class="h3 mb-0 fw-bold text-dark">{{ $leadStats['total_pending'] }}</div>
+                            <div class="x-small text-muted mt-1">Awaiting conversion</div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
+                <a href="{{ route('admin.leads.follow-up-center') }}" class="text-decoration-none">
+                    <div class="card shadow-sm h-100 border-0 border-start border-4 hover-lift" style="border-color:#6f42c1!important">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="icon-circle text-purple me-2" style="background:rgba(111,66,193,0.1);color:#6f42c1!important">
+                                    <i class="fas fa-calendar-week"></i>
+                                </div>
+                                <span class="text-uppercase x-small fw-bold text-muted">This Week</span>
+                            </div>
+                            <div class="h3 mb-0 fw-bold" style="color:#6f42c1">{{ $leadStats['week_new'] }}</div>
+                            <div class="x-small text-muted mt-1">New leads this week</div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+        @endif
+
+        <!-- NEW vs REPEATED CUSTOMER + OVERDUE + SELLER RANKING WIDGETS -->
+        @if(in_array(auth()->user()->role, ['admin','super_admin','accountant']))
+        <div class="row g-3 mb-4">
+            {{-- New vs Repeated Customers --}}
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white py-2 border-0 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 fw-bold text-dark small"><i class="fas fa-users me-2 text-primary"></i>Customer Analytics</h6>
+                        <a href="{{ route('admin.reports.sales') }}" class="btn btn-link btn-sm py-0 text-muted">View Report</a>
+                    </div>
+                    <div class="card-body py-2">
+                        @php
+                            $newCustWeek = \App\Models\Customer::newCustomers()->addedThisWeek()->count();
+                            $repCustWeek = \App\Models\Customer::repeatedCustomers()->count();
+                            $totalCust   = \App\Models\Customer::count();
+                        @endphp
+                        <div class="row g-2 text-center mb-3">
+                            <div class="col-6">
+                                <div class="rounded-3 bg-success bg-opacity-10 p-3">
+                                    <div class="fs-3 fw-bold text-success">{{ $newCustWeek }}</div>
+                                    <div class="x-small text-muted fw-semibold">New This Week</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="rounded-3 bg-info bg-opacity-10 p-3">
+                                    <div class="fs-3 fw-bold text-info">{{ $repCustWeek }}</div>
+                                    <div class="x-small text-muted fw-semibold">Repeated Customers</div>
+                                </div>
+                            </div>
+                        </div>
+                        @if($totalCust > 0)
+                        <div class="mb-1 small fw-semibold d-flex justify-content-between">
+                            <span>Retention Rate</span>
+                            <span>{{ round(($repCustWeek / $totalCust) * 100, 1) }}%</span>
+                        </div>
+                        <div class="progress" style="height:8px">
+                            <div class="progress-bar bg-info" style="width:{{ round(($repCustWeek / $totalCust) * 100, 1) }}%"></div>
+                        </div>
+                        <div class="x-small text-muted mt-1">{{ $totalCust }} total customers</div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            {{-- Overdue Follow-Ups Alert --}}
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white py-2 border-0 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 fw-bold text-dark small"><i class="fas fa-exclamation-triangle me-2 text-danger"></i>Follow-Up Alerts</h6>
+                        <a href="{{ route('admin.leads.overdue') }}" class="btn btn-link btn-sm py-0 text-muted">View All</a>
+                    </div>
+                    <div class="card-body py-2">
+                        @php
+                            $overdueLeads  = \App\Models\Lead::overdue()->count();
+                            $todayLeads    = \App\Models\Lead::dueToday()->count();
+                            $upcomingLeads = \App\Models\Lead::upcoming()->count();
+                        @endphp
+                        <div class="list-group list-group-flush small">
+                            <a href="{{ route('admin.leads.overdue', ['filter' => 'overdue']) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0">
+                                <span><i class="fas fa-circle text-danger me-2 small"></i>Overdue Follow-Ups</span>
+                                <span class="badge bg-danger rounded-pill">{{ $overdueLeads }}</span>
+                            </a>
+                            <a href="{{ route('admin.leads.overdue', ['filter' => 'today']) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0">
+                                <span><i class="fas fa-circle text-warning me-2 small"></i>Due Today</span>
+                                <span class="badge bg-warning text-dark rounded-pill">{{ $todayLeads }}</span>
+                            </a>
+                            <a href="{{ route('admin.leads.overdue', ['filter' => 'upcoming']) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0">
+                                <span><i class="fas fa-circle text-success me-2 small"></i>Upcoming (7 days)</span>
+                                <span class="badge bg-success rounded-pill">{{ $upcomingLeads }}</span>
+                            </a>
+                        </div>
+                        @if($overdueLeads > 0)
+                        <div class="alert alert-danger alert-sm py-1 px-2 mt-2 mb-0 small">
+                            <i class="fas fa-bell me-1"></i>
+                            <strong>{{ $overdueLeads }}</strong> follow-up{{ $overdueLeads > 1 ? 's' : '' }} require immediate attention!
+                        </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            {{-- Seller Rankings (current month) --}}
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white py-2 border-0 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 fw-bold text-dark small"><i class="fas fa-trophy me-2 text-warning"></i>Seller Rankings</h6>
+                        <a href="{{ route('admin.reports.sales') }}" class="btn btn-link btn-sm py-0 text-muted">Full Report</a>
+                    </div>
+                    <div class="card-body py-2 px-3">
+                        @php
+                            $topSellers = \App\Models\User::whereIn('role', ['saler', 'admin', 'super_admin'])
+                                ->get()
+                                ->map(function($s) {
+                                    $rev = \App\Models\Payment::activeFinance()
+                                        ->where('seller_id', $s->id)
+                                        ->whereBetween('date', [now()->startOfMonth(), now()->endOfMonth()])
+                                        ->sum('amount');
+                                    return ['name' => $s->name, 'revenue' => (float) $rev];
+                                })
+                                ->filter(fn($s) => $s['revenue'] > 0)
+                                ->sortByDesc('revenue')
+                                ->take(5)
+                                ->values();
+                        @endphp
+                        @if($topSellers->isEmpty())
+                            <p class="text-muted small text-center py-3">No sales data this month.</p>
+                        @else
+                        <ol class="list-group list-group-flush small mb-0">
+                            @foreach($topSellers as $rank => $seller)
+                            <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center gap-2">
+                                    @if($rank === 0) <i class="fas fa-trophy text-warning"></i>
+                                    @elseif($rank === 1) <i class="fas fa-medal text-secondary"></i>
+                                    @elseif($rank === 2) <i class="fas fa-medal text-danger" style="color:#cd7f32!important"></i>
+                                    @else <span class="text-muted fw-bold" style="width:16px;display:inline-block">{{ $rank+1 }}</span>
+                                    @endif
+                                    <span class="fw-semibold">{{ Str::limit($seller['name'], 18) }}</span>
+                                </div>
+                                <span class="text-success fw-bold small">{{ number_format($seller['revenue']) }}</span>
+                            </li>
+                            @endforeach
+                        </ol>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
+
         <!-- RECENT ACTIVITY ROW 1: ORDERS & TOP PRODUCTS -->
         <div class="row g-3 mb-4">
             <div class="col-lg-7">

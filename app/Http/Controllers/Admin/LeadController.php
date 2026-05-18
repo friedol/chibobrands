@@ -8,6 +8,7 @@ use App\Models\LeadFollowUp;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use App\Services\AuditLogService;
 
 class LeadController extends Controller
 {
@@ -111,6 +112,7 @@ class LeadController extends Controller
         }
 
         $lead = Lead::create($validated);
+        AuditLogService::created($lead, "New lead created: {$lead->customer_name}" . ($lead->phone ? " ({$lead->phone})" : ''));
 
         // Log creation in history
         $lead->followUps()->create([
@@ -147,12 +149,14 @@ class LeadController extends Controller
             'assigned_seller_id' => 'nullable|exists:users,id',
         ]);
 
+        $oldValues = $lead->toArray();
         $lead->update([
             'status' => $validated['status'],
             'interest_level' => $validated['interest_level'],
             'customer_response' => $validated['customer_response'],
             'follow_up_date' => $validated['next_follow_up_date'] ?? $lead->follow_up_date,
         ]);
+        AuditLogService::updated($lead, $oldValues, "Updated lead: {$lead->customer_name} → status: {$validated['status']}");
 
         if (array_key_exists('assigned_seller_id', $validated)) {
             $lead->update(['assigned_seller_id' => $validated['assigned_seller_id']]);
@@ -217,6 +221,90 @@ class LeadController extends Controller
 
     }
     
+    /**
+     * Overdue follow-ups dashboard — shows all leads whose follow_up_date has passed.
+     */
+    public function overdue(Request $request)
+    {
+        $query = Lead::with(['seller', 'followUps' => fn($q) => $q->latest()->limit(1)])
+            ->where('status', 'pending');
+
+        // Role-based restriction
+        if (auth()->user()->role === 'saler') {
+            $query->where('assigned_seller_id', auth()->id());
+        }
+
+        $filter = $request->get('filter', 'overdue');
+
+        $query = match($filter) {
+            'today'    => $query->whereDate('follow_up_date', today()),
+            'upcoming' => $query->whereDate('follow_up_date', '>', today())
+                                ->whereDate('follow_up_date', '<=', today()->addDays(7)),
+            default    => $query->whereNotNull('follow_up_date')
+                                ->where('follow_up_date', '<', today()),
+        };
+
+        // Seller filter (admin only)
+        if (in_array(auth()->user()->role, ['admin', 'super_admin', 'accountant']) && $request->filled('saler_id')) {
+            $query->where('assigned_seller_id', $request->saler_id);
+        }
+
+        // Date range filter
+        if ($request->filled('date_from')) {
+            $query->whereDate('follow_up_date', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('follow_up_date', '<=', $request->date_to);
+        }
+
+        // Source filter
+        if ($request->filled('source') && $request->source !== 'all') {
+            $query->where('source', $request->source);
+        }
+
+        $leads   = $query->orderBy('follow_up_date')->paginate(30)->withQueryString();
+        $sellers = User::whereIn('role', ['saler', 'admin', 'super_admin'])->get();
+
+        // Summary counts (scoped by seller if saler)
+        $baseQuery = Lead::where('status', 'pending');
+        if (auth()->user()->role === 'saler') {
+            $baseQuery->where('assigned_seller_id', auth()->id());
+        }
+        $overdueCount  = (clone $baseQuery)->where('follow_up_date', '<', today())->count();
+        $todayCount    = (clone $baseQuery)->whereDate('follow_up_date', today())->count();
+        $upcomingCount = (clone $baseQuery)->whereDate('follow_up_date', '>', today())
+                            ->whereDate('follow_up_date', '<=', today()->addDays(7))->count();
+
+        return view('admin.leads.overdue', compact(
+            'leads', 'sellers', 'filter', 'overdueCount', 'todayCount', 'upcomingCount'
+        ));
+    }
+
+    /**
+     * Inline update of customer name / phone / notes / follow-up date.
+     */
+    public function quickEdit(Request $request, Lead $lead)
+    {
+        if (!in_array(auth()->user()->role, ['admin', 'super_admin']) && auth()->user()->id !== $lead->assigned_seller_id) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'customer_name'  => 'sometimes|required|string|max:255',
+            'phone'          => 'sometimes|nullable|string|max:20',
+            'email'          => 'sometimes|nullable|email|max:255',
+            'source'         => 'sometimes|nullable|string|max:100',
+            'priority'       => 'sometimes|in:low,normal,high,urgent',
+            'follow_up_date' => 'sometimes|nullable|date',
+            'promised_amount'     => 'sometimes|nullable|numeric|min:0',
+            'promised_order_date' => 'sometimes|nullable|date',
+        ]);
+
+        $lead->update($validated);
+
+        return response()->json(['success' => true, 'message' => 'Lead updated.']);
+    }
+
     public function print(Request $request)
     {
         $query = Lead::with(['seller', 'followUps.user']);
@@ -260,5 +348,80 @@ class LeadController extends Controller
         $leads = $query->latest()->get();
 
         return view('admin.leads.print-leads', compact('leads'));
+    }
+
+    // ── Follow-Up Data Center ───────────────────────────────────────────────
+
+    public function followUpCenter(Request $request)
+    {
+        $user  = auth()->user();
+        $query = Lead::with(['seller', 'followUps' => fn($q) => $q->latest()->limit(3)])
+            ->where('status', 'pending');
+
+        if ($user->role === 'saler') {
+            $query->where('assigned_seller_id', $user->id);
+        } elseif ($request->filled('saler_id')) {
+            $query->where('assigned_seller_id', $request->saler_id);
+        }
+
+        if ($request->filled('priority')) {
+            $query->where('priority', $request->priority);
+        }
+
+        if ($request->filled('lead_type')) {
+            $query->where('lead_type', $request->lead_type);
+        }
+
+        if ($request->filled('follow_up_status')) {
+            match($request->follow_up_status) {
+                'overdue'  => $query->overdue(),
+                'today'    => $query->dueToday(),
+                'upcoming' => $query->upcoming(),
+                default    => null,
+            };
+        }
+
+        $leads   = $query->orderByRaw("FIELD(priority,'urgent','high','normal','low')")
+                         ->orderBy('follow_up_date')
+                         ->paginate(20)
+                         ->withQueryString();
+
+        $sellers = User::whereIn('role', ['saler', 'admin', 'super_admin'])->get();
+
+        // Summary counts for cards
+        $baseQuery = Lead::where('status', 'pending');
+        if ($user->role === 'saler') $baseQuery->where('assigned_seller_id', $user->id);
+
+        $counts = [
+            'total'    => (clone $baseQuery)->count(),
+            'urgent'   => (clone $baseQuery)->whereIn('priority', ['urgent', 'high'])->count(),
+            'promised' => (clone $baseQuery)->whereNotNull('promised_order_date')->count(),
+            'overdue'  => (clone $baseQuery)->overdue()->count(),
+        ];
+
+        return view('admin.leads.follow-up-center', compact('leads', 'sellers', 'counts'));
+    }
+
+    public function updateFollowUp(Request $request, Lead $lead)
+    {
+        $user = auth()->user();
+        if ($user->role === 'saler' && $user->id !== $lead->assigned_seller_id) {
+            return back()->with('error', 'Unauthorized.');
+        }
+
+        $validated = $request->validate([
+            'priority'            => 'required|in:low,normal,high,urgent',
+            'lead_type'           => 'nullable|in:cold,warm,hot',
+            'promised_amount'     => 'nullable|numeric|min:0',
+            'promised_order_date' => 'nullable|date',
+            'last_follow_up_notes'=> 'nullable|string|max:1000',
+            'last_follow_up_date' => 'nullable|date',
+        ]);
+
+        $oldValues = $lead->toArray();
+        $lead->update($validated);
+        AuditLogService::updated($lead, $oldValues, "Follow-up updated for {$lead->customer_name}: priority {$validated['priority']}");
+
+        return back()->with('success', "Follow-up data updated for {$lead->customer_name}.");
     }
 }

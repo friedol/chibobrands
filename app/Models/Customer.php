@@ -36,6 +36,10 @@ class Customer extends Authenticatable
         'manual_follow_up_date',
         'follow_up_status',
         'priority_ranking',
+        'is_repeated',
+        'first_purchase_date',
+        'purchase_count',
+        'welcome_sms_sent_at',
     ];
 
     protected $hidden = [
@@ -155,6 +159,64 @@ class Customer extends Authenticatable
     public function getEffectiveFollowUpDateAttribute()
     {
         return $this->manual_follow_up_date ?: $this->next_expected_order_date;
+    }
+
+    /**
+     * True if this customer has placed more than one purchase (design task or order).
+     */
+    public function getIsNewCustomerAttribute(): bool
+    {
+        return (int) $this->purchase_count <= 1;
+    }
+
+    public function getCustomerTypeAttribute(): string
+    {
+        return $this->is_repeated ? 'Repeated' : 'New';
+    }
+
+    public function getCustomerTypeBadgeAttribute(): string
+    {
+        return $this->is_repeated ? 'info' : 'success';
+    }
+
+    /**
+     * Recalculate purchase count and update is_repeated flag.
+     * Call after any new completed task or paid order.
+     */
+    public function recalculatePurchaseStats(): void
+    {
+        $taskCount  = $this->designTasks()->where('status', '!=', 'cancelled')->count();
+        $orderCount = DesignTask::where('customer_id', $this->id)->count(); // already counted above
+        $total = $taskCount;
+
+        $this->purchase_count = $total;
+        $this->is_repeated    = $total > 1;
+
+        if ($total === 1 && !$this->first_purchase_date) {
+            $this->first_purchase_date = today();
+        }
+
+        $this->save();
+    }
+
+    public function scopeNewCustomers($query)
+    {
+        return $query->where('is_repeated', false);
+    }
+
+    public function scopeRepeatedCustomers($query)
+    {
+        return $query->where('is_repeated', true);
+    }
+
+    public function scopeAddedThisWeek($query)
+    {
+        return $query->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]);
+    }
+
+    public function scopeAddedThisMonth($query)
+    {
+        return $query->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]);
     }
 
     public function scopeForSaler($query, $user)

@@ -17,6 +17,7 @@ use App\Models\Notification;
 use App\Models\DesignTask;
 use App\Models\Expense;
 use App\Models\Payment;
+use App\Models\Lead;
 use App\Models\SalesTarget;
 use App\Notifications\AdminUserCreated;
 use Carbon\Carbon;
@@ -563,10 +564,25 @@ class AdminController extends Controller
             }
         }
 
+        // ── Daily Lead Stats ──────────────────────────────────────────────────
+        $leadScope = fn($q) => $user->role === 'saler'
+            ? $q->where('assigned_seller_id', $user->id)
+            : $q;
+
+        $leadStats = [
+            'today_new'       => $leadScope(Lead::whereDate('created_at', today()))->count(),
+            'today_follow_ups'=> $leadScope(Lead::dueToday())->count(),
+            'today_conversions'=> $leadScope(Lead::where('status', 'converted')
+                ->whereDate('updated_at', today()))->count(),
+            'overdue_count'   => $leadScope(Lead::overdue())->count(),
+            'total_pending'   => $leadScope(Lead::where('status', 'pending'))->count(),
+            'week_new'        => $leadScope(Lead::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]))->count(),
+        ];
+
         return view('admin.dashboard', compact(
-            'stats', 
-            'todayStats', 
-            'yesterdayStats', 
+            'stats',
+            'todayStats',
+            'yesterdayStats',
             'periodStats',
             'topDesigners', 
             'lowStockProducts',
@@ -589,7 +605,8 @@ class AdminController extends Controller
             'tasksCreatedTrend',
             'tasksCompletedTrend',
             'period',
-            'recentExpenses'
+            'recentExpenses',
+            'leadStats'
         ));
     }
 

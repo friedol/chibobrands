@@ -71,8 +71,9 @@ class FinanceController extends Controller
         // Total Billed (value of work created in period)
         $totalBilled = $applyPeriod(DesignTask::activeFinance())->sum('price');
 
-        // Net Profit (Collected - Spent)
-        $netProfit = $totalIn - $totalOut;
+        // Net Profit = Total Sales (Billed) - Total Expenses
+        // Formula corrected: we use the full sales value (not just collected) minus expenditure
+        $netProfit = $totalBilled - $totalOut;
 
         // Total Debt Collected
         $debtCollected = Payment::whereBetween('date', [$dateFrom, $dateTo])->where('is_debt', 1)->sum('amount');

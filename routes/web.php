@@ -404,6 +404,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             'destroy' => 'message-templates.destroy',
         ]);
         Route::post('message-templates/send', [MessageTemplateController::class, 'send'])->name('message-templates.send');
+        Route::post('message-templates/broadcast-leads', [MessageTemplateController::class, 'broadcastToLeads'])->name('message-templates.broadcast-leads');
         
         // Design Tasks Management
         Route::get('design-tasks/{designTask}/print-invoice', [DesignTaskController::class, 'printInvoice'])->name('design-tasks.print-invoice');
@@ -588,10 +589,51 @@ Route::post('/admin/test-form-submission', function(\Illuminate\Http\Request $re
         // Leads Management
         Route::prefix('leads')->name('leads.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\LeadController::class, 'index'])->name('index');
+            Route::get('/overdue', [\App\Http\Controllers\Admin\LeadController::class, 'overdue'])->name('overdue');
+            Route::get('/follow-up-center', [\App\Http\Controllers\Admin\LeadController::class, 'followUpCenter'])->name('follow-up-center');
             Route::get('/print', [\App\Http\Controllers\Admin\LeadController::class, 'print'])->name('print');
             Route::post('/', [\App\Http\Controllers\Admin\LeadController::class, 'store'])->name('store');
             Route::put('/{lead}', [\App\Http\Controllers\Admin\LeadController::class, 'update'])->name('update');
+            Route::patch('/{lead}/quick-edit', [\App\Http\Controllers\Admin\LeadController::class, 'quickEdit'])->name('quick-edit');
+            Route::patch('/{lead}/update-follow-up', [\App\Http\Controllers\Admin\LeadController::class, 'updateFollowUp'])->name('update-follow-up');
             Route::post('/{lead}/follow-up', [\App\Http\Controllers\Admin\LeadController::class, 'addFollowUp'])->name('follow-up');
+        });
+
+        // Sales Reports
+        Route::prefix('reports')->name('reports.')->group(function () {
+            Route::get('/sales', [\App\Http\Controllers\Admin\SalesReportController::class, 'index'])->name('sales');
+            Route::get('/sales/pdf', [\App\Http\Controllers\Admin\SalesReportController::class, 'exportPdf'])->name('sales.pdf');
+            Route::get('/sales/print', [\App\Http\Controllers\Admin\SalesReportController::class, 'print'])->name('sales.print');
+            Route::get('/sales/excel', [\App\Http\Controllers\Admin\SalesReportController::class, 'exportExcel'])->name('sales.excel');
+        });
+
+        // HR Module
+        Route::prefix('hr')->name('hr.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\HRController::class, 'index'])->name('index');
+            Route::post('/', [\App\Http\Controllers\Admin\HRController::class, 'store'])->name('store');
+            Route::get('/{employee}', [\App\Http\Controllers\Admin\HRController::class, 'show'])->name('show');
+            Route::put('/{employee}', [\App\Http\Controllers\Admin\HRController::class, 'update'])->name('update');
+            Route::delete('/{employee}', [\App\Http\Controllers\Admin\HRController::class, 'destroy'])->name('destroy');
+
+            // Attendance
+            Route::get('/attendance/daily', [\App\Http\Controllers\Admin\HRController::class, 'attendance'])->name('attendance');
+            Route::post('/attendance/bulk', [\App\Http\Controllers\Admin\HRController::class, 'bulkAttendance'])->name('attendance.bulk');
+            Route::post('/attendance/single', [\App\Http\Controllers\Admin\HRController::class, 'storeAttendance'])->name('attendance.store');
+            Route::get('/attendance/report', [\App\Http\Controllers\Admin\HRController::class, 'attendanceReport'])->name('attendance.report');
+
+            // Leave Management
+            Route::get('/leaves', [\App\Http\Controllers\Admin\HRController::class, 'leaves'])->name('leaves');
+            Route::post('/leaves', [\App\Http\Controllers\Admin\HRController::class, 'storeLeave'])->name('leaves.store');
+            Route::put('/leaves/{leave}/approve', [\App\Http\Controllers\Admin\HRController::class, 'approveLeave'])->name('leaves.approve');
+            Route::put('/leaves/{leave}/reject', [\App\Http\Controllers\Admin\HRController::class, 'rejectLeave'])->name('leaves.reject');
+
+            // KPI Evaluations
+            Route::get('/kpis', [\App\Http\Controllers\Admin\HRController::class, 'kpis'])->name('kpis');
+            Route::post('/kpis', [\App\Http\Controllers\Admin\HRController::class, 'storeKpi'])->name('kpis.store');
+
+            // Employee Documents
+            Route::post('/{employee}/documents', [\App\Http\Controllers\Admin\HRController::class, 'uploadDocument'])->name('documents.store');
+            Route::delete('/{employee}/documents/{document}', [\App\Http\Controllers\Admin\HRController::class, 'deleteDocument'])->name('documents.destroy');
         });
 
         // Finance Management

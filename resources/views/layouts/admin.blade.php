@@ -357,9 +357,9 @@
 
                 {{-- Sales Department Submenu --}}
                 @if(in_array($userRole, ['super_admin', 'admin', 'accountant', 'manager']))
-                    <li class="nav-item has-submenu {{ (request()->routeIs('admin.sales-dept.*') || request()->routeIs('admin.leads.*') || request()->routeIs('admin.saler-performance.*')) ? 'active' : '' }}"
+                    <li class="nav-item has-submenu {{ (request()->routeIs('admin.sales-dept.*') || request()->routeIs('admin.leads.*') || request()->routeIs('admin.saler-performance.*') || request()->routeIs('admin.reports.sales*')) ? 'active' : '' }}"
                         data-submenu-toggle>
-                        <a class="nav-link d-flex align-items-center justify-content-between {{ (request()->routeIs('admin.sales-dept.*') || request()->routeIs('admin.leads.*') || request()->routeIs('admin.saler-performance.*')) ? 'active' : '' }}"
+                        <a class="nav-link d-flex align-items-center justify-content-between {{ (request()->routeIs('admin.sales-dept.*') || request()->routeIs('admin.leads.*') || request()->routeIs('admin.saler-performance.*') || request()->routeIs('admin.reports.sales*')) ? 'active' : '' }}"
                             href="{{ route('admin.sales-dept.index') }}" data-no-preloader>
                             <span class="d-flex align-items-center">
                                 <i class="fas fa-briefcase text-primary"></i><span>Sales Dept</span>
@@ -374,15 +374,77 @@
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.leads.*') ? 'active' : '' }}"
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.leads.index') ? 'active' : '' }}"
                                     href="{{ route('admin.leads.index') }}">
                                     <i class="fas fa-filter text-info"></i><span>Leads Management</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.leads.overdue') ? 'active' : '' }}"
+                                    href="{{ route('admin.leads.overdue') }}">
+                                    <i class="fas fa-exclamation-triangle text-danger"></i><span>Overdue Follow-Ups</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.leads.follow-up-center') ? 'active' : '' }}"
+                                    href="{{ route('admin.leads.follow-up-center') }}">
+                                    <i class="fas fa-crosshairs text-primary"></i><span>Follow-Up Center</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.reports.sales*') ? 'active' : '' }}"
+                                    href="{{ route('admin.reports.sales') }}">
+                                    <i class="fas fa-file-chart-line text-success"></i><span>Sales Report</span>
                                 </a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.sales-dept.targets') ? 'active' : '' }}"
                                     href="{{ route('admin.sales-dept.targets') }}">
                                     <i class="fas fa-bullseye"></i><span>Sales Targets</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    {{-- HR Module --}}
+                    <li class="nav-item has-submenu {{ request()->routeIs('admin.hr.*') ? 'active' : '' }}"
+                        data-submenu-toggle>
+                        <a class="nav-link d-flex align-items-center justify-content-between {{ request()->routeIs('admin.hr.*') ? 'active' : '' }}"
+                            href="{{ route('admin.hr.index') }}" data-no-preloader>
+                            <span class="d-flex align-items-center">
+                                <i class="fas fa-users-cog text-purple" style="color:#7c3aed"></i><span>HR Module</span>
+                            </span>
+                            <i class="fas fa-chevron-right submenu-arrow"></i>
+                        </a>
+                        <ul class="nav-submenu">
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.hr.index') ? 'active' : '' }}"
+                                    href="{{ route('admin.hr.index') }}">
+                                    <i class="fas fa-id-badge"></i><span>Employees</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.hr.attendance') ? 'active' : '' }}"
+                                    href="{{ route('admin.hr.attendance') }}">
+                                    <i class="fas fa-calendar-check"></i><span>Attendance</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.hr.leaves') ? 'active' : '' }}"
+                                    href="{{ route('admin.hr.leaves') }}">
+                                    <i class="fas fa-calendar-minus"></i><span>Leave Requests</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.hr.kpis') ? 'active' : '' }}"
+                                    href="{{ route('admin.hr.kpis') }}">
+                                    <i class="fas fa-chart-bar"></i><span>KPI Evaluations</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.hr.attendance.report') ? 'active' : '' }}"
+                                    href="{{ route('admin.hr.attendance.report') }}">
+                                    <i class="fas fa-file-alt"></i><span>Monthly Report</span>
                                 </a>
                             </li>
                         </ul>
@@ -397,9 +459,27 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.leads.*') ? 'active' : '' }}"
+                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.leads.index') ? 'active' : '' }}"
                             href="{{ route('admin.leads.index') }}" data-no-preloader>
-                            <i class="fas fa-filter text-info"></i><span>Leads Management</span>
+                            <i class="fas fa-filter text-info"></i><span>Leads</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.leads.overdue') ? 'active' : '' }}"
+                            href="{{ route('admin.leads.overdue') }}" data-no-preloader>
+                            <i class="fas fa-exclamation-triangle text-danger"></i><span>Overdue Follow-Ups</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.leads.follow-up-center') ? 'active' : '' }}"
+                            href="{{ route('admin.leads.follow-up-center') }}" data-no-preloader>
+                            <i class="fas fa-crosshairs text-primary"></i><span>Follow-Up Center</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.reports.sales*') ? 'active' : '' }}"
+                            href="{{ route('admin.reports.sales') }}" data-no-preloader>
+                            <i class="fas fa-file-chart-line text-success"></i><span>My Sales Report</span>
                         </a>
                     </li>
                 @endif

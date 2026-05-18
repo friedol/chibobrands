@@ -9,9 +9,14 @@
             <h4 class="mb-0 fw-bold">Message Templates</h4>
             <p class="text-muted small mb-0">Manage reusable message templates for customer communication</p>
         </div>
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createTemplateModal">
-            <i class="fas fa-plus me-2"></i>Create New Template
-        </button>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#broadcastLeadsModal">
+                <i class="fas fa-broadcast-tower me-2"></i>Broadcast to Leads
+            </button>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createTemplateModal">
+                <i class="fas fa-plus me-2"></i>Create New Template
+            </button>
+        </div>
     </div>
 
     @if(session('success'))
@@ -26,15 +31,22 @@
         </div>
     @endif
 
-    @if(session('error'))
+    @if(session('error') || $errors->any())
         <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
             <div class="d-flex align-items-center">
                 <i class="fas fa-exclamation-circle me-3 fs-4"></i>
                 <div>
-                    <div class="fw-bold">{{ session('error') }}</div>
+                    <div class="fw-bold">{{ session('error') ?? 'There was a problem sending the message.' }}</div>
                     @if(session('error_list'))
                         <ul class="mb-0 mt-2 small">
                             @foreach(session('error_list') as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    @endif
+                    @if($errors->any())
+                        <ul class="mb-0 mt-2 small">
+                            @foreach($errors->all() as $error)
                                 <li>{{ $error }}</li>
                             @endforeach
                         </ul>
@@ -132,6 +144,122 @@
     </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════
+     BROADCAST TO LEADS MODAL
+═══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="broadcastLeadsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px; overflow: hidden;">
+            <div class="modal-header border-0 text-white py-3 px-4" style="background: linear-gradient(135deg, #198754 0%, #146c43 100%);">
+                <div class="d-flex align-items-center">
+                    <div class="bg-white bg-opacity-25 rounded-circle p-2 me-3">
+                        <i class="fas fa-broadcast-tower fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0 text-white">Broadcast SMS to Leads</h5>
+                        <p class="mb-0 small text-white-50">Send a message directly to lead phone numbers</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ route('admin.message-templates.broadcast-leads') }}" method="POST" id="broadcastLeadsForm">
+                @csrf
+                <div class="modal-body p-4">
+                    <div class="row g-4">
+                        <!-- Left: Message & Filters -->
+                        <div class="col-md-7">
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-muted text-uppercase" style="letter-spacing:0.05rem;">Message Template</label>
+                                <select name="template_id" class="form-select border-2" id="leadsBroadcastTemplate">
+                                    <option value="">— Custom message below —</option>
+                                    @foreach($templates->where('is_active', true) as $t)
+                                        <option value="{{ $t->id }}" data-content="{{ $t->content }}">{{ $t->title }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-muted text-uppercase" style="letter-spacing:0.05rem;">Message <span class="text-muted fw-normal">(overrides template)</span></label>
+                                <textarea name="custom_content" class="form-control border-2" rows="4" id="leadsBroadcastContent"
+                                          placeholder="Type a custom message, or pick a template above. Use {name} for lead name."></textarea>
+                                <div class="form-text x-small text-end fw-bold mt-1 leads-char-count text-muted">0 characters</div>
+                            </div>
+
+                            <hr class="opacity-25 my-3">
+                            <p class="small fw-bold text-muted text-uppercase mb-2" style="letter-spacing:0.05rem;"><i class="fas fa-filter me-1"></i>Filter Recipients</p>
+                            <div class="row g-2">
+                                @if(in_array(auth()->user()->role, ['admin','super_admin']))
+                                <div class="col-12">
+                                    <label class="form-label small text-muted">Seller</label>
+                                    <select name="seller_id" class="form-select form-select-sm border-2">
+                                        <option value="">All Sellers</option>
+                                        @foreach($sellers as $seller)
+                                            <option value="{{ $seller->id }}">{{ $seller->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                @endif
+                                <div class="col-6">
+                                    <label class="form-label small text-muted">Lead Status</label>
+                                    <select name="lead_status" class="form-select form-select-sm border-2">
+                                        <option value="all">All Statuses</option>
+                                        <option value="pending" selected>Pending</option>
+                                        <option value="converted">Converted</option>
+                                        <option value="not_interested">Not Interested</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small text-muted">Priority</label>
+                                    <select name="lead_priority" class="form-select form-select-sm border-2">
+                                        <option value="all">All Priorities</option>
+                                        <option value="urgent">Urgent</option>
+                                        <option value="high">High</option>
+                                        <option value="normal">Normal</option>
+                                        <option value="low">Low</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small text-muted">Source (optional)</label>
+                                    <input type="text" name="lead_source" class="form-control form-control-sm border-2" placeholder="e.g. WhatsApp, Referral...">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Preview -->
+                        <div class="col-md-5">
+                            <div class="preview-card p-4 rounded-4 bg-light h-100 border border-success border-opacity-10">
+                                <h6 class="fw-bold text-success mb-3"><i class="fas fa-eye me-2"></i>Message Preview</h6>
+                                <div class="message-bubble bg-white p-3 rounded-4 shadow-sm mb-3 border">
+                                    <div class="small text-dark lh-base" id="leadsPreviewText" style="white-space: pre-wrap;">Pick a template or type a message...</div>
+                                    <div class="text-end mt-2">
+                                        <span class="x-small text-muted" id="leadsPreviewMeta">0 chars · 1 unit</span>
+                                    </div>
+                                </div>
+                                <div class="p-3 rounded-4 bg-white shadow-sm border">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="small text-muted"><i class="fas fa-info-circle me-1"></i>Placeholders:</span>
+                                    </div>
+                                    <p class="x-small text-muted mb-0">
+                                        <code>{name}</code> — lead's name<br>
+                                        SMS is sent per lead individually.
+                                    </p>
+                                    <hr class="my-2 opacity-10">
+                                    <p class="x-small text-warning mb-0"><i class="fas fa-exclamation-triangle me-1"></i>Only leads with phone numbers are messaged.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success rounded-pill px-5 fw-bold shadow-sm" data-no-global-handler>
+                        <i class="fas fa-paper-plane me-2"></i>Send to Leads
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Send and Edit Modals for each template -->
 @foreach($templates as $template)
     <!-- Send Modal -->
@@ -153,6 +281,7 @@
                 <form action="{{ route('admin.message-templates.send') }}" method="POST" class="broadcast-form">
                     @csrf
                     <input type="hidden" name="template_id" value="{{ $template->id }}">
+                    <input type="hidden" name="recipient_type" value="selected">
                     <div class="modal-body p-4">
                         <div class="row g-4">
                             <!-- Left Side: Selection -->
@@ -472,6 +601,41 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         });
+    });
+
+    // ── Broadcast to Leads modal ─────────────────────────────
+    const templateSelect  = document.getElementById('leadsBroadcastTemplate');
+    const contentArea     = document.getElementById('leadsBroadcastContent');
+    const previewText     = document.getElementById('leadsPreviewText');
+    const previewMeta     = document.getElementById('leadsPreviewMeta');
+    const charCountLabel  = document.querySelector('.leads-char-count');
+
+    function updateLeadsPreview() {
+        const text = contentArea.value.trim() || (templateSelect.selectedOptions[0]?.dataset.content ?? '');
+        previewText.textContent = text || 'Pick a template or type a message...';
+        const len   = text.length;
+        const units = Math.ceil(len / 160) || 1;
+        previewMeta.textContent    = `${len} chars · ${units} unit${units > 1 ? 's' : ''}`;
+        charCountLabel.textContent = `${len} characters (${units} unit${units > 1 ? 's' : ''})`;
+        charCountLabel.classList.toggle('text-warning', len > 160);
+    }
+
+    templateSelect.addEventListener('change', function() {
+        const selected = this.selectedOptions[0];
+        if (selected && selected.dataset.content) {
+            contentArea.value = '';       // clear custom so template shows in preview
+        }
+        updateLeadsPreview();
+    });
+
+    contentArea.addEventListener('input', updateLeadsPreview);
+    updateLeadsPreview();
+
+    // Reset broadcast leads modal on close
+    document.getElementById('broadcastLeadsModal').addEventListener('hidden.bs.modal', function() {
+        document.getElementById('broadcastLeadsForm').reset();
+        contentArea.value = '';
+        updateLeadsPreview();
     });
 
     // Reset all modals when they are hidden
