@@ -84,6 +84,9 @@ class CustomerAnalyticsService
 
         // Update per-task-type analytics
         $this->updateTaskTypeAnalytics($customerId, $designTasks);
+
+        // Update repeated customer stats
+        $customer->recalculatePurchaseStats();
     }
 
     /**
@@ -180,10 +183,25 @@ class CustomerAnalyticsService
 
     /**
      * Determine the follow-up status for a customer model.
+     * Customers who have fully paid (no outstanding balance) are never flagged as Overdue.
      */
     public function determineFollowUpStatus(Customer $customer)
     {
-        return $this->determineStatus($customer->effective_follow_up_date);
+        $status = $this->determineStatus($customer->effective_follow_up_date);
+
+        if ($status === 'Overdue') {
+            $hasUnpaidBalance = \App\Models\DesignTask::where('customer_id', $customer->id)
+                ->where('balance', '>', 0)
+                ->where('status', '!=', \App\Models\DesignTask::STATUS_CANCELLED)
+                ->where(function ($q) { $q->where('is_loss', false)->orWhereNull('is_loss'); })
+                ->exists();
+
+            if (!$hasUnpaidBalance) {
+                return 'Active';
+            }
+        }
+
+        return $status;
     }
 
     /**

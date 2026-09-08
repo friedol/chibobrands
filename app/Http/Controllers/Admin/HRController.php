@@ -37,7 +37,7 @@ class HRController extends Controller
         }
 
         if ($request->filled('department') && $request->department !== 'all') {
-            $query->where('department', $request->department);
+            $query->where('department', 'like', "%{$request->department}%");
         }
 
         if ($request->filled('status') && $request->status !== 'all') {
@@ -49,8 +49,24 @@ class HRController extends Controller
         }
 
         $employees   = $query->orderBy('full_name')->paginate(20)->withQueryString();
-        $departments = Employee::distinct()->pluck('department')->filter()->sort()->values();
+        $rawDepartments = Employee::distinct()->pluck('department')->filter()->toArray();
+        $parsedDepts = [];
+        foreach ($rawDepartments as $raw) {
+            $parts = array_map('trim', explode(',', $raw));
+            foreach ($parts as $p) {
+                if ($p !== '') {
+                    $parsedDepts[] = $p;
+                }
+            }
+        }
+        $predefinedDepts = \App\Models\Department::pluck('name')->toArray();
+        $departments = array_unique(array_merge($predefinedDepts, $parsedDepts));
+        sort($departments);
+        
         $linkedUsers = User::whereNotIn('id', Employee::whereNotNull('user_id')->pluck('user_id'))->get();
+
+        // Execute HR Leave automation to synchronize statuses
+        $leaveMetrics = \App\Services\HRLeaveAutomationService::getDashboardMetrics();
 
         // Summary cards
         $totalActive     = Employee::active()->count();
@@ -60,8 +76,53 @@ class HRController extends Controller
 
         return view('admin.hr.index', compact(
             'employees', 'departments', 'linkedUsers',
-            'totalActive', 'onLeave', 'pendingLeaves', 'todayPresent'
+            'totalActive', 'onLeave', 'pendingLeaves', 'todayPresent',
+            'leaveMetrics'
         ));
+    }
+
+    public function create()
+    {
+        $rawDepartments = Employee::distinct()->pluck('department')->filter()->toArray();
+        $parsedDepts = [];
+        foreach ($rawDepartments as $raw) {
+            $parts = array_map('trim', explode(',', $raw));
+            foreach ($parts as $p) {
+                if ($p !== '') {
+                    $parsedDepts[] = $p;
+                }
+            }
+        }
+        $predefinedDepts = \App\Models\Department::pluck('name')->toArray();
+        $departments = array_unique(array_merge($predefinedDepts, $parsedDepts));
+        sort($departments);
+
+        $linkedUsers = User::whereNotIn('id', Employee::whereNotNull('user_id')->pluck('user_id'))->get();
+        return view('admin.hr.create', compact('departments', 'linkedUsers'));
+    }
+
+    public function edit(Employee $employee)
+    {
+        $rawDepartments = Employee::distinct()->pluck('department')->filter()->toArray();
+        $parsedDepts = [];
+        foreach ($rawDepartments as $raw) {
+            $parts = array_map('trim', explode(',', $raw));
+            foreach ($parts as $p) {
+                if ($p !== '') {
+                    $parsedDepts[] = $p;
+                }
+            }
+        }
+        $predefinedDepts = \App\Models\Department::pluck('name')->toArray();
+        $departments = array_unique(array_merge($predefinedDepts, $parsedDepts));
+        sort($departments);
+        $linkedUsers = User::where(function($q) use ($employee) {
+            $q->whereNotIn('id', Employee::whereNotNull('user_id')->pluck('user_id'));
+            if ($employee->user_id) {
+                $q->orWhere('id', $employee->user_id);
+            }
+        })->get();
+        return view('admin.hr.edit', compact('employee', 'departments', 'linkedUsers'));
     }
 
     public function store(Request $request)
@@ -71,7 +132,8 @@ class HRController extends Controller
             'phone'         => 'nullable|string|max:20',
             'email'         => 'nullable|email|max:255',
             'national_id'   => 'nullable|string|max:50',
-            'department'    => 'nullable|string|max:100',
+            'departments'   => 'nullable|array',
+            'departments.*' => 'nullable|string|max:100',
             'role_title'    => 'nullable|string|max:100',
             'contract_type' => 'required|in:permanent,contract,part_time,intern',
             'hire_date'     => 'nullable|date',
@@ -89,6 +151,7 @@ class HRController extends Controller
             'photo'         => 'nullable|image|max:2048',
         ]);
 
+        $validated['department'] = $request->filled('departments') ? implode(', ', $request->departments) : null;
         $validated['employee_code'] = Employee::generateCode();
         $validated['basic_salary']  = $validated['basic_salary'] ?? 0;
         $validated['allowances']    = $validated['allowances'] ?? 0;
@@ -148,7 +211,8 @@ class HRController extends Controller
             'phone'         => 'nullable|string|max:20',
             'email'         => 'nullable|email|max:255',
             'national_id'   => 'nullable|string|max:50',
-            'department'    => 'nullable|string|max:100',
+            'departments'   => 'nullable|array',
+            'departments.*' => 'nullable|string|max:100',
             'role_title'    => 'nullable|string|max:100',
             'contract_type' => 'required|in:permanent,contract,part_time,intern',
             'hire_date'     => 'nullable|date',
@@ -165,6 +229,8 @@ class HRController extends Controller
             'notes'         => 'nullable|string',
             'user_id'       => 'nullable|exists:users,id',
         ]);
+
+        $validated['department'] = $request->filled('departments') ? implode(', ', $request->departments) : null;
 
         if ($request->hasFile('photo')) {
             if ($employee->photo) Storage::disk('public')->delete($employee->photo);
@@ -192,21 +258,55 @@ class HRController extends Controller
 
     public function attendance(Request $request)
     {
-        $date      = $request->get('date', today()->format('Y-m-d'));
-        $employees = Employee::active()->with(['attendances' => fn($q) => $q->whereDate('attendance_date', $date)])->get();
+        // Resolve date range from preset or explicit from/to params
+        $today    = today()->format('Y-m-d');
+        $dateFrom = $request->get('from', $request->get('date', $today));
+        $dateTo   = $request->get('to',   $dateFrom);
 
-        // Enrich with today's record
-        $employees->each(function ($emp) use ($date) {
-            $emp->today = $emp->attendances->first();
+        // Clamp: from must be <= to
+        if ($dateFrom > $dateTo) $dateTo = $dateFrom;
+
+        // Single display date (for single-day views and legacy compat)
+        $date = $dateFrom;
+
+        // Detect active preset for UI highlighting
+        $yesterday  = today()->subDay()->format('Y-m-d');
+        $weekStart  = today()->startOfWeek(\Carbon\Carbon::MONDAY)->format('Y-m-d');
+        $weekEnd    = today()->startOfWeek(\Carbon\Carbon::MONDAY)->addDays(6)->format('Y-m-d');
+        $monthStart = today()->startOfMonth()->format('Y-m-d');
+        $monthEnd   = today()->endOfMonth()->format('Y-m-d');
+        $yearStart  = today()->startOfYear()->format('Y-m-d');
+        $yearEnd    = today()->endOfYear()->format('Y-m-d');
+
+        $activePreset = match(true) {
+            $dateFrom === $today    && $dateTo === $today    => 'today',
+            $dateFrom === $yesterday && $dateTo === $yesterday => 'yesterday',
+            $dateFrom === $weekStart && $dateTo === $weekEnd  => 'week',
+            $dateFrom === $monthStart && $dateTo === $monthEnd => 'month',
+            $dateFrom === $yearStart && $dateTo === $yearEnd  => 'year',
+            default => 'custom',
+        };
+
+        // Load employees with attendance records in the date range
+        $employees = Employee::active()
+            ->with(['attendances' => fn($q) => $q->whereBetween('attendance_date', [$dateFrom, $dateTo])])
+            ->get();
+
+        // For the table, show the most recent record in range per employee
+        $employees->each(function ($emp) {
+            $emp->today = $emp->attendances->sortByDesc('attendance_date')->first();
         });
 
-        // Summary
-        $present = Attendance::whereDate('attendance_date', $date)->where('status', 'present')->count();
-        $absent  = Attendance::whereDate('attendance_date', $date)->where('status', 'absent')->count();
-        $late    = Attendance::whereDate('attendance_date', $date)->where('is_late', true)->count();
+        // Summary counts across the date range
+        $present = Attendance::whereBetween('attendance_date', [$dateFrom, $dateTo])->where('status', 'present')->count();
+        $absent  = Attendance::whereBetween('attendance_date', [$dateFrom, $dateTo])->where('status', 'absent')->count();
+        $late    = Attendance::whereBetween('attendance_date', [$dateFrom, $dateTo])->where('is_late', true)->count();
         $total   = Employee::active()->count();
 
-        return view('admin.hr.attendance', compact('employees', 'date', 'present', 'absent', 'late', 'total'));
+        return view('admin.hr.attendance', compact(
+            'employees', 'date', 'dateFrom', 'dateTo',
+            'present', 'absent', 'late', 'total', 'activePreset'
+        ));
     }
 
     public function storeAttendance(Request $request)
@@ -297,12 +397,77 @@ class HRController extends Controller
         return view('admin.hr.attendance-report', compact('employees', 'month', 'year', 'workingDays'));
     }
 
+    public function attendanceReportPrint(Request $request)
+    {
+        $month       = (int) $request->get('month', now()->month);
+        $year        = (int) $request->get('year', now()->year);
+        $employees   = $this->buildAttendanceReportData($month, $year);
+        $workingDays = $this->countWorkingDays($year, $month);
+        return view('admin.hr.attendance-report-print', compact('employees', 'month', 'year', 'workingDays'));
+    }
+
+    public function attendanceReportPdf(Request $request)
+    {
+        $month       = (int) $request->get('month', now()->month);
+        $year        = (int) $request->get('year', now()->year);
+        $employees   = $this->buildAttendanceReportData($month, $year);
+        $workingDays = $this->countWorkingDays($year, $month);
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView(
+            'admin.hr.attendance-report-print',
+            compact('employees', 'month', 'year', 'workingDays')
+        )->setPaper('a4', 'landscape');
+        return $pdf->download('attendance-report-' . $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '.pdf');
+    }
+
+    public function attendanceReportExcel(Request $request)
+    {
+        $month     = (int) $request->get('month', now()->month);
+        $year      = (int) $request->get('year', now()->year);
+        $employees = $this->buildAttendanceReportData($month, $year);
+        $monthName = \Carbon\Carbon::create($year, $month, 1)->format('F Y');
+
+        $headings = ['#', 'Employee', 'Department', 'Present', 'Absent', 'Late', 'On Leave', 'Total Hours'];
+        $rows = $employees->values()->map(function ($emp, $i) {
+            return [
+                $i + 1,
+                $emp->full_name,
+                $emp->department ?? '-',
+                $emp->present,
+                $emp->absent,
+                $emp->late,
+                $emp->on_leave,
+                $emp->total_hours,
+            ];
+        })->toArray();
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\SimpleArrayExport($rows, $headings, "Attendance {$monthName}"),
+            'attendance-report-' . $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '.xlsx'
+        );
+    }
+
+    private function buildAttendanceReportData(int $month, int $year)
+    {
+        return Employee::active()->get()->map(function ($emp) use ($month, $year) {
+            $records       = Attendance::where('employee_id', $emp->id)->forMonth($year, $month)->get();
+            $emp->present  = $records->where('status', 'present')->count();
+            $emp->absent   = $records->where('status', 'absent')->count();
+            $emp->late     = $records->where('is_late', true)->count();
+            $emp->on_leave = $records->where('status', 'on_leave')->count();
+            $emp->total_hours = round($records->sum('hours_worked'), 1);
+            return $emp;
+        });
+    }
+
     // ══════════════════════════════════════════════════════════════
     //  LEAVE MANAGEMENT
     // ══════════════════════════════════════════════════════════════
 
     public function leaves(Request $request)
     {
+        // Automatically sync and compute leave metrics
+        $leaveMetrics = \App\Services\HRLeaveAutomationService::getDashboardMetrics();
+
         $query = LeaveRequest::with('employee')->latest();
 
         if ($request->filled('status') && $request->status !== 'all') {
@@ -316,10 +481,10 @@ class HRController extends Controller
         }
 
         $leaveRequests = $query->paginate(20)->withQueryString();
-        $employees     = Employee::active()->orderBy('full_name')->get();
+        $employees     = Employee::orderBy('full_name')->get();
         $pendingCount  = LeaveRequest::pending()->count();
 
-        return view('admin.hr.leaves', compact('leaveRequests', 'employees', 'pendingCount'));
+        return view('admin.hr.leaves', compact('leaveRequests', 'employees', 'pendingCount', 'leaveMetrics'));
     }
 
     public function storeLeave(Request $request)
@@ -342,6 +507,29 @@ class HRController extends Controller
         return redirect()->back()->with('success', 'Leave request submitted.');
     }
 
+    public function updateLeave(Request $request, LeaveRequest $leave)
+    {
+        $validated = $request->validate([
+            'employee_id' => 'required|exists:employees,id',
+            'leave_type'  => 'required|string|max:50',
+            'start_date'  => 'required|date',
+            'end_date'    => 'required|date|after_or_equal:start_date',
+            'reason'      => 'required|string',
+            'notes'       => 'nullable|string',
+            'status'      => 'required|in:pending,approved,rejected,cancelled',
+        ]);
+
+        $start = Carbon::parse($validated['start_date']);
+        $end   = Carbon::parse($validated['end_date']);
+        $validated['total_days'] = $start->diffInDays($end) + 1;
+
+        $leave->update($validated);
+
+        AuditLogService::log('updated', "Edited {$leave->leave_type} leave for employee #{$leave->employee_id}", $leave);
+
+        return redirect()->back()->with('success', 'Leave request updated successfully.');
+    }
+
     public function approveLeave(Request $request, LeaveRequest $leave)
     {
         $leave->update([
@@ -358,12 +546,10 @@ class HRController extends Controller
         );
         $balance->deduct($leave->total_days);
 
-        // Mark employee as on_leave if dates cover today
-        if ($leave->start_date->lte(today()) && $leave->end_date->gte(today())) {
-            $leave->employee->update(['status' => 'on_leave']);
-        }
+        // Instantly run automation to update status (active / on_leave / completed)
+        \App\Services\HRLeaveAutomationService::runAutomation();
 
-        return redirect()->back()->with('success', 'Leave approved.');
+        return redirect()->back()->with('success', 'Leave approved and employee status synchronized.');
     }
 
     public function rejectLeave(Request $request, LeaveRequest $leave)
@@ -397,7 +583,17 @@ class HRController extends Controller
         }
 
         $kpis      = $query->paginate(20)->withQueryString();
-        $employees = Employee::active()->orderBy('full_name')->get();
+        $employees = Employee::orderBy('full_name')->get();
+
+        foreach ($employees as $emp) {
+            if ($emp->user_id) {
+                $emp->sales_count = \App\Models\Order::where('saler_id', $emp->user_id)->count();
+                $emp->total_sales = \App\Models\Order::where('saler_id', $emp->user_id)->sum('total_amount');
+            } else {
+                $emp->sales_count = 0;
+                $emp->total_sales = 0;
+            }
+        }
 
         return view('admin.hr.kpis', compact('kpis', 'employees'));
     }
@@ -465,7 +661,7 @@ class HRController extends Controller
         ]);
         AuditLogService::created($document, "Uploaded document '{$document->title}' for {$employee->full_name}");
 
-        return redirect()->route('admin.hr.show', $employee)->with('success', 'Document uploaded successfully.');
+        return redirect()->back()->with('success', 'Document uploaded successfully.');
     }
 
     public function deleteDocument(Employee $employee, EmployeeDocument $document)
@@ -478,7 +674,7 @@ class HRController extends Controller
         Storage::disk('public')->delete($document->file_path);
         $document->delete();
 
-        return redirect()->route('admin.hr.show', $employee)->with('success', 'Document deleted.');
+        return redirect()->back()->with('success', 'Document deleted.');
     }
 
     // ══════════════════════════════════════════════════════════════

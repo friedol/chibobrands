@@ -8,7 +8,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>@yield('title', 'Admin Dashboard - CHIBO BRAND')</title>
+    <title>@yield('title', 'CHIBO BRANDS Co. LTD')</title>
 
     <!-- Favicon -->
     <link rel="shortcut icon" href="{{ url('favicon.ico') }}">
@@ -33,8 +33,141 @@
         body {
             font-family: 'Nunito Sans', sans-serif !important;
         }
-        .x-small { font-size: 0.75rem; }
-        .cursor-pointer { cursor: pointer; }
+
+        .x-small {
+            font-size: 0.75rem;
+        }
+
+        /* Sidebar Overrides - White Background with Red Active State */
+        .sidebar {
+            background: #ffffff !important;
+            color: #333 !important;
+            border-right: 1px solid rgba(0, 0, 0, 0.05) !important;
+        }
+
+        .sidebar .nav-link {
+            padding: 0.6rem 0.75rem !important;
+            margin: 2px 6px !important;
+            border-radius: 8px !important;
+            transition: all 0.2s ease;
+            color: #555 !important;
+        }
+
+        .sidebar .nav-link:hover {
+            color: #111 !important;
+            background: rgba(0, 0, 0, 0.03) !important;
+        }
+
+        .sidebar .nav-link.active {
+            color: #dc2626 !important;
+            background: rgba(220, 38, 38, 0.1) !important;
+            /* Transparent Red */
+            box-shadow: none !important;
+            font-weight: 600 !important;
+        }
+
+        .sidebar .nav-link i {
+            color: #666;
+        }
+
+        .sidebar .nav-link:hover i {
+            color: #111 !important;
+        }
+
+        .sidebar .nav-link.active i {
+            color: #dc2626 !important;
+        }
+
+        .sidebar-header h4 {
+            color: #111 !important;
+        }
+
+        .sidebar-header .sidebar-brand-logo {
+            height: calc(var(--app-header-height) - 14px);
+            max-height: 40px;
+            width: auto;
+            max-width: 150px;
+            object-fit: contain;
+            display: block;
+        }
+
+        .sidebar.minimized .sidebar-header .sidebar-brand-logo {
+            height: 28px;
+            max-width: 54px;
+        }
+
+        .sidebar-header .subtitle {
+            color: #666 !important;
+        }
+
+        .submenu-arrow {
+            color: #666 !important;
+        }
+
+        .sidebar .nav-link.active .submenu-arrow {
+            color: #dc2626 !important;
+        }
+
+        .cursor-pointer {
+            cursor: pointer;
+        }
+
+        /* ── Sidebar user profile strip ── */
+        .sidebar-user-strip {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px 10px;
+            background: rgba(0, 0, 0, 0.03);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            margin-bottom: 6px;
+        }
+
+        .sidebar-user-avatar {
+            width: 36px;
+            height: 36px;
+            background: rgba(0, 0, 0, 0.08);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #333;
+            flex-shrink: 0;
+            border: 1.5px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar-user-name {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #333;
+            line-height: 1.15;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 140px;
+        }
+
+        .sidebar-user-role {
+            font-size: 0.68rem;
+            color: rgba(0, 0, 0, 0.5);
+            text-transform: capitalize;
+            margin-top: 1px;
+        }
+
+        /* ── Section labels ── */
+        padding: 0.85rem 1rem 0.2rem;
+        font-size: 0.6rem;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.35);
+        list-style: none;
+        margin-top: 2px;
+        pointer-events: none;
+        user-select: none;
+        }
     </style>
     <style>
         /* Technical Support Floating Button */
@@ -135,6 +268,77 @@
             }
         }
     </style>
+    <style>
+        /* ── Global Dash Stat Card ── */
+        .dash-stat-card {
+            border-radius: 14px;
+            padding: 14px 14px 12px;
+            background: #fff;
+            border: 1.5px solid rgba(0, 0, 0, 0.08);
+            display: block;
+            height: 100%;
+            box-sizing: border-box;
+        }
+
+        .dsc-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .dsc-trend {
+            font-size: 0.68rem;
+            color: #94a3b8;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .dsc-value {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #1e293b;
+            line-height: 1.2;
+            word-break: break-word;
+            margin-top: 12px;
+        }
+
+        .dsc-label {
+            font-size: 0.71rem;
+            color: #94a3b8;
+            margin-top: 3px;
+            font-weight: 500;
+        }
+
+        .hover-lift {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+
+        .hover-lift:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        @media (max-width: 768px) {
+            .dsc-value {
+                font-size: 0.9rem;
+            }
+
+            .dsc-icon {
+                width: 32px;
+                height: 32px;
+                font-size: 0.8rem;
+            }
+
+            .dash-stat-card {
+                padding: 11px;
+            }
+        }
+    </style>
     @stack('styles')
 </head>
 
@@ -154,38 +358,56 @@
             <div class="d-flex align-items-center justify-content-between w-100">
                 <div class="text-start ps-2">
                     <img src="{{ asset('images/logo.webp') }}" alt="CHIBO BRAND Logo"
-                        style="max-width: 85px; height: auto; margin-bottom: 0.1rem;"
+                        class="sidebar-brand-logo"
                         onerror="this.style.display='none';">
                 </div>
             </div>
         </div>
 
         <nav class="sidebar-nav">
+            @php
+                $u = auth()->user();
+                $userRole = $u->role ?? null;
+
+                $isAdmin = in_array($userRole, ['super_admin', 'admin']);
+                $isManager = in_array($userRole, ['super_admin', 'admin', 'manager']);
+                $isFinance = in_array($userRole, ['super_admin', 'admin', 'manager', 'accountant']);
+
+                $dashRoute = match ($userRole) {
+                    'accountant' => 'admin.finance.dashboard',
+                    'gatekeeper' => 'gatekeeper.dashboard',
+                    'saler' => 'admin.saler.my-dashboard',
+                    'hr_officer' => 'admin.hr.index',
+                    'marketing_manager' => 'admin.marketing.dashboard',
+                    default => 'admin.dashboard',
+                };
+
+                // Compute contact-message badge once
+                $sidebarMsgCount = 0;
+                if ($u->hasPermission('view_contact_messages')) {
+                    if ($isManager) {
+                        $sidebarMsgCount = \App\Models\ContactMessage::where('status', 'new')->count();
+                    } else {
+                        $uEmail = $u->email ?? '';
+                        $uPhone = preg_replace('/[^\d+]/', '', $u->phone ?? '');
+                        $sidebarMsgCount = \App\Models\ContactMessage::where('status', 'new')
+                            ->where(function ($q) use ($uEmail, $uPhone) {
+                                if ($uEmail)
+                                    $q->where('email', $uEmail);
+                                if ($uPhone)
+                                    $q->orWhere('phone', 'LIKE', '%' . $uPhone . '%');
+                            })->count();
+                    }
+                }
+
+                $sidebarUnread = $u ? $u->unreadNotifications()->count() : 0;
+            @endphp
+
             <ul class="nav flex-column">
-                @php
-                    $userRole = auth()->user()->role ?? null;
-                @endphp
 
-                {{-- Saler Dashboard - Visible to saler role only --}}
-                @if($userRole === 'saler')
-                    <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.saler.my-dashboard') ? 'active' : '' }}"
-                            href="{{ route('admin.saler.my-dashboard') }}" data-no-preloader>
-                            <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
-                        </a>
-                    </li>
-                @endif
-
-                {{-- General Dashboard --}}
-                @php
-                    $dashboardRoute = 'admin.dashboard';
-                    if ($userRole === 'accountant')
-                        $dashboardRoute = 'admin.finance.dashboard';
-                    if ($userRole === 'gatekeeper')
-                        $dashboardRoute = 'gatekeeper.dashboard';
-                    // Super Admin and Admin use standard dashboard
-                @endphp
-
+                {{-- ══════════════════════════════════════
+                OVERVIEW
+                ══════════════════════════════════════ --}}
                 @if(
                         in_array($userRole, [
                             'admin',
@@ -196,225 +418,387 @@
                             'operator',
                             'accountant',
                             'gatekeeper',
-                            'delivery'
+                            'delivery',
+                            'saler',
+                            'marketing_manager',
+                            'hr_officer',
                         ])
                     )
                     <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center {{ request()->routeIs($dashboardRoute) ? 'active' : '' }}"
-                            href="{{ route($dashboardRoute) }}" data-no-preloader>
-                            <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
+                        <a class="nav-link d-flex align-items-center {{ request()->routeIs($dashRoute) ? 'active' : '' }}"
+                            href="{{ route($dashRoute) }}" data-no-preloader>
+                            <i class="fas fa-tachometer-alt" style="color: #64748b;"></i><span>Dashboard</span>
                         </a>
                     </li>
                 @endif
 
-                {{-- Design Tasks --}}
-                @if(auth()->user()->hasPermission('manage_design_tasks'))
+                {{-- Notifications - Always visible to all users --}}
+                {{-- Operations & Tasks --}}
+                <li class="nav-item">
+                    <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.design-tasks.*') && !request()->routeIs('admin.design-tasks.reports') ? 'active' : '' }}"
+                        href="{{ route('admin.design-tasks.index') }}" data-no-preloader>
+                        <i class="fas fa-paint-brush" style="color: #8b5cf6;"></i><span>Design Tasks</span>
+                    </a>
+                </li>
+
+                {{-- ══════════════════════════════════════
+                SALES & RETAIL
+                ══════════════════════════════════════ --}}
+                @if(auth()->user()->hasPermission('manage_orders'))
                     <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.design-tasks.*') ? 'active' : '' }}"
-                            href="{{ route('admin.design-tasks.index') }}" data-no-preloader>
-                            <i class="fas fa-palette"></i><span>Design Tasks</span>
+                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.orders.*') ? 'active' : '' }}"
+                            href="{{ route('admin.orders.index') }}" data-no-preloader>
+                            <i class="fas fa-shopping-cart" style="color: #10b981;"></i><span>Online Orders</span>
+                        </a>
+                    </li>
+                @endif
+                @if(auth()->user()->hasPermission('manage_pos'))
+                    <li class="nav-item">
+                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.pos.*') ? 'active' : '' }}"
+                            href="{{ route('admin.pos.index') }}" data-no-preloader>
+                            <i class="fas fa-cash-register" style="color: #10b981;"></i><span>POS Terminal</span>
                         </a>
                     </li>
                 @endif
 
-
-                {{-- Delivery Dashboard Link (if not already handled by general dashboard redirect) --}}
-                @if($userRole === 'delivery')
-                    <!-- Delivery dashboard is handled by the main dashboard route, but we can add specific links if needed later -->
-                @endif
-
-                {{-- Gatekeeper Menu for Gatekeeper Role --}}
-                @if($userRole === 'gatekeeper')
-                    <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('gatekeeper.movements.create') && request('type') == 'in' ? 'active' : '' }}"
-                            href="{{ route('gatekeeper.movements.create', ['type' => 'in']) }}" data-no-preloader>
-                            <i class="fas fa-arrow-down text-success"></i><span>Record Incoming</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('gatekeeper.movements.create') && request('type') == 'out' ? 'active' : '' }}"
-                            href="{{ route('gatekeeper.movements.create', ['type' => 'out']) }}" data-no-preloader>
-                            <i class="fas fa-arrow-up text-warning"></i><span>Record Outgoing</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('gatekeeper.movements.index') ? 'active' : '' }}"
-                            href="{{ route('gatekeeper.movements.index') }}" data-no-preloader>
-                            <i class="fas fa-list"></i><span>Movement Log</span>
-                        </a>
-                    </li>
-                @endif
-
-                {{-- Gatekeeper Submenu for Admins/Managers/Accountants --}}
-                @if(
-                        (auth()->user()->hasPermission('manage_inventory') || $userRole === 'accountant') &&
-                        !in_array($userRole, ['gatekeeper', 'receptionist', 'operator', 'saler'])
-                    )
-                    <li class="nav-item has-submenu {{ request()->routeIs('gatekeeper.*') ? 'active' : '' }}"
-                        data-submenu-toggle>
-                        <a class="nav-link d-flex align-items-center justify-content-between {{ request()->routeIs('gatekeeper.*') ? 'active' : '' }}"
-                            href="{{ route('gatekeeper.movements.index') }}" data-no-preloader>
+                {{-- ══════════════════════════════════════
+                INVENTORY
+                ══════════════════════════════════════ --}}
+                @if(($isManager || $u->hasPermission('manage_products')) && !in_array($userRole, ['receptionist', 'operator']))
+                    @php
+                        $inventoryMenuActive = (request()->routeIs('admin.enhanced-products.*') && !request()->routeIs('admin.enhanced-products.offers*') && !request()->routeIs('admin.categories.*'))
+                            || request()->routeIs('admin.products.*')
+                            || request()->routeIs('admin.hero-slides.*');
+                    @endphp
+                    <li class="nav-item has-submenu {{ $inventoryMenuActive ? 'active' : '' }}" data-submenu-toggle>
+                        <a class="nav-link d-flex align-items-center justify-content-between"
+                            href="{{ route('admin.enhanced-products.index') }}" data-no-preloader>
                             <span class="d-flex align-items-center">
-                                <i class="fas fa-warehouse"></i><span>Gatekeeper</span>
+                                <i class="fas fa-boxes" style="color: #10b981;"></i><span>Inventory</span>
                             </span>
                             <i class="fas fa-chevron-right submenu-arrow"></i>
                         </a>
                         <ul class="nav-submenu">
                             <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('gatekeeper.movements.create') && request('type') == 'in' ? 'active' : '' }}"
-                                    href="{{ route('gatekeeper.movements.create', ['type' => 'in']) }}" data-no-preloader>
-                                    <i class="fas fa-arrow-down text-success"></i><span>Record Incoming</span>
+                                <a class="nav-link d-flex align-items-center {{ (request()->routeIs('admin.enhanced-products.index') && !request()->has('stock_status') && !request()->routeIs('admin.enhanced-products.offers*')) ? 'active' : '' }}"
+                                    href="{{ route('admin.enhanced-products.index') }}" data-no-preloader>
+                                    <i class="fas fa-box" style="color: #10b981;"></i><span>All Products</span>
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('gatekeeper.movements.create') && request('type') == 'out' ? 'active' : '' }}"
-                                    href="{{ route('gatekeeper.movements.create', ['type' => 'out']) }}" data-no-preloader>
-                                    <i class="fas fa-arrow-up text-warning"></i><span>Record Outgoing</span>
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.enhanced-products.index') && request('stock_status') === 'in_stock' ? 'active' : '' }}"
+                                    href="{{ route('admin.enhanced-products.index', ['stock_status' => 'in_stock']) }}"
+                                    data-no-preloader>
+                                    <i class="fas fa-check-circle" style="color: #10b981;"></i><span>In Stock</span>
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('gatekeeper.movements.index') ? 'active' : '' }}"
-                                    href="{{ route('gatekeeper.movements.index') }}" data-no-preloader>
-                                    <i class="fas fa-exchange-alt"></i><span>Movement Logs</span>
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.enhanced-products.index') && request('stock_status') === 'out_of_stock' ? 'active' : '' }}"
+                                    href="{{ route('admin.enhanced-products.index', ['stock_status' => 'out_of_stock']) }}"
+                                    data-no-preloader>
+                                    <i class="fas fa-times-circle" style="color: #ef4444;"></i><span>Out of Stock</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.hero-slides.*') ? 'active' : '' }}"
+                                    href="{{ route('admin.hero-slides.index') }}" data-no-preloader>
+                                    <i class="fas fa-images" style="color: #10b981;"></i><span>Hero Slides</span>
                                 </a>
                             </li>
                         </ul>
                     </li>
                 @endif
 
-
-
-                {{-- Finance Control Module --}}
-                @if(in_array($userRole, ['admin', 'super_admin', 'manager', 'accountant']))
-                    <li class="nav-item has-submenu {{ (request()->routeIs('admin.finance.pending-payments') || request()->routeIs('admin.finance.cash-flow') || request()->routeIs('admin.finance.expenses') || request()->routeIs('admin.finance.balance-sheet') || request()->routeIs('admin.finance.profit-loss') || request()->routeIs('admin.finance.payment-requests.*') || request()->routeIs('admin.finance.audit') || request()->routeIs('admin.finance.departments.*') || request()->routeIs('admin.finance.proforma.*')) ? 'active' : '' }}"
-                        data-submenu-toggle>
-                        <a class="nav-link d-flex align-items-center justify-content-between {{ (request()->routeIs('admin.finance.pending-payments') || request()->routeIs('admin.finance.cash-flow') || request()->routeIs('admin.finance.expenses') || request()->routeIs('admin.finance.balance-sheet') || request()->routeIs('admin.finance.profit-loss') || request()->routeIs('admin.finance.payment-requests.*') || request()->routeIs('admin.finance.audit') || request()->routeIs('admin.finance.departments.*') || request()->routeIs('admin.finance.proforma.*')) ? 'active' : '' }}"
-                            href="{{ route('admin.finance.cash-flow') }}" data-no-preloader>
+                {{-- ══════════════════════════════════════
+                PRODUCT
+                ══════════════════════════════════════ --}}
+                @if(($isManager || $u->hasPermission('manage_products')) && !in_array($userRole, ['receptionist', 'operator']))
+                    @php
+                        $productMenuActive = request()->routeIs('admin.categories.*')
+                            || request()->routeIs('admin.enhanced-products.offers*')
+                            || request()->routeIs('admin.design-task-types.*');
+                    @endphp
+                    <li class="nav-item has-submenu {{ $productMenuActive ? 'active' : '' }}" data-submenu-toggle>
+                        <a class="nav-link d-flex align-items-center justify-content-between"
+                            href="{{ route('admin.enhanced-products.index') }}" data-no-preloader>
                             <span class="d-flex align-items-center">
-                                <i class="fas fa-shield-halved text-warning"></i><span>Finance Control</span>
+                                <i class="fas fa-box-open" style="color: #f59e0b;"></i><span>Product</span>
                             </span>
                             <i class="fas fa-chevron-right submenu-arrow"></i>
                         </a>
                         <ul class="nav-submenu">
                             <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.cash-flow') ? 'active' : '' }}"
-                                    href="{{ route('admin.finance.cash-flow') }}">
-                                    <i class="fas fa-exchange-alt text-primary"></i><span>Cash Flow</span>
+                                <a class="nav-link d-flex align-items-center {{ (request()->routeIs('admin.enhanced-products.index') && !request()->routeIs('admin.enhanced-products.offers*') && !request()->has('stock_status')) ? 'active' : '' }}"
+                                    href="{{ route('admin.enhanced-products.index') }}">
+                                    <i class="fas fa-list" style="color: #f59e0b;"></i><span>All List</span>
                                 </a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.categories.*') ? 'active' : '' }}"
+                                    href="{{ route('admin.categories.index') }}">
+                                    <i class="fas fa-tags" style="color: #f59e0b;"></i><span>Categories</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center" href="#">
+                                    <i class="fas fa-ruler-combined" style="color: #f59e0b;"></i><span>Unit</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.enhanced-products.offers*') ? 'active' : '' }}"
+                                    href="{{ route('admin.enhanced-products.offers') }}">
+                                    <i class="fas fa-percentage" style="color: #f59e0b;"></i><span>Offers</span>
+                                </a>
+                            </li>
+                            @if($u->hasPermission('manage_design_tasks') && in_array($userRole, ['super_admin', 'admin', 'manager', 'accountant']))
+                                <li class="nav-item">
+                                    <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.design-task-types.*') ? 'active' : '' }}"
+                                        href="{{ route('admin.design-task-types.index') }}" data-no-preloader>
+                                        <i class="fas fa-layer-group" style="color: #f59e0b;"></i><span>Task Type</span>
+                                    </a>
+                                </li>
+                            @endif
+                        </ul>
+                    </li>
+                @endif
 
+                {{-- ══════════════════════════════════════
+                CUSTOMERS
+                ══════════════════════════════════════ --}}
+                @if(auth()->user()->hasPermission('manage_customers') || auth()->user()->hasPermission('manage_leads'))
+                    @php
+                        $customersActive = request()->routeIs('admin.customers.*')
+                            || request()->routeIs('admin.customer-data-center.*')
+                            || request()->routeIs('admin.customers.map')
+                            || request()->routeIs('admin.auto-followup.*');
+
+                        $leadsActive = request()->routeIs('admin.leads.*')
+                            || request()->routeIs('admin.message-templates.*')
+                            || request()->routeIs('admin.saler.sales-report*');
+                    @endphp
+                    @if(auth()->user()->hasPermission('manage_customers'))
+                        <li class="nav-item has-submenu {{ $customersActive ? 'active' : '' }}" data-submenu-toggle>
+                            <a class="nav-link d-flex align-items-center justify-content-between {{ $customersActive ? 'active' : '' }}"
+                                href="{{ route('admin.customers.index') }}" data-no-preloader>
+                                <span class="d-flex align-items-center">
+                                    <i class="fas fa-users" style="color: #ec4899;"></i><span>Customers</span>
+                                </span>
+                                <i class="fas fa-chevron-right submenu-arrow"></i>
+                            </a>
+                            <ul class="nav-submenu">
+                                <li class="nav-item">
+                                    <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.customers.index') ? 'active' : '' }}"
+                                        href="{{ route('admin.customers.index') }}" data-no-preloader>
+                                        <i class="fas fa-list" style="color: #ec4899;"></i><span>All List</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.customers.create') ? 'active' : '' }}"
+                                        href="{{ route('admin.customers.create') }}" data-no-preloader>
+                                        <i class="fas fa-user-plus" style="color: #ec4899;"></i><span>Add New</span>
+                                    </a>
+                                </li>
+                                @if(!in_array($userRole, ['accountant']))
+                                    <li class="nav-item">
+                                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.customers.map') ? 'active' : '' }}"
+                                            href="{{ route('admin.customers.map') }}">
+                                            <i class="fas fa-map-marked-alt text-success"></i><span>Map</span>
+                                        </a>
+                                    </li>
+                                @endif
+                                @if(in_array($userRole, ['saler', 'admin', 'super_admin', 'manager']))
+                                    <li class="nav-item">
+                                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.auto-followup.*') ? 'active' : '' }}"
+                                            href="{{ route('admin.auto-followup.index') }}" data-no-preloader>
+                                            <i class="fas fa-sync-alt" style="color:#f59e0b;"></i><span>Auto Follow-up</span>
+                                        </a>
+                                    </li>
+                                @endif
+                            </ul>
+                        </li>
+                    @endif
+
+                    @if(auth()->user()->hasPermission('manage_leads'))
+                        <li class="nav-item has-submenu {{ $leadsActive ? 'active' : '' }}" data-submenu-toggle>
+                            <a class="nav-link d-flex align-items-center justify-content-between {{ $leadsActive ? 'active' : '' }}"
+                                href="{{ route('admin.leads.index') }}">
+                                <span class="d-flex align-items-center">
+                                    <i class="fas fa-funnel-dollar" style="color: #a855f7;"></i><span>Leads/Follow-up</span>
+                                </span>
+                                <i class="fas fa-chevron-right submenu-arrow"></i>
+                            </a>
+                            <ul class="nav-submenu">
+                                <li class="nav-item">
+                                    <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.leads.index') ? 'active' : '' }}"
+                                        href="{{ route('admin.leads.index') }}">
+                                        <i class="fas fa-funnel-dollar" style="color: #a855f7;"></i><span>
+                                            Follow-Up</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.leads.overdue') ? 'active' : '' }}"
+                                        href="{{ route('admin.leads.overdue') }}">
+                                        <i class="fas fa-exclamation-circle" style="color: #ef4444;"></i><span>Overdue
+                                            Leads</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.saler.sales-report*') ? 'active' : '' }}"
+                                        href="{{ route('admin.saler.sales-report') }}">
+                                        <i class="fas fa-chart-line" style="color: #0ea5e9;"></i><span>Saler Report</span>
+                                    </a>
+                                </li>
+                                @if(!in_array($userRole, ['accountant']))
+                                    <li class="nav-item">
+                                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.message-templates.*') ? 'active' : '' }}"
+                                            href="{{ route('admin.message-templates.index') }}" data-no-preloader>
+                                            <i class="fas fa-comment-dots" style="color: #ec4899;"></i><span>Send Campaign</span>
+                                        </a>
+                                    </li>
+                                @endif
+                            </ul>
+                        </li>
+                    @endif
+                @endif
+
+                {{-- Finance Module --}}
+                @if(auth()->user()->hasPermission('manage_finance'))
+                    <li class="nav-item has-submenu {{ ((request()->routeIs('admin.finance.*') && !request()->routeIs('admin.finance.reports') && !request()->routeIs('admin.finance.daily-report') && !request()->routeIs('admin.finance.departments.*')) || request()->routeIs('admin.sales-dept.targets*')) ? 'active' : '' }}"
+                        data-submenu-toggle>
+                        <a class="nav-link d-flex align-items-center justify-content-between {{ ((request()->routeIs('admin.finance.*') && !request()->routeIs('admin.finance.reports') && !request()->routeIs('admin.finance.daily-report') && !request()->routeIs('admin.finance.departments.*')) || request()->routeIs('admin.sales-dept.targets*')) ? 'active' : '' }}"
+                            href="{{ route('admin.finance.dashboard') }}" data-no-preloader>
+                            <span class="d-flex align-items-center">
+                                <i class="fas fa-wallet" style="color: #eab308;"></i><span>Finance</span>
+                            </span>
+                            <i class="fas fa-chevron-right submenu-arrow"></i>
+                        </a>
+                        <ul class="nav-submenu">
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.dashboard') ? 'active' : '' }}"
+                                    href="{{ route('admin.finance.dashboard') }}">
+                                    <i class="fas fa-chart-line" style="color: #64748b;"></i><span>Dashboard</span>
+                                </a>
+                            </li>
                             <li class="nav-item">
                                 <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.pending-payments') ? 'active' : '' }}"
                                     href="{{ route('admin.finance.pending-payments') }}">
-                                    <i class="fas fa-money-bill-wave text-danger"></i><span>Depts</span>
-                                </a>
-                            </li>
-
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.daily-report') ? 'active' : '' }}"
-                                    href="{{ route('admin.finance.daily-report') }}">
-                                    <i class="fas fa-file-invoice-dollar text-success"></i><span>Daily Report</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.balance-sheet') ? 'active' : '' }}"
-                                    href="{{ route('admin.finance.balance-sheet') }}">
-                                    <i class="fas fa-balance-scale text-primary"></i><span>Balance Sheet</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.profit-loss') ? 'active' : '' }}"
-                                    href="{{ route('admin.finance.profit-loss') }}">
-                                    <i class="fas fa-file-invoice text-success"></i><span>Profit & Loss</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.proforma.index') ? 'active' : '' }}"
-                                    href="{{ route('admin.finance.proforma.index') }}">
-                                    <i class="fas fa-file-invoice text-info"></i><span>Proforma Invoices</span>
-                                </a>
-                            </li>
-
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.expenses') ? 'active' : '' }}"
-                                    href="{{ route('admin.finance.expenses') }}">
-                                    <i class="fas fa-receipt text-danger"></i><span>Expenses</span>
+                                    <i class="fas fa-hand-holding-usd" style="color: #f59e0b;"></i><span>Debts
+                                        (Unbalances)</span>
                                 </a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.payment-requests.*') ? 'active' : '' }}"
                                     href="{{ route('admin.finance.payment-requests.index') }}">
-                                    <i class="fas fa-hand-holding-usd"></i><span>Payment Requests</span>
+                                    <i class="fas fa-paper-plane" style="color: #f59e0b;"></i><span>Pending Requests</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.expenses') ? 'active' : '' }}"
+                                    href="{{ route('admin.finance.expenses') }}">
+                                    <i class="fas fa-file-invoice-dollar" style="color: #ef4444;"></i><span>Expenses</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.payroll') ? 'active' : '' }}"
+                                    href="{{ route('admin.finance.payroll') }}">
+                                    <i class="fas fa-money-check-alt" style="color: #10b981;"></i><span>Payroll</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.proforma.index') ? 'active' : '' }}"
+                                    href="{{ route('admin.finance.proforma.index') }}">
+                                    <i class="fas fa-file-alt" style="color: #3b82f6;"></i><span>Proforma Invoices</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.cash-flow') ? 'active' : '' }}"
+                                    href="{{ route('admin.finance.cash-flow') }}">
+                                    <i class="fas fa-exchange-alt" style="color: #0d9488;"></i><span>Cash Flow</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.profit-loss') ? 'active' : '' }}"
+                                    href="{{ route('admin.finance.profit-loss') }}">
+                                    <i class="fas fa-balance-scale" style="color: #4f46e5;"></i><span>Profit & Loss</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.balance-sheet') ? 'active' : '' }}"
+                                    href="{{ route('admin.finance.balance-sheet') }}">
+                                    <i class="fas fa-file-invoice" style="color: #7c3aed;"></i><span>Balance Sheet</span>
                                 </a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.audit') ? 'active' : '' }}"
                                     href="{{ route('admin.finance.audit') }}">
-                                    <i class="fas fa-calculator"></i><span>Audit & Logs</span>
+                                    <i class="fas fa-calculator" style="color: #10b981;"></i><span>Audit Logs</span>
                                 </a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.sales-dept.targets*') ? 'active' : '' }}"
+                                    href="{{ route('admin.sales-dept.targets') }}">
+                                    <i class="fas fa-bullseye" style="color: #ec4899;"></i><span>Sales Target</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.sales.programs.*') ? 'active' : '' }}"
+                                    href="{{ route('admin.sales.programs.index') }}">
+                                    <i class="fas fa-layer-group" style="color: #f59e0b;"></i><span>Inside Programs</span>
+                                </a>
+                            </li>
+
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.verification-dashboard') ? 'active' : '' }}"
+                                    href="{{ route('admin.finance.verification-dashboard') }}">
+                                    <i class="fas fa-shield-alt text-danger"></i>
+                                    <span>Verification</span>
+                                    @php
+                                        $mismatchCount = \Illuminate\Support\Facades\Cache::remember('finance_mismatch_count', 300, function () {
+                                            return \Illuminate\Support\Facades\DB::table('payments as p')
+                                                ->join('design_tasks as dt', 'dt.id', '=', 'p.design_task_id')
+                                                ->where('p.is_debt', true)
+                                                ->where('p.debt_status', 'pending')
+                                                ->where('dt.balance', '<=', 0)
+                                                ->count();
+                                        });
+                                    @endphp
+                                    @if($mismatchCount > 0)
+                                        <span class="badge ms-auto bg-danger"
+                                            style="font-size:.6rem;">{{ $mismatchCount }}</span>
+                                    @endif
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.reconciliation.*') ? 'active' : '' }}"
+                                    href="{{ route('admin.finance.reconciliation.index') }}">
+                                    <i class="fas fa-balance-scale text-primary"></i><span>Reconciliation</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.finance-audit-trail.*') ? 'active' : '' }}"
+                                    href="{{ route('admin.finance.finance-audit-trail.index') }}">
+                                    <i class="fas fa-history text-info"></i><span>Finance Audit Trail</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.zoho-comparison') ? 'active' : '' }}"
+                                    href="{{ route('admin.finance.zoho-comparison') }}">
+                                    <i class="fas fa-code-branch text-warning"></i><span>Zoho Comparison</span>
+                                </a>
+                            </li>
+
+
                         </ul>
                     </li>
                 @endif
 
-                {{-- Sales Department Submenu --}}
-                @if(in_array($userRole, ['super_admin', 'admin', 'accountant', 'manager']))
-                    <li class="nav-item has-submenu {{ (request()->routeIs('admin.sales-dept.*') || request()->routeIs('admin.leads.*') || request()->routeIs('admin.saler-performance.*') || request()->routeIs('admin.reports.sales*')) ? 'active' : '' }}"
-                        data-submenu-toggle>
-                        <a class="nav-link d-flex align-items-center justify-content-between {{ (request()->routeIs('admin.sales-dept.*') || request()->routeIs('admin.leads.*') || request()->routeIs('admin.saler-performance.*') || request()->routeIs('admin.reports.sales*')) ? 'active' : '' }}"
-                            href="{{ route('admin.sales-dept.index') }}" data-no-preloader>
-                            <span class="d-flex align-items-center">
-                                <i class="fas fa-briefcase text-primary"></i><span>Sales Dept</span>
-                            </span>
-                            <i class="fas fa-chevron-right submenu-arrow"></i>
-                        </a>
-                        <ul class="nav-submenu">
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.sales-dept.index') ? 'active' : '' }}"
-                                    href="{{ route('admin.sales-dept.index') }}">
-                                    <i class="fas fa-chart-line"></i><span>Performance</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.leads.index') ? 'active' : '' }}"
-                                    href="{{ route('admin.leads.index') }}">
-                                    <i class="fas fa-filter text-info"></i><span>Leads Management</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.leads.overdue') ? 'active' : '' }}"
-                                    href="{{ route('admin.leads.overdue') }}">
-                                    <i class="fas fa-exclamation-triangle text-danger"></i><span>Overdue Follow-Ups</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.leads.follow-up-center') ? 'active' : '' }}"
-                                    href="{{ route('admin.leads.follow-up-center') }}">
-                                    <i class="fas fa-crosshairs text-primary"></i><span>Follow-Up Center</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.reports.sales*') ? 'active' : '' }}"
-                                    href="{{ route('admin.reports.sales') }}">
-                                    <i class="fas fa-file-chart-line text-success"></i><span>Sales Report</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.sales-dept.targets') ? 'active' : '' }}"
-                                    href="{{ route('admin.sales-dept.targets') }}">
-                                    <i class="fas fa-bullseye"></i><span>Sales Targets</span>
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-
-                    {{-- HR Module --}}
+                {{-- HR Module --}}
+                @if(auth()->user()->hasPermission('manage_hr'))
                     <li class="nav-item has-submenu {{ request()->routeIs('admin.hr.*') ? 'active' : '' }}"
                         data-submenu-toggle>
-                        <a class="nav-link d-flex align-items-center justify-content-between {{ request()->routeIs('admin.hr.*') ? 'active' : '' }}"
-                            href="{{ route('admin.hr.index') }}" data-no-preloader>
+                        <a class="nav-link d-flex align-items-center justify-content-between" href="#" data-no-preloader>
                             <span class="d-flex align-items-center">
-                                <i class="fas fa-users-cog text-purple" style="color:#7c3aed"></i><span>HR Module</span>
+                                <i class="fas fa-user-tie" style="color: #10b981;"></i><span>HR Module</span>
                             </span>
                             <i class="fas fa-chevron-right submenu-arrow"></i>
                         </a>
@@ -422,303 +806,215 @@
                             <li class="nav-item">
                                 <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.hr.index') ? 'active' : '' }}"
                                     href="{{ route('admin.hr.index') }}">
-                                    <i class="fas fa-id-badge"></i><span>Employees</span>
+                                    <i class="fas fa-id-card" style="color: #10b981;"></i><span>Employees</span>
                                 </a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.hr.attendance') ? 'active' : '' }}"
                                     href="{{ route('admin.hr.attendance') }}">
-                                    <i class="fas fa-calendar-check"></i><span>Attendance</span>
+                                    <i class="fas fa-clock" style="color: #10b981;"></i><span>Attendance</span>
                                 </a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.hr.leaves') ? 'active' : '' }}"
                                     href="{{ route('admin.hr.leaves') }}">
-                                    <i class="fas fa-calendar-minus"></i><span>Leave Requests</span>
+                                    <i class="fas fa-calendar-times" style="color: #10b981;"></i><span>Leave Requests</span>
                                 </a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.hr.kpis') ? 'active' : '' }}"
                                     href="{{ route('admin.hr.kpis') }}">
-                                    <i class="fas fa-chart-bar"></i><span>KPI Evaluations</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.hr.attendance.report') ? 'active' : '' }}"
-                                    href="{{ route('admin.hr.attendance.report') }}">
-                                    <i class="fas fa-file-alt"></i><span>Monthly Report</span>
+                                    <i class="fas fa-star" style="color: #10b981;"></i><span>KPI Evaluations</span>
                                 </a>
                             </li>
                         </ul>
                     </li>
                 @endif
 
-                @if($userRole === 'saler')
-                    <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.saler-performance.*') ? 'active' : '' }}"
-                            href="{{ route('admin.saler-performance.index') }}" data-no-preloader>
-                            <i class="fas fa-chart-line"></i><span>Performance Stats</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.leads.index') ? 'active' : '' }}"
-                            href="{{ route('admin.leads.index') }}" data-no-preloader>
-                            <i class="fas fa-filter text-info"></i><span>Leads</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.leads.overdue') ? 'active' : '' }}"
-                            href="{{ route('admin.leads.overdue') }}" data-no-preloader>
-                            <i class="fas fa-exclamation-triangle text-danger"></i><span>Overdue Follow-Ups</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.leads.follow-up-center') ? 'active' : '' }}"
-                            href="{{ route('admin.leads.follow-up-center') }}" data-no-preloader>
-                            <i class="fas fa-crosshairs text-primary"></i><span>Follow-Up Center</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.reports.sales*') ? 'active' : '' }}"
-                            href="{{ route('admin.reports.sales') }}" data-no-preloader>
-                            <i class="fas fa-file-chart-line text-success"></i><span>My Sales Report</span>
-                        </a>
-                    </li>
-                @endif
-
-                {{-- Products Management Submenu --}}
-                @if(
-                        auth()->user()->hasPermission('manage_products') && !in_array($userRole, [
-                            'receptionist',
-                            'operator'
-                        ])
-                    )
-                    <li class="nav-item has-submenu {{ (request()->routeIs('admin.hero-slides.*') || request()->routeIs('admin.enhanced-products.*') || request()->routeIs('admin.products.*') || request()->routeIs('admin.categories.*')) ? 'active' : '' }}"
+                {{-- Gatekeeper System --}}
+                @if(auth()->user()->hasPermission('manage_gatekeeper'))
+                    <li class="nav-item has-submenu {{ request()->routeIs('gatekeeper.*') ? 'active' : '' }}"
                         data-submenu-toggle>
-                        <a class="nav-link d-flex align-items-center justify-content-between {{ (request()->routeIs('admin.hero-slides.*') || request()->routeIs('admin.enhanced-products.*') || request()->routeIs('admin.products.*') || request()->routeIs('admin.categories.*')) ? 'active' : '' }}"
-                            href="{{ route('admin.enhanced-products.index') }}" data-no-preloader>
+                        <a class="nav-link d-flex align-items-center justify-content-between {{ request()->routeIs('gatekeeper.*') ? 'active' : '' }}"
+                            href="{{ route('gatekeeper.dashboard') }}" data-no-preloader>
                             <span class="d-flex align-items-center">
-                                <i class="fas fa-box"></i><span>Inventory</span>
+                                <i class="fas fa-door-open" style="color: #4f46e5;"></i><span>Gatekeeper</span>
                             </span>
                             <i class="fas fa-chevron-right submenu-arrow"></i>
                         </a>
                         <ul class="nav-submenu">
                             <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ ((request()->routeIs('admin.enhanced-products.*') && !request()->routeIs('admin.enhanced-products.offers*')) || request()->routeIs('admin.products.*')) && !request()->has('stock_status') ? 'active' : '' }}"
-                                    href="{{ route('admin.enhanced-products.index') }}" data-no-preloader>
-                                    <i class="fas fa-box"></i><span>All Products</span>
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('gatekeeper.dashboard') ? 'active' : '' }}"
+                                    href="{{ route('gatekeeper.dashboard') }}">
+                                    <i class="fas fa-chart-pie" style="color: #4f46e5;"></i><span>Dashboard</span>
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.enhanced-products.index') && request('stock_status') === 'in_stock' ? 'active' : '' }}"
-                                    href="{{ route('admin.enhanced-products.index', ['stock_status' => 'in_stock']) }}"
-                                    data-no-preloader>
-                                    <i class="fas fa-check-circle"></i><span>In Stock Products</span>
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('gatekeeper.deliver') ? 'active' : '' }}"
+                                    href="{{ route('gatekeeper.deliver') }}">
+                                    <i class="fas fa-box-open" style="color: #4f46e5;"></i><span>Mark Delivery</span>
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.enhanced-products.index') && request('stock_status') === 'out_of_stock' ? 'active' : '' }}"
-                                    href="{{ route('admin.enhanced-products.index', ['stock_status' => 'out_of_stock']) }}"
-                                    data-no-preloader>
-                                    <i class="fas fa-times-circle"></i><span>Out of Stock Products</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.categories.*') ? 'active' : '' }}"
-                                    href="{{ route('admin.categories.index') }}" data-no-preloader>
-                                    <i class="fas fa-tags"></i><span>Categories</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.enhanced-products.offers*') ? 'active' : '' }}"
-                                    href="{{ route('admin.enhanced-products.offers') }}" data-no-preloader>
-                                    <i class="fas fa-percentage"></i><span>Offers</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.hero-slides.*') ? 'active' : '' }}"
-                                    href="{{ route('admin.hero-slides.index') }}" data-no-preloader>
-                                    <i class="fas fa-images"></i><span>Hero Slides</span>
-                                </a>
-                            </li>
-                            @if(
-                                    auth()->user()->hasPermission('manage_design_tasks') && in_array($userRole, [
-                                        'accountant',
-                                        'super_admin',
-                                        'manager',
-                                        'admin'
-                                    ])
-                                )
-                                <li class="nav-item">
-                                    <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.design-task-types.*') ? 'active' : '' }}"
-                                        href="{{ route('admin.design-task-types.index') }}" data-no-preloader>
-                                        <i class="fas fa-tags"></i><span>Task Types</span>
-                                    </a>
-                                </li>
-                            @endif
-                        </ul>
-                    </li>
-                @endif
-
-                {{-- Orders - Top Level --}}
-                @if(auth()->user()->hasPermission('manage_orders'))
-                    <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.orders.*') ? 'active' : '' }}"
-                            href="{{ route('admin.orders.index') }}" data-no-preloader>
-                            <i class="fas fa-shopping-cart"></i><span>Online Orders</span>
-                        </a>
-                    </li>
-                @endif
-
-
-
-                {{-- POS Terminal --}}
-                @if(auth()->user()->hasPermission('manage_orders') && $userRole !== 'accountant')
-                    <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.pos.*') ? 'active' : '' }}"
-                            href="{{ route('admin.pos.index') }}" data-no-preloader>
-                            <i class="fas fa-cash-register"></i><span>POS Terminal</span>
-                        </a>
-                    </li>
-                @endif
-
-                {{-- Customers & CRM --}}
-                @if(
-                        auth()->user()->hasPermission('manage_customers') && !in_array($userRole, [
-                            'receptionist',
-                            'operator'
-                        ])
-                    )
-                    <li class="nav-item has-submenu {{ (request()->routeIs('admin.customers.*') || request()->routeIs('admin.customer-data-center.*')) ? 'active' : '' }}"
-                        data-submenu-toggle>
-                        <a class="nav-link d-flex align-items-center justify-content-between {{ (request()->routeIs('admin.customers.*') || request()->routeIs('admin.customer-data-center.*')) ? 'active' : '' }}"
-                            href="{{ route('admin.customers.index') }}" data-no-preloader>
-                            <span class="d-flex align-items-center">
-                                <i class="fas fa-users text-info"></i><span>Customers & CRM</span>
-                            </span>
-                            <i class="fas fa-chevron-right submenu-arrow"></i>
-                        </a>
-                        <ul class="nav-submenu">
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.customers.*') ? 'active' : '' }}"
-                                    href="{{ route('admin.customers.index') }}">
-                                    <i class="fas fa-user-friends"></i><span>Manage Customers</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.customer-data-center.index') ? 'active' : '' }}"
-                                    href="{{ route('admin.customer-data-center.index') }}">
-                                    <i class="fas fa-brain text-warning"></i><span>Data Center</span>
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('gatekeeper.movements.*') ? 'active' : '' }}"
+                                    href="{{ route('gatekeeper.movements.index') }}">
+                                    <i class="fas fa-exchange-alt" style="color: #4f46e5;"></i><span>Product
+                                        Movements</span>
                                 </a>
                             </li>
                         </ul>
                     </li>
                 @endif
 
-                {{-- System Management Submenu for Super Admin/Admin --}}
-                @if(in_array($userRole, ['super_admin', 'admin', 'manager']))
-                    <li class="nav-item has-submenu {{ (request()->routeIs('admin.message-templates.*') || request()->routeIs('admin.finance.departments.*') || request()->routeIs('admin.contact-messages.*')) ? 'active' : '' }}"
+                {{-- ══════════════════════════════════════
+                LOGISTICS & DELIVERY
+                ══════════════════════════════════════ --}}
+                @php
+                    $canSeeDeliveryUpdates = (auth()->user()->hasPermission('manage_inventory') || auth()->user()->hasPermission('manage_products')) && $userRole !== 'saler';
+                    $canSeeDeliveryCore = auth()->user()->hasPermission('manage_delivery');
+                @endphp
+
+                @if($canSeeDeliveryCore || $canSeeDeliveryUpdates)
+                    <li class="nav-item has-submenu {{ request()->routeIs('admin.delivery.*') ? 'active' : '' }}"
                         data-submenu-toggle>
-                        <a class="nav-link d-flex align-items-center justify-content-between {{ (request()->routeIs('admin.message-templates.*') || request()->routeIs('admin.finance.departments.*') || request()->routeIs('admin.contact-messages.*')) ? 'active' : '' }}"
+                        <a class="nav-link d-flex align-items-center justify-content-between {{ request()->routeIs('admin.delivery.*') ? 'active' : '' }}"
                             href="#" data-no-preloader>
                             <span class="d-flex align-items-center">
-                                <i class="fas fa-tools"></i><span>System Management</span>
+                                <i class="fas fa-shipping-fast" style="color: #06b6d4;"></i><span>Delivery</span>
                             </span>
                             <i class="fas fa-chevron-right submenu-arrow"></i>
                         </a>
                         <ul class="nav-submenu">
-                            @if(
-                                    auth()->user()->hasPermission('manage_customers') && !in_array($userRole, [
-                                        'accountant',
-                                        'receptionist',
-                                        'operator',
-                                        'saler'
-                                    ])
-                                )
+                            @if($canSeeDeliveryCore)
                                 <li class="nav-item">
-                                    <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.message-templates.*') ? 'active' : '' }}"
-                                        href="{{ route('admin.message-templates.index') }}" data-no-preloader>
-                                        <i class="fas fa-comment-dots"></i><span>Message Templates</span>
+                                    <a class="nav-link d-flex align-items-center {{ (request()->routeIs('admin.dashboard') && request()->get('view') === 'delivery') ? 'active' : '' }}"
+                                        href="{{ route('admin.dashboard', ['view' => 'delivery']) }}">
+                                        <i class="fas fa-chart-pie" style="color: #06b6d4;"></i><span>Dashboard</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.delivery.incoming') ? 'active' : '' }}"
+                                        href="{{ route('admin.delivery.incoming') }}">
+                                        <i class="fas fa-inbox" style="color: #06b6d4;"></i><span>Incoming</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.delivery.completed') ? 'active' : '' }}"
+                                        href="{{ route('admin.delivery.completed') }}">
+                                        <i class="fas fa-check-circle text-success"></i><span>Completed</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.delivery.canceled') ? 'active' : '' }}"
+                                        href="{{ route('admin.delivery.canceled') }}">
+                                        <i class="fas fa-times-circle text-danger"></i><span>Canceled</span>
                                     </a>
                                 </li>
                             @endif
-                            @if(
-                                    auth()->user()->hasPermission('view_contact_messages') && !in_array(
-                                        $userRole,
-                                        ['receptionist', 'operator', 'saler']
-                                    )
-                                )
+                            @if($canSeeDeliveryUpdates)
                                 <li class="nav-item">
-                                    <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.contact-messages.*') ? 'active' : '' }}"
-                                        href="{{ route('admin.contact-messages.index') }}" data-no-preloader>
-                                        <i class="fas fa-envelope"></i><span>Contact Messages</span>
-                                        @php
-                                            $newMessagesCount = 0;
-                                            if (in_array($userRole, ['admin', 'super_admin', 'manager'])) {
-                                                $newMessagesCount = \App\Models\ContactMessage::where('status', 'new')->count();
-                                            } else {
-                                                $userEmail = auth()->user()->email ?? '';
-                                                $userPhone = auth()->user()->phone ?? '';
-                                                $normalizePhone = function ($phone) {
-                                                    if (empty($phone))
-                                                        return '';
-                                                    return preg_replace('/[^\d+]/', '', $phone);
-                                                };
-                                                $normalizedUserPhone = $normalizePhone($userPhone);
-
-                                                $newMessagesCount = \App\Models\ContactMessage::where('status', 'new')
-                                                    ->where(function ($q) use ($userEmail, $normalizedUserPhone) {
-                                                        if (!empty($userEmail)) {
-                                                            $q->where('email', $userEmail);
-                                                        }
-                                                        if (!empty($normalizedUserPhone)) {
-                                                            $q->orWhereRaw('REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, " ", ""), "-", ""), "(",
-                                                                                                                                                                                                                                                                                            ""), ")", ""), ".", "") LIKE ?', ['%' . $normalizedUserPhone . '%']);
-                                                            $q->orWhere('phone', 'LIKE', '%' . $normalizedUserPhone . '%');
-                                                        }
-                                                    })->count();
-                                            }
-                                        @endphp
-                                        @if($newMessagesCount > 0)
-                                            <span class="badge bg-danger ms-auto">{{ $newMessagesCount }}</span>
-                                        @endif
-                                    </a>
-                                </li>
-                            @endif
-                            @if(in_array($userRole, ['admin', 'super_admin']))
-                                <li class="nav-item">
-                                    <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.departments.*') ? 'active' : '' }}"
-                                        href="{{ route('admin.finance.departments.index') }}" data-no-preloader>
-                                        <i class="fas fa-building"></i><span>Manage Departments</span>
+                                    <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.delivery.updates') ? 'active' : '' }}"
+                                        href="{{ route('admin.delivery.updates') }}">
+                                        <i class="fas fa-shipping-fast" style="color: #06b6d4;"></i><span>Delivery
+                                            Updates</span>
                                     </a>
                                 </li>
                             @endif
                         </ul>
                     </li>
-                @else
-                    {{-- For non-admin users, show items individually --}}
-                    @if(
-                            auth()->user()->hasPermission('manage_customers') && !in_array($userRole, [
-                                'accountant',
-                                'receptionist',
-                                'operator',
-                                'saler'
-                            ])
-                        )
-                        <li class="nav-item">
-                            <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.message-templates.*') ? 'active' : '' }}"
-                                href="{{ route('admin.message-templates.index') }}" data-no-preloader>
-                                <i class="fas fa-comment-dots"></i><span>Message Templates</span>
-                            </a>
-                        </li>
-                    @endif
+                @endif
+                {{-- ══════════════════════════════════════
+                MARKETING MODULE
+                ══════════════════════════════════════ --}}
+                @if(auth()->user()->hasPermission('manage_marketing'))
+                    <li class="nav-item has-submenu {{ request()->routeIs('admin.marketing.*') ? 'active' : '' }}"
+                        data-submenu-toggle>
+                        <a class="nav-link d-flex align-items-center justify-content-between {{ request()->routeIs('admin.marketing.*') ? 'active' : '' }}"
+                            href="{{ route('admin.marketing.dashboard') }}" data-no-preloader>
+                            <span class="d-flex align-items-center">
+                                <i class="fas fa-bullhorn" style="color: #f43f5e;"></i><span>Marketing</span>
+                            </span>
+                            <i class="fas fa-chevron-right submenu-arrow"></i>
+                        </a>
+                        <ul class="nav-submenu">
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.marketing.dashboard') ? 'active' : '' }}"
+                                    href="{{ route('admin.marketing.dashboard') }}">
+                                    <i class="fas fa-chart-line" style="color: #f43f5e;"></i><span>Dashboard</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.marketing.product-penetration.*') ? 'active' : '' }}"
+                                    href="{{ route('admin.marketing.product-penetration.index') }}">
+                                    <i class="fas fa-bullseye" style="color: #f43f5e;"></i><span>Product Penetration</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.marketing.theme-events.*') ? 'active' : '' }}"
+                                    href="{{ route('admin.marketing.theme-events.index') }}">
+                                    <i class="fas fa-calendar-day" style="color: #f43f5e;"></i><span>Theme Events</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.marketing.campaigns.*') ? 'active' : '' }}"
+                                    href="{{ route('admin.marketing.campaigns.index') }}">
+                                    <i class="fas fa-flag" style="color: #f43f5e;"></i><span>Campaigns</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.marketing.calendar.*') ? 'active' : '' }}"
+                                    href="{{ route('admin.marketing.calendar.index') }}">
+                                    <i class="fas fa-calendar-alt" style="color: #f43f5e;"></i><span>Calendar</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.marketing.ads.*') ? 'active' : '' }}"
+                                    href="{{ route('admin.marketing.ads.index') }}">
+                                    <i class="fas fa-ad" style="color: #f43f5e;"></i><span>Ads Tracking</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.marketing.reports.*') ? 'active' : '' }}"
+                                    href="{{ route('admin.marketing.reports.index') }}">
+                                    <i class="fas fa-chart-pie" style="color: #f43f5e;"></i><span>Marketing Reports</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                @endif
+                {{-- ══════════════════════════════════════
+                BULK SMS (standalone)
+                ══════════════════════════════════════ --}}
+                @if(auth()->user()->hasPermission('manage_marketing'))
+                    <li class="nav-item {{ request()->routeIs('admin.bulk-sms.*') ? 'active' : '' }}">
+                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.bulk-sms.*') ? 'active' : '' }}"
+                            href="{{ route('admin.bulk-sms.index') }}" data-no-preloader>
+                            <i class="fas fa-sms" style="color: #8b5cf6;"></i><span>Bulk SMS</span>
+                        </a>
+                    </li>
+                @endif
+                {{-- ══════════════════════════════════════
+                REPORTS & ANALYTICS
+                ══════════════════════════════════════ --}}
+                @if(
+                        auth()->user()->hasPermission('manage_reports') && !in_array($userRole, [
+                            'receptionist',
+                            'operator'
+                        ])
+                    )
+                    <li class="nav-item">
+                        <a class="nav-link d-flex align-items-center {{ (request()->routeIs('admin.reports') || request()->routeIs('admin.reports.*') || request()->routeIs('admin.hero-slides.analytics') || request()->routeIs('admin.design-tasks.reports') || request()->routeIs('admin.saler-performance.*') || request()->routeIs('admin.gatekeeper-performance.*') || request()->routeIs('admin.delivery-performance.*') || request()->routeIs('admin.finance.reports') || request()->routeIs('admin.finance.daily-report')) ? 'active' : '' }}"
+                            href="{{ route('admin.reports') }}" data-no-preloader>
+                            <i class="fas fa-chart-bar" style="color: #ef4444;"></i><span>Reports</span>
+                        </a>
+                    </li>
                 @endif
 
-                {{-- Notifications - Always visible to all users --}}
+                {{-- Notifications --}}
                 <li class="nav-item">
                     <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.notifications.*') ? 'active' : '' }}"
                         href="{{ route('admin.notifications.index') }}" data-no-preloader>
-                        <i class="fas fa-bell"></i><span>Notifications</span>
+                        <i class="fas fa-bell" style="color: #3b82f6;"></i><span>Notifications</span>
                         @php
                             $unreadCount = auth()->user() ? auth()->user()->unreadNotifications()->count() : 0;
                         @endphp
@@ -727,242 +1023,49 @@
                         @endif
                     </a>
                 </li>
+
                 {{-- Contact Messages --}}
-                @if(
-                        auth()->user()->hasPermission('view_contact_messages') && !in_array($userRole, [
-                            'receptionist',
-                            'operator',
-                            'saler',
-                            'admin',
-                            'super_admin',
-                            'manager'
-                        ])
-                    )
+                @if(auth()->user()->hasPermission('view_contact_messages') && !in_array($userRole, ['receptionist', 'operator', 'saler']))
                     <li class="nav-item">
                         <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.contact-messages.*') ? 'active' : '' }}"
                             href="{{ route('admin.contact-messages.index') }}" data-no-preloader>
-                            <i class="fas fa-envelope"></i><span>Contact Messages</span>
-                            @php
-                                $newMessagesCount = 0;
-                                if (in_array($userRole, ['admin', 'super_admin', 'manager'])) {
-                                    $newMessagesCount = \App\Models\ContactMessage::where('status', 'new')->count();
-                                } else {
-                                    $userEmail = auth()->user()->email ?? '';
-                                    $userPhone = auth()->user()->phone ?? '';
-                                    $normalizePhone = function ($phone) {
-                                        if (empty($phone))
-                                            return '';
-                                        return preg_replace('/[^\d+]/', '', $phone);
-                                    };
-                                    $normalizedUserPhone = $normalizePhone($userPhone);
-
-                                    $newMessagesCount = \App\Models\ContactMessage::where('status', 'new')
-                                        ->where(function ($q) use ($userEmail, $normalizedUserPhone) {
-                                            if (!empty($userEmail)) {
-                                                $q->where('email', $userEmail);
-                                            }
-                                            if (!empty($normalizedUserPhone)) {
-                                                $q->orWhereRaw('REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, " ", ""), "-", ""), "(", ""),
-                                                                                                                                                                                                                            ")", ""), ".", "") LIKE ?', ['%' . $normalizedUserPhone . '%']);
-                                                $q->orWhere('phone', 'LIKE', '%' . $normalizedUserPhone . '%');
-                                            }
-                                        })->count();
-                                }
-                            @endphp
-                            @if($newMessagesCount > 0)
-                                <span class="badge bg-danger ms-auto">{{ $newMessagesCount }}</span>
+                            <i class="fas fa-envelope" style="color: #3b82f6;"></i><span>Messages</span>
+                            @if($sidebarMsgCount > 0)
+                                <span class="badge bg-danger ms-auto">{{ $sidebarMsgCount }}</span>
                             @endif
                         </a>
                     </li>
                 @endif
 
-
-                {{-- Profile - Visible to Receptionist, Designer, Operator, and Delivery --}}
-                @if(in_array($userRole, ['receptionist', 'designer', 'operator', 'delivery']))
-                    <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.profile') ? 'active' : '' }}"
-                            href="{{ route('admin.profile') }}" data-no-preloader>
-                            <i class="fas fa-user"></i><span>Profile</span>
-                        </a>
-                    </li>
-                @endif
-
-                {{-- Delivery Management - Visible ONLY to Delivery Role --}}
-                @if($userRole === 'delivery')
-                    <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.delivery.incoming') ? 'active' : '' }}"
-                            href="{{ route('admin.delivery.incoming') }}" data-no-preloader>
-                            <i class="fas fa-inbox text-primary"></i><span>Incoming</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.delivery.completed') ? 'active' : '' }}"
-                            href="{{ route('admin.delivery.completed') }}" data-no-preloader>
-                            <i class="fas fa-check-circle text-success"></i><span>Completed</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.delivery.canceled') ? 'active' : '' }}"
-                            href="{{ route('admin.delivery.canceled') }}" data-no-preloader>
-                            <i class="fas fa-times-circle text-danger"></i><span>Canceled</span>
-                        </a>
-                    </li>
-                @endif
-
-                {{-- Delivery Updates --}}
-                @if(
-                        (auth()->user()->hasPermission('manage_inventory') ||
-                            auth()->user()->hasPermission('manage_products') || $userRole === 'accountant') && $userRole !==
-                        'saler'
-                    )
-                    <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.delivery.updates') ? 'active' : '' }}"
-                            href="{{ route('admin.delivery.updates') }}" data-no-preloader>
-                            <i class="fas fa-shipping-fast"></i><span>Delivery Updates</span>
-                        </a>
-                    </li>
-                @endif
-
-
-
-                {{-- Reports Submenu --}}
-                @if(
-                        auth()->user()->hasPermission('manage_reports') && !in_array($userRole, [
-                            'receptionist',
-                            'operator'
-                        ])
-                    )
-                    <li class="nav-item has-submenu {{ (request()->routeIs('admin.reports') || request()->routeIs('admin.reports.*') || request()->routeIs('admin.hero-slides.analytics') || request()->routeIs('admin.reports.design-tasks') || request()->routeIs('admin.design-tasks.reports') || request()->routeIs('admin.saler-performance.*') || request()->routeIs('admin.gatekeeper-performance.*') || request()->routeIs('admin.delivery-performance.*') || request()->routeIs('admin.reports.operators') || request()->routeIs('admin.finance.reports')) ? 'active' : '' }}"
+                {{-- Administration (formerly Configurations) --}}
+                @if(!in_array($userRole, ['saler']) && (in_array($userRole, ['super_admin', 'admin', 'manager']) || auth()->user()->hasPermission('view_audit_logs') || auth()->user()->hasPermission('manage_users') || auth()->user()->hasPermission('manage_settings') || auth()->user()->hasPermission('manage_customers')))
+                    <li class="nav-item has-submenu {{ (request()->routeIs('admin.finance.departments.*') || request()->routeIs('admin.admins.*') || request()->routeIs('admin.roles-permissions.*')) ? 'active' : '' }}"
                         data-submenu-toggle>
-                        <a class="nav-link d-flex align-items-center justify-content-between {{ (request()->routeIs('admin.reports') || request()->routeIs('admin.reports.*') || request()->routeIs('admin.hero-slides.analytics') || request()->routeIs('admin.reports.design-tasks') || request()->routeIs('admin.reports.operators') || request()->routeIs('admin.design-tasks.reports') || request()->routeIs('admin.saler-performance.*') || request()->routeIs('admin.gatekeeper-performance.*') || request()->routeIs('admin.delivery-performance.*') || request()->routeIs('admin.finance.reports')) ? 'active' : '' }}"
-                            href="{{ route('admin.reports') }}" data-no-preloader>
+                        <a class="nav-link d-flex align-items-center justify-content-between {{ (request()->routeIs('admin.finance.departments.*') || request()->routeIs('admin.admins.*') || request()->routeIs('admin.roles-permissions.*')) ? 'active' : '' }}"
+                            href="#" data-no-preloader>
                             <span class="d-flex align-items-center">
-                                <i class="fas fa-chart-bar"></i><span>Reports</span>
+                                <i class="fas fa-shield-alt" style="color: #6366f1;"></i><span>Administration</span>
                             </span>
                             <i class="fas fa-chevron-right submenu-arrow"></i>
                         </a>
                         <ul class="nav-submenu">
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.design-tasks.reports') ? 'active' : '' }}"
-                                    href="{{ route('admin.design-tasks.reports') }}" data-no-preloader>
-                                    <i class="fas fa-chart-pie"></i><span>Design Tasks</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.reports') ? 'active' : '' }}"
-                                    href="{{ route('admin.finance.reports') }}" data-no-preloader>
-                                    <i class="fas fa-coins text-warning"></i><span>Financial Reports</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.daily-report') ? 'active' : '' }}"
-                                    href="{{ route('admin.finance.daily-report') }}" data-no-preloader>
-                                    <i class="fas fa-calendar-day text-info"></i><span>Daily Finance Summary</span>
-                                </a>
-                            </li>
 
+                            {{-- System Management --}}
+                            @if(in_array($userRole, ['admin', 'super_admin']))
+                                <li class="nav-item">
+                                    <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.finance.departments.*') ? 'active' : '' }}"
+                                        href="{{ route('admin.finance.departments.index') }}" data-no-preloader>
+                                        <i class="fas fa-building" style="color: #6366f1;"></i><span>Departments</span>
+                                    </a>
+                                </li>
+                            @endif
 
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.hero-slides.analytics') ? 'active' : '' }}"
-                                    href="{{ route('admin.hero-slides.analytics') }}" data-no-preloader>
-                                    <i class="fas fa-images"></i><span>Ads Reports</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.saler-performance.*') ? 'active' : '' }}"
-                                    href="{{ route('admin.saler-performance.index') }}" data-no-preloader>
-                                    <i class="fas fa-chart-line"></i><span>Saler Performance</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.reports.design-tasks') ? 'active' : '' }}"
-                                    href="{{ route('admin.reports.design-tasks') }}" data-no-preloader>
-                                    <i class="fas fa-paint-brush"></i><span>Designer Performance</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.reports.operators') ? 'active' : '' }}"
-                                    href="{{ route('admin.reports.operators') }}" data-no-preloader>
-                                    <i class="fas fa-print"></i><span>Operator Performance</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.gatekeeper-performance.*') ? 'active' : '' }}"
-                                    href="{{ route('admin.gatekeeper-performance.index') }}" data-no-preloader>
-                                    <i class="fas fa-door-open"></i><span>Gatekeeper Performance</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.delivery-performance.*') ? 'active' : '' }}"
-                                    href="{{ route('admin.delivery-performance.index') }}" data-no-preloader>
-                                    <i class="fas fa-truck-loading"></i><span>Delivery Performance</span>
-                                </a>
-                            </li>
-
-                        </ul>
-                    </li>
-                @endif
-
-                {{-- Security Menu - Visible to all admin and finance users --}}
-                {{-- Security Menu --}}
-                @if(auth()->user()->hasPermission('view_audit_logs'))
-                            <li class="nav-item has-submenu {{ (request()->routeIs('admin.audit-logs.*') || request()->routeIs('admin.security.*') || request()->routeIs('admin.audit.*')) ? 'active' : '' }}"
-                                data-submenu-toggle>
-                                <a class="nav-link d-flex align-items-center justify-content-between {{ (request()->routeIs('admin.audit-logs.*') || request()->routeIs('admin.security.*')) ? 'active' : '' }}"
-                                    href="{{ route('admin.audit-logs.index') }}" data-no-preloader>
-                                    <span class="d-flex align-items-center">
-                                        <i class="fas fa-shield-alt"></i><span>{{ in_array($userRole, ['receptionist', 'operator'])
-                    ? 'Audit Logs' : 'Security & Audit' }}</span>
-                                    </span>
-                                    @if(!in_array($userRole, ['receptionist', 'operator']))
-                                        <i class="fas fa-chevron-right submenu-arrow"></i>
-                                    @endif
-                                </a>
-                                @if(!in_array($userRole, ['receptionist', 'operator']))
-                                    <ul class="nav-submenu">
-                                        <li class="nav-item">
-                                            <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.audit.index') ? 'active' : '' }}"
-                                                href="{{ route('admin.audit.index') }}" data-no-preloader>
-                                                <i class="fas fa-check-double"></i><span>Audit Control</span>
-                                            </a>
-                                        </li>
-                                        <li class="nav-item">
-                                            <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.audit-logs.*') ? 'active' : '' }}"
-                                                href="{{ route('admin.audit-logs.index') }}" data-no-preloader>
-                                                <i class="fas fa-clipboard-list"></i><span>Activity Logs</span>
-                                            </a>
-                                        </li>
-                                        @if(auth()->user()->hasPermission('reset_passwords'))
-                                            <li class="nav-item">
-                                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.security.reset-password') ? 'active' : '' }}"
-                                                    href="{{ route('admin.security.reset-password') }}" data-no-preloader>
-                                                    <i class="fas fa-key"></i><span>Reset Password</span>
-                                                </a>
-                                            </li>
-                                        @endif
-                                    </ul>
-                                @endif
-                            </li>
-                @endif
-
-                {{-- Manage Users - Only for super_admin --}}
-                {{-- Manage Users --}}
-                @if(auth()->user()->hasPermission('manage_users') || auth()->user()->hasPermission('manage_roles'))
-                    <li class="nav-item has-submenu {{ (request()->routeIs('admin.admins.*') || request()->routeIs('admin.roles-permissions.*')) ? 'active' : '' }}"
-                        data-submenu-toggle>
-                        <a class="nav-link d-flex align-items-center justify-content-between {{ request()->routeIs('admin.admins.*') || request()->routeIs('admin.roles-permissions.*') ? 'active' : '' }}"
-                            href="{{ route('admin.admins.index') }}" data-no-preloader>
-                            <span class="d-flex align-items-center">
-                                <i class="fas fa-users-cog"></i><span>Manage Users</span>
-                            </span>
-                            <i class="fas fa-chevron-right submenu-arrow"></i>
-                        </a>
-                        <ul class="nav-submenu">
+                            {{-- Manage Users --}}
                             @if(auth()->user()->hasPermission('manage_users'))
                                 <li class="nav-item">
                                     <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.admins.*') ? 'active' : '' }}"
                                         href="{{ route('admin.admins.index') }}" data-no-preloader>
-                                        <i class="fas fa-users"></i><span>Users</span>
+                                        <i class="fas fa-users" style="color: #6366f1;"></i><span>Users</span>
                                     </a>
                                 </li>
                             @endif
@@ -970,53 +1073,86 @@
                                 <li class="nav-item">
                                     <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.roles-permissions.*') ? 'active' : '' }}"
                                         href="{{ route('admin.roles-permissions.index') }}" data-no-preloader>
-                                        <i class="fas fa-user-shield"></i><span>Roles</span>
+                                        <i class="fas fa-user-shield" style="color: #6366f1;"></i><span>Roles</span>
                                     </a>
                                 </li>
                             @endif
                         </ul>
                     </li>
+
+                    {{-- Security (standalone submenu: Activity Logs + Reset Password) --}}
+                    @if(auth()->user()->hasPermission('view_audit_logs'))
+                        <li class="nav-item has-submenu {{ (request()->routeIs('admin.audit-logs.*') || request()->routeIs('admin.security.*')) ? 'active' : '' }}"
+                            data-submenu-toggle>
+                            <a class="nav-link d-flex align-items-center justify-content-between {{ (request()->routeIs('admin.audit-logs.*') || request()->routeIs('admin.security.*')) ? 'active' : '' }}"
+                                href="#" data-no-preloader>
+                                <span class="d-flex align-items-center">
+                                    <i class="fas fa-lock" style="color: #6366f1;"></i><span>Security</span>
+                                </span>
+                                <i class="fas fa-chevron-right submenu-arrow"></i>
+                            </a>
+                            <ul class="nav-submenu">
+                                <li class="nav-item">
+                                    <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.audit-logs.*') ? 'active' : '' }}"
+                                        href="{{ route('admin.audit-logs.index') }}" data-no-preloader>
+                                        <i class="fas fa-clipboard-list" style="color: #6366f1;"></i><span>Activity Logs</span>
+                                    </a>
+                                </li>
+                                @if(auth()->user()->hasPermission('reset_passwords') && !in_array($userRole, ['receptionist', 'operator']))
+                                    <li class="nav-item">
+                                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.security.reset-password') ? 'active' : '' }}"
+                                            href="{{ route('admin.security.reset-password') }}" data-no-preloader>
+                                            <i class="fas fa-key" style="color: #6366f1;"></i><span>Reset Password</span>
+                                        </a>
+                                    </li>
+                                @endif
+                            </ul>
+                        </li>
+                    @endif
+
+                    {{-- Settings (standalone top-level link) --}}
+                    @if(auth()->user()->hasPermission('manage_settings'))
+                        <li class="nav-item">
+                            <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.settings') || request()->routeIs('admin.settings.*') ? 'active' : '' }}"
+                                href="{{ route('admin.settings') }}" data-no-preloader>
+                                <i class="fas fa-cog" style="color: #6366f1;"></i><span>Settings</span>
+                            </a>
+                        </li>
+                    @endif
                 @endif
 
-                {{-- Settings Submenu - Only for super_admin --}}
-                {{-- Configurations --}}
-                @if(auth()->user()->hasPermission('manage_settings'))
-                    <li class="nav-item has-submenu {{ (request()->routeIs('admin.settings') || request()->routeIs('admin.settings.*')) ? 'active' : '' }}"
-                        data-submenu-toggle>
-                        <a class="nav-link d-flex align-items-center justify-content-between {{ (request()->routeIs('admin.settings') || request()->routeIs('admin.settings.*')) ? 'active' : '' }}"
-                            href="{{ route('admin.settings') }}" data-no-preloader>
-                            <span class="d-flex align-items-center">
-                                <i class="fas fa-cog"></i><span>Configurations</span>
-                            </span>
-                            <i class="fas fa-chevron-right submenu-arrow"></i>
+                {{-- ══════════════════════════════════════
+                PERSONAL
+                ══════════════════════════════════════ --}}
+                @if(in_array($userRole, ['receptionist', 'designer', 'operator', 'delivery', 'saler']))
+                @endif
+
+                @if($userRole === 'saler')
+                    <li class="nav-item">
+                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.saler.sales-report') ? 'active' : '' }}"
+                            href="{{ route('admin.saler.sales-report') }}" data-no-preloader>
+                            <i class="fas fa-file-alt" style="color:#f59e0b;"></i><span>Sales Report</span>
                         </a>
-                        <ul class="nav-submenu">
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.settings') && !request()->routeIs('admin.settings.*') ? 'active' : '' }}"
-                                    href="{{ route('admin.settings') }}" data-no-preloader>
-                                    <i class="fas fa-cog"></i><span>Settings</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.settings.sms') ? 'active' : '' }}"
-                                    href="{{ route('admin.settings.sms') }}" data-no-preloader>
-                                    <i class="fas fa-sms"></i><span>SMS</span>
-                                </a>
-                            </li>
-                        </ul>
+                    </li>
+                @endif
+
+                @if(in_array($userRole, ['receptionist', 'designer', 'operator', 'delivery', 'saler']))
+                    <li class="nav-item">
+                        <a class="nav-link d-flex align-items-center {{ request()->routeIs('admin.profile') ? 'active' : '' }}"
+                            href="{{ route('admin.profile') }}" data-no-preloader>
+                            <i class="fas fa-user"></i><span>Profile</span>
+                        </a>
                     </li>
                 @endif
             </ul>
         </nav>
 
         <!-- Logout Button in Sidebar -->
-        <div class="p-3 border-top border-white border-opacity-25 mt-auto flex-shrink-0"
-            style="background: rgba(0, 0, 0, 0.2);">
+        <div class="p-3 border-top flex-shrink-0" style="border-color:rgba(0,0,0,0.07)!important;">
             <form method="POST" action="{{ route('admin.logout') }}" id="logout-form">
                 @csrf
                 <button type="submit" class="nav-link w-100 text-start d-flex align-items-center logout-btn"
-                    data-no-global-handler
-                    style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); border: none; cursor: pointer; transition: all 0.3s ease; font-weight: 600;">
+                    data-no-global-handler>
                     <i class="fas fa-sign-out-alt"></i>
                     <span class="logout-text">Logout</span>
                 </button>
@@ -1035,7 +1171,7 @@
                 <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Menu">
                     <i class="fas fa-bars"></i>
                 </button>
-                <img src="{{ asset('images/logo.webp') }}" alt="CHIBO BRAND" style="height: 40px; width: auto;"
+                <img src="{{ asset('images/logo.webp') }}" alt="CHIBO BRAND" style="height: 30px; width: auto;"
                     onerror="this.style.display='none'">
             </div>
 
@@ -1049,125 +1185,19 @@
                         $newMessagesCount = \App\Models\ContactMessage::where('status', 'new')->count();
                     @endphp
 
-                    <!-- Notifications Dropdown -->
-                    <div class="dropdown">
-                        <button class="btn btn-link position-relative p-2 text-decoration-none" type="button"
-                            id="notificationDropdown" data-bs-toggle="dropdown" aria-expanded="false"
-                            style="border-radius: 10px; transition: all 0.3s; background: rgba(0,0,0,0.03);">
-                            <i class="fas fa-bell fa-lg text-dark"></i>
-                            @if($unreadNotificationsCount > 0)
-                                <span class="position-absolute translate-middle badge rounded-pill bg-danger"
-                                    style="top: 8px; right: -5px; border: 2px solid #fff; font-size: 0.65rem; min-width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; padding: 0;">
-                                    {{ $unreadNotificationsCount > 99 ? '99+' : $unreadNotificationsCount }}
-                                </span>
-                            @endif
-                        </button>
-                        <div class="dropdown-menu dropdown-menu-end p-0 border-0 shadow-lg mt-2"
-                            aria-labelledby="notificationDropdown"
-                            style="width: 380px; max-width: 90vw; border-radius: 16px; overflow: hidden; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); z-index: 9999;">
-                            <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-light">
-                                <h6 class="mb-0 fw-bold">Recent Activities</h6>
-                                <div class="d-flex gap-2">
-                                    @if($unreadNotificationsCount > 0)
-                                        <button type="button"
-                                            class="btn btn-sm btn-link text-primary p-0 text-decoration-none small fw-bold mark-all-read-btn">
-                                            Clear All
-                                        </button>
-                                    @endif
-                                    <a href="{{ route('admin.notifications.index') }}" class="text-muted"
-                                        title="View Hub">
-                                        <i class="fas fa-external-link-alt small"></i>
-                                    </a>
-                                </div>
-                            </div>
-
-                            <div id="notificationList" style="max-height: 400px; overflow-y: auto;">
-                                @forelse($unreadNotifications as $notification)
-                                                            @php
-                                                                $isTask = str_contains(strtolower($notification->type ?? ''), 'task');
-                                                                $isOrder = str_contains(strtolower($notification->type ?? ''), 'order');
-                                                                $isUrgent = str_contains(strtolower($notification->type ?? ''), 'alert') ||
-                                                                    str_contains(strtolower($notification->type ?? ''), 'warning');
-
-                                                                $iconBoxClass = 'bg-primary-subtle text-primary';
-                                                                $icon = 'fa-bell';
-
-                                                                if ($isTask) {
-                                                                    $iconBoxClass = 'bg-purple-subtle text-purple';
-                                                                    $icon = 'fa-palette';
-                                                                } elseif ($isOrder) {
-                                                                    $iconBoxClass = 'bg-success-subtle text-success';
-                                                                    $icon =
-                                                                        'fa-shopping-bag';
-                                                                } elseif ($isUrgent) {
-                                                                    $iconBoxClass = 'bg-warning-subtle text-warning';
-                                                                    $icon =
-                                                                        'fa-exclamation-triangle';
-                                                                }
-                                                            @endphp
-                                                            @php
-                                                                // Generate URL for dropdown click
-                                                                $url = route('admin.notifications.index');
-                                                                if (
-                                                                    $notification->related_type === 'App\Models\DesignTask' &&
-                                                                    $notification->related_id
-                                                                ) {
-                                                                    $url = route('admin.design-tasks.show', $notification->related_id);
-                                                                } elseif (str_contains(strtolower($notification->message), 'task')) {
-                                                                    preg_match('/ID[:\s]+(\d+)/i', $notification->message, $matches);
-                                                                    if (isset($matches[1]))
-                                                                        $url = route('admin.design-tasks.show', $matches[1]);
-                                                                }
-                                                            @endphp
-                                                            <a href="{{ $url }}"
-                                                                class="text-decoration-none d-block p-3 border-bottom notification-item position-relative"
-                                                                style="transition: background 0.2s;">
-                                                                <div class="d-flex gap-3">
-                                                                    <div class="flex-shrink-0">
-                                                                        <div class="rounded-circle d-flex align-items-center justify-content-center {{ $iconBoxClass }}"
-                                                                            style="width: 42px; height: 42px; font-size: 1rem;">
-                                                                            <i class="fas {{ $icon }}"></i>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div class="flex-grow-1 min-width-0">
-                                                                        <div class="d-flex justify-content-between align-items-start mb-1">
-                                                                            <span class="fw-bold text-dark small text-truncate pe-3">
-                                                                                {{ ucwords(str_replace(['_', '-'], ' ', $notification->type ??
-                                    'Notification')) }}
-                                                                            </span>
-                                                                            <small class="text-muted flex-shrink-0" style="font-size: 0.7rem;">
-                                                                                {{ $notification->created_at->diffForHumans(null, true) }}
-                                                                            </small>
-                                                                        </div>
-                                                                        <div class="text-muted small text-truncate-2"
-                                                                            style="font-size: 0.8rem; line-height: 1.4;">
-                                                                            @if($notification->sender)
-                                                                                <span
-                                                                                    class="text-primary fw-bold">{{ $notification->sender->name
-                                                                                                                                                                                                                                                                                    }}:</span>
-                                                                            @endif
-                                                                            {{ $notification->message }}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </a>
-                                @empty
-                                    <div class="p-5 text-center">
-                                        <div class="mb-3">
-                                            <i class="fas fa-check-circle text-success"
-                                                style="font-size: 2.5rem; opacity: 0.5;"></i>
-                                        </div>
-                                        <p class="text-muted small mb-0">You're all caught up!</p>
-                                    </div>
-                                @endforelse
-                            </div>
-
-                            <a href="{{ route('admin.notifications.index') }}"
-                                class="d-block p-2 text-center text-primary small fw-bold bg-light text-decoration-none">
-                                View Full Activity Log
-                            </a>
-                        </div>
-                    </div>
+                    <!-- Notifications Slide Sheet -->
+                    <button class="btn btn-link position-relative p-2 text-decoration-none" type="button"
+                        id="notificationTrigger" data-bs-toggle="offcanvas" data-bs-target="#notificationSheet"
+                        aria-controls="notificationSheet" aria-label="Open notifications"
+                        style="border-radius: 10px; transition: all 0.3s; background: rgba(0,0,0,0.03);">
+                        <i class="fas fa-bell fa-lg text-dark"></i>
+                        @if($unreadNotificationsCount > 0)
+                            <span class="position-absolute translate-middle badge rounded-pill bg-danger"
+                                style="top: 8px; right: -5px; border: 2px solid #fff; font-size: 0.65rem; min-width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; padding: 0;">
+                                {{ $unreadNotificationsCount > 99 ? '99+' : $unreadNotificationsCount }}
+                            </span>
+                        @endif
+                    </button>
 
 
 
@@ -1229,7 +1259,112 @@
             </div>
         </div>
 
-        <!-- Content Area -->
+        <!-- Notifications Slide Sheet (Outside Navbar) -->
+        <div class="offcanvas offcanvas-end notification-sheet" tabindex="-1" id="notificationSheet"
+            aria-labelledby="notificationSheetLabel">
+            <div class="offcanvas-header border-bottom py-2">
+                <div>
+                    <h5 class="offcanvas-title mb-0 fw-bold" id="notificationSheetLabel">Recent Activities</h5>
+                    <small class="text-muted d-block">Latest updates and alerts</small>
+                </div>
+                <div class="d-flex gap-2 ms-3">
+                    @php $unreadNotificationsCount = auth()->user() ? auth()->user()->notifications()->unread()->count() : 0; @endphp
+                    @if($unreadNotificationsCount > 0)
+                        <button type="button"
+                            class="btn btn-sm btn-link text-primary p-0 text-decoration-none small fw-bold mark-all-read-btn">
+                            Clear All
+                        </button>
+                    @endif
+                    <a href="{{ route('admin.notifications.index') }}" class="text-muted"
+                        title="View Hub">
+                        <i class="fas fa-external-link-alt small"></i>
+                    </a>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body p-0 d-flex flex-column">
+                <div id="notificationList" class="flex-grow-1" style="overflow-y: auto;">
+                    @php $unreadNotifications = auth()->user() ? auth()->user()->notifications()->unread()->latest()->take(10)->get() : collect(); @endphp
+                    @forelse($unreadNotifications as $notification)
+                        @php
+                            $isTask = str_contains(strtolower($notification->type ?? ''), 'task');
+                            $isOrder = str_contains(strtolower($notification->type ?? ''), 'order');
+                            $isUrgent = str_contains(strtolower($notification->type ?? ''), 'alert') ||
+                                str_contains(strtolower($notification->type ?? ''), 'warning');
+
+                            $iconBoxClass = 'bg-primary-subtle text-primary';
+                            $icon = 'fa-bell';
+
+                            if ($isTask) {
+                                $iconBoxClass = 'bg-purple-subtle text-purple';
+                                $icon = 'fa-palette';
+                            } elseif ($isOrder) {
+                                $iconBoxClass = 'bg-success-subtle text-success';
+                                $icon = 'fa-shopping-bag';
+                            } elseif ($isUrgent) {
+                                $iconBoxClass = 'bg-warning-subtle text-warning';
+                                $icon = 'fa-exclamation-triangle';
+                            }
+                        @endphp
+                        @php
+                            $url = route('admin.notifications.index');
+                            if (
+                                $notification->related_type === 'App\Models\DesignTask' &&
+                                $notification->related_id
+                            ) {
+                                $url = route('admin.design-tasks.show', $notification->related_id);
+                            } elseif (str_contains(strtolower($notification->message), 'task')) {
+                                preg_match('/ID[:\s]+(\d+)/i', $notification->message, $matches);
+                                if (isset($matches[1]))
+                                    $url = route('admin.design-tasks.show', $matches[1]);
+                            }
+                        @endphp
+                        <a href="{{ $url }}"
+                            class="text-decoration-none d-block p-3 border-bottom notification-item position-relative"
+                            style="transition: background 0.2s;">
+                            <div class="d-flex gap-3">
+                                <div class="flex-shrink-0">
+                                    <div class="rounded-circle d-flex align-items-center justify-content-center {{ $iconBoxClass }}"
+                                        style="width: 42px; height: 42px; font-size: 1rem;">
+                                        <i class="fas {{ $icon }}"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 min-width-0">
+                                    <div class="d-flex justify-content-between align-items-start mb-1">
+                                        <span class="fw-bold text-dark small text-truncate pe-3">
+                                            {{ ucwords(str_replace(['_', '-'], ' ', $notification->type ?? 'Notification')) }}
+                                        </span>
+                                        <small class="text-muted flex-shrink-0" style="font-size: 0.7rem;">
+                                            {{ $notification->created_at->diffForHumans(null, true) }}
+                                        </small>
+                                    </div>
+                                    <div class="text-muted small text-truncate-2"
+                                        style="font-size: 0.8rem; line-height: 1.4;">
+                                        @if($notification->sender)
+                                            <span class="text-primary fw-bold">{{ $notification->sender->name }}:</span>
+                                        @endif
+                                        {{ $notification->message }}
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    @empty
+                        <div class="p-5 text-center">
+                            <div class="mb-3">
+                                <i class="fas fa-check-circle text-success"
+                                    style="font-size: 2.5rem; opacity: 0.5;"></i>
+                            </div>
+                            <p class="text-muted small mb-0">You're all caught up!</p>
+                        </div>
+                    @endforelse
+                </div>
+
+                <a href="{{ route('admin.notifications.index') }}"
+                    class="d-block p-3 text-center text-primary small fw-bold bg-light text-decoration-none border-top mt-auto">
+                    <i class="fas fa-arrow-right me-1"></i> View Full Activity Log
+                </a>
+            </div>
+        </div>
         <div class="content-area">
 
 

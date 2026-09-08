@@ -13,6 +13,10 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use Carbon\Carbon;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
+use PhpOffice\PhpSpreadsheet\Cell\Cell;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
 
 // ── Main export (multiple sheets) ─────────────────────────────────────────
 
@@ -36,6 +40,18 @@ class SalesReportExport implements WithMultipleSheets
 
         if (!empty($this->ranking)) {
             $sheets[] = new SalesReportRankingSheet($this->ranking, $this->from, $this->to);
+        }
+
+        if (!empty($this->data['registeredLeadsList'])) {
+            $sheets[] = new SalesReportLeadsSheet($this->data['registeredLeadsList']);
+        }
+
+        if (!empty($this->data['paidClientsList'])) {
+            $sheets[] = new SalesReportPaidClientsSheet($this->data['paidClientsList']);
+        }
+
+        if (!empty($this->data['activities'])) {
+            $sheets[] = new SalesReportActivitySheet($this->data['activities']);
         }
 
         return $sheets;
@@ -189,5 +205,149 @@ class SalesReportRankingSheet implements FromArray, WithTitle, WithHeadings, Wit
         return [
             1 => ['font' => ['bold' => true], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '2C3E50']], 'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']]],
         ];
+    }
+}
+
+// ── Sheet 4: Follow-up Activities & Comments ───────────────────────────────
+
+class SalesReportActivitySheet extends DefaultValueBinder implements FromArray, WithTitle, WithHeadings, WithStyles, ShouldAutoSize, WithCustomValueBinder
+{
+    public function __construct(
+        private array  $activities,
+    ) {}
+
+    public function title(): string { return 'Activities & Comments'; }
+
+    public function headings(): array
+    {
+        return ['Date', 'Type', 'Name', 'Phone', 'Channel', 'Seller', 'Comments / Notes'];
+    }
+
+    public function array(): array
+    {
+        return array_map(function ($act) {
+            return [
+                Carbon::parse($act['date'])->format('d M Y H:i'),
+                $act['type'],
+                $act['contact_name'],
+                $act['phone'],
+                $act['channel'],
+                $act['seller_name'],
+                $act['notes'] ?? '',
+            ];
+        }, $this->activities);
+    }
+
+    public function styles(Worksheet $sheet): array
+    {
+        return [
+            1 => ['font' => ['bold' => true], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '16A085']], 'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']]],
+        ];
+    }
+
+    public function bindValue(Cell $cell, $value)
+    {
+        if (is_string($value) && (str_starts_with($value, '+') || preg_match('/^\+?[0-9\s\-()]{7,}$/', $value))) {
+            $cell->setValueExplicit($value, DataType::TYPE_STRING);
+            return true;
+        }
+
+        return parent::bindValue($cell, $value);
+    }
+}
+
+// ── Sheet 5: Registered Leads ───────────────────────────────────────────────
+
+class SalesReportLeadsSheet extends DefaultValueBinder implements FromArray, WithTitle, WithHeadings, WithStyles, ShouldAutoSize, WithCustomValueBinder
+{
+    public function __construct(
+        private $leads,
+    ) {}
+
+    public function title(): string { return 'Leads Registered'; }
+
+    public function headings(): array
+    {
+        return ['Date Registered', 'Lead Name', 'Phone', 'Source', 'Interest Level', 'Status', 'Seller'];
+    }
+
+    public function array(): array
+    {
+        return array_map(function ($lead) {
+            return [
+                $lead->created_at->format('d M Y H:i'),
+                $lead->customer_name,
+                $lead->phone,
+                ucfirst(str_replace('_', ' ', $lead->source)),
+                ucfirst($lead->interest_level),
+                $lead->status === 'converted' ? 'Won' : ($lead->status === 'not_interested' ? 'Lost' : ucfirst($lead->status)),
+                $lead->seller?->name ?? '—',
+            ];
+        }, $this->leads->all());
+    }
+
+    public function styles(Worksheet $sheet): array
+    {
+        return [
+            1 => ['font' => ['bold' => true], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '2980B9']], 'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']]],
+        ];
+    }
+
+    public function bindValue(Cell $cell, $value)
+    {
+        if (is_string($value) && (str_starts_with($value, '+') || preg_match('/^\+?[0-9\s\-()]{7,}$/', $value))) {
+            $cell->setValueExplicit($value, DataType::TYPE_STRING);
+            return true;
+        }
+
+        return parent::bindValue($cell, $value);
+    }
+}
+
+// ── Sheet 6: Paid Clients & Tasks ──────────────────────────────────────────
+
+class SalesReportPaidClientsSheet extends DefaultValueBinder implements FromArray, WithTitle, WithHeadings, WithStyles, ShouldAutoSize, WithCustomValueBinder
+{
+    public function __construct(
+        private $tasks,
+    ) {}
+
+    public function title(): string { return 'Paid Clients & Tasks'; }
+
+    public function headings(): array
+    {
+        return ['Task Date', 'Customer Name', 'Task Code', 'Department', 'Design Details', 'Price (TZS)', 'Seller'];
+    }
+
+    public function array(): array
+    {
+        return array_map(function ($task) {
+            return [
+                $task->created_at->format('d M Y H:i'),
+                $task->customer?->name ?? 'Guest',
+                $task->task_code,
+                $task->department?->name ?? 'POS',
+                $task->title . ' (' . $task->quantity . ' pcs)',
+                $task->price,
+                $task->saler?->name ?? '—',
+            ];
+        }, $this->tasks->all());
+    }
+
+    public function styles(Worksheet $sheet): array
+    {
+        return [
+            1 => ['font' => ['bold' => true], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '27AE60']], 'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']]],
+        ];
+    }
+
+    public function bindValue(Cell $cell, $value)
+    {
+        if (is_string($value) && (str_starts_with($value, '+') || preg_match('/^\+?[0-9\s\-()]{7,}$/', $value))) {
+            $cell->setValueExplicit($value, DataType::TYPE_STRING);
+            return true;
+        }
+
+        return parent::bindValue($cell, $value);
     }
 }

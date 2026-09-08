@@ -246,15 +246,18 @@
                 <div class="d-flex gap-2">
                     <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
                         <i class="fas fa-filter me-1"></i>Filter
+                        @if(request()->anyFilled(['role', 'department_id', 'search', 'status']))
+                            <span class="badge bg-primary ms-1">Active</span>
+                        @endif
                     </button>
                     @if(in_array(auth()->user()->role, ['super_admin', 'admin', 'accountant']))
                     <button type="button" class="btn btn-success btn-sm shadow-sm" onclick="payAllModal()">
                         <i class="fas fa-money-bill-wave me-1"></i>Pay All
                     </button>
                     @endif
-                    <button type="button" class="btn btn-primary btn-sm shadow-sm" id="createAdminBtn" onclick="createAdmin()">
+                    <a href="{{ route('admin.admins.create') }}" class="btn btn-primary btn-sm shadow-sm">
                         <i class="fas fa-user-plus me-2"></i>New Member
-                    </button>
+                    </a>
                 </div>
             </div>
 
@@ -322,11 +325,20 @@
             </div>
             
             <!-- Filters Section -->
-            <div class="collapse {{ request('role') ? 'show' : '' }} mb-4 filter-section" id="filterCollapse">
+            <div class="collapse {{ request()->anyFilled(['role', 'department_id', 'search', 'status']) ? 'show' : '' }} mb-4 filter-section" id="filterCollapse">
                 <div class="card border-0 shadow-sm border-top border-4 border-primary">
                     <div class="card-body bg-light p-3">
                         <form action="{{ route('admin.admins.index') }}" method="GET" class="row g-2 align-items-end" data-no-global-handler>
-                            <div class="col-6 col-md-3">
+
+                            <div class="col-12 col-md-3">
+                                <label class="form-label fw-bold x-small text-uppercase mb-1">Search</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                                    <input type="text" name="search" class="form-control" placeholder="Name, email or phone..." value="{{ request('search') }}">
+                                </div>
+                            </div>
+
+                            <div class="col-6 col-md-2">
                                 <label class="form-label fw-bold x-small text-uppercase mb-1">Role</label>
                                 <select class="form-select form-select-sm" name="role">
                                     <option value="">All Roles</option>
@@ -335,7 +347,7 @@
                                             'super_admin' => 'Super Admin',
                                             'admin' => 'Admin',
                                             'manager' => 'Manager',
-                                            'saler' => 'Saler',
+                                            'saler' => 'Sales',
                                             'receptionist' => 'Receptionist',
                                             'designer' => 'Designer',
                                             'operator' => 'Operator',
@@ -354,7 +366,8 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-6 col-md-3">
+
+                            <div class="col-6 col-md-2">
                                 <label class="form-label fw-bold x-small text-uppercase mb-1">Department</label>
                                 <select class="form-select form-select-sm" name="department_id">
                                     <option value="">All Departments</option>
@@ -365,17 +378,23 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-12 col-md-4">
-                                <!-- Search or space -->
+
+                            <div class="col-6 col-md-2">
+                                <label class="form-label fw-bold x-small text-uppercase mb-1">Status</label>
+                                <select class="form-select form-select-sm" name="status">
+                                    <option value="">All Status</option>
+                                    <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Active</option>
+                                    <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
+                                </select>
                             </div>
-                            <div class="col-md-2 d-flex gap-1">
-                                <button type="submit" class="btn btn-primary btn-sm flex-grow-1 fw-bold">
-                                    <i class="fas fa-search me-1"></i> SEARCH
-                                </button>
-                                <a href="{{ route('admin.admins.index') }}" class="btn btn-outline-secondary btn-sm fw-bold">
-                                    <i class="fas fa-undo"></i>
-                                </a>
+
+                            <div class="col-6 col-md-auto ms-auto">
+                                <div class="btn-group shadow-sm w-100">
+                                    <button type="submit" class="btn btn-primary btn-sm px-4 fw-bold">APPLY</button>
+                                    <a href="{{ route('admin.admins.index') }}" class="btn btn-dark btn-sm px-4 fw-bold">RESET</a>
+                                </div>
                             </div>
+
                         </form>
                     </div>
                 </div>
@@ -386,7 +405,7 @@
     <!-- Admins Table -->
     <div class="card shadow-sm border-0">
         <div class="card-header border-bottom py-2">
-            <h6 class="mb-0 fw-bold text-white" style="font-size: 0.9rem;">
+            <h6 class="mb-0 fw-bold text-dark" style="font-size: 0.9rem;">
                 <i class="fas fa-users-cog me-2"></i>All Administrators
             </h6>
         </div>
@@ -451,11 +470,16 @@
                                     </div>
                                 </td>
                                 <td class="px-3 py-3">
-                                    <div class="text-start">
-                                        @if($admin->department)
-                                            <span class="badge bg-light text-dark border fw-semibold rounded-pill">
-                                                {{ $admin->department->name }}
-                                            </span>
+                                    <div class="text-start d-flex flex-wrap gap-1">
+                                        @php
+                                            $adminDepts = $admin->departments();
+                                        @endphp
+                                        @if($adminDepts->isNotEmpty())
+                                            @foreach($adminDepts as $dept)
+                                                <span class="badge bg-light text-dark border fw-semibold rounded-pill">
+                                                    {{ $dept->name }}
+                                                </span>
+                                            @endforeach
                                         @else
                                             <span class="text-muted x-small">Global</span>
                                         @endif
@@ -494,11 +518,9 @@
                                             <i class="fas fa-eye"></i>
                                         </a>
                                         @if($admin->id !== auth()->id())
-                                            <button type="button" class="btn-action btn-edit" 
-                                                    onclick="editAdmin({{ $admin->id }}, '{{ addslashes($admin->name) }}', '{{ $admin->email }}', '{{ $admin->phone ?? '' }}', '{{ $admin->role }}', {{ $admin->is_active ? 'true' : 'false' }}, '{{ $admin->created_at->format('M d, Y') }}', '{{ $admin->profile_image ? asset('storage/' . $admin->profile_image) : '' }}', '{{ $admin->department_id ?? '' }}', '{{ $admin->monthly_salary ?? 0 }}')"
-                                                    title="Edit">
+                                            <a href="{{ route('admin.admins.edit', $admin->id) }}" class="btn-action btn-edit" title="Edit">
                                                 <i class="fas fa-edit"></i>
-                                            </button>
+                                            </a>
                                             @if(in_array(auth()->user()->role, ['super_admin', 'admin', 'accountant']) && ($admin->monthly_salary ?? 0) > 0)
                                                 @if(in_array($admin->id, $paidStaffIds ?? []))
                                                     <button type="button" class="btn-action btn-pay opacity-50 pe-none"
@@ -586,199 +608,7 @@
     </div>
 @endif
 
-<!-- Unified Admin Modal (Create/Edit) -->
-<div class="modal fade" id="adminModal" tabindex="-1" aria-labelledby="adminModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content">
-            <form method="POST" action="{{ route('admin.admins.store') }}" id="adminForm">
-                @csrf
-                <input type="hidden" name="_method" id="form_method" value="POST">
-                <input type="hidden" name="admin_id" id="admin_id" value="">
-                
-                <div class="modal-header py-2 border-bottom-0">
-                    <h6 class="modal-title fw-bold text-dark" id="adminModalLabel">
-                        <i class="fas fa-user-plus me-2 text-primary" id="modal-icon"></i>
-                        <span id="modal-title-text">Create New Team Member</span>
-                    </h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                
-                <div class="modal-body">
-                    @if($errors->any() && old('name'))
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <strong>Please fix the following errors:</strong>
-                            <ul class="mb-0 mt-2">
-                                @foreach($errors->all() as $error)
-                                    <li>{{ $error }}</li>
-                                @endforeach
-                            </ul>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    @endif
-
-                    <!-- User Meta Details (Only for Edit) -->
-                    <div id="user-meta-details" class="card bg-light border-0 mb-3" style="display: none;">
-                        <div class="card-body p-2 d-flex align-items-center">
-                            <div class="me-3">
-                                <div class="admin-avatar shadow-sm" style="width: 40px; height: 40px; font-size: 1rem;" id="meta-avatar">
-                                    <!-- Populated by JS -->
-                                </div>
-                            </div>
-                            <div>
-                                <h6 class="mb-0 fw-bold text-dark small" id="meta-name"></h6>
-                                <div class="text-muted x-small">
-                                    Member since <span id="meta-joined"></span> • ID: <span id="meta-id"></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="name" class="form-label">Full Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control @error('name') is-invalid @enderror" id="name" name="name" value="{{ old('name', '') }}" required 
-                                   placeholder="Enter full name">
-                            @error('name')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            <label for="email" class="form-label">Email Address <span class="text-danger">*</span></label>
-                            <input type="email" class="form-control @error('email') is-invalid @enderror" id="email" name="email" value="{{ old('email', '') }}" required 
-                                   placeholder="Enter email address">
-                            @error('email')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="role" class="form-label">Role <span class="text-danger">*</span></label>
-                            <select class="form-select @error('role') is-invalid @enderror" id="role" name="role" required>
-                                <option value="" disabled>Select a role</option>
-                                @foreach($roles as $key => $role)
-                                    @if(auth()->user()->role === 'accountant' && in_array($key, ['super_admin', 'admin', 'manager', 'accountant']))
-                                        @continue
-                                    @endif
-                                    <option value="{{ $key }}" {{ old('role') == $key ? 'selected' : '' }} data-description="{{ $roleDescriptions[$key]['description'] ?? 'No description available' }}">
-                                        {{ $role }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('role')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <div class="col-md-6 mb-3 d-flex align-items-center">
-                            <div class="form-check form-switch w-100 p-3 bg-light rounded border">
-                                <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="is_active" 
-                                       name="is_active" value="1" {{ old('is_active', true) ? 'checked' : '' }} style="width: 2.5em; height: 1.25em;">
-                                <label class="form-check-label pt-1" for="is_active">
-                                    <div class="fw-bold text-dark">Active Account</div>
-                                    <div class="text-muted x-small">User can log in to system</div>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="department_id" class="form-label">Department</label>
-                            <select class="form-select @error('department_id') is-invalid @enderror" id="department_id" name="department_id">
-                                <option value="">None (Global)</option>
-                                @foreach($departments as $dept)
-                                    <option value="{{ $dept->id }}" {{ old('department_id') == $dept->id ? 'selected' : '' }}>
-                                        {{ $dept->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div class="col-md-6 mb-3">
-                            <label for="monthly_salary" class="form-label">Monthly Salary (TZS)</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0 fw-bold text-muted">TZS</span>
-                                <input type="number" step="0.01" class="form-control border-start-0 ps-0 @error('monthly_salary') is-invalid @enderror" 
-                                       id="monthly_salary" name="monthly_salary" value="{{ old('monthly_salary', '0') }}" 
-                                       placeholder="0.00">
-                            </div>
-                            @error('monthly_salary')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label for="phone" class="form-label">Phone Number</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0 fw-bold text-muted">+</span>
-                                <input type="text" class="form-control border-start-0 ps-0 @error('phone') is-invalid @enderror" id="phone" name="phone" value="{{ old('phone', '255') }}" 
-                                       placeholder="255123456789">
-                            </div>
-                            <div class="form-text text-muted x-small">Start with country code (e.g. 255)</div>
-                            @error('phone')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    </div>
-
-                    
-                    <div class="row" id="password-row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="password" class="form-label">Password <span class="text-danger" id="password-required">*</span></label>
-                                <div class="input-group">
-                                    <input type="password" class="form-control @error('password') is-invalid @enderror" id="password" name="password" 
-                                           minlength="8" placeholder="••••••••">
-                                    <button class="btn btn-outline-secondary toggle-password" type="button">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    @error('password')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                                <div class="form-text">Minimum 8 characters</div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="password_confirmation" class="form-label">Confirm Password <span class="text-danger" id="password-confirm-required">*</span></label>
-                                <div class="input-group">
-                                    <input type="password" class="form-control" id="password_confirmation" 
-                                           name="password_confirmation" placeholder="••••••••">
-                                    <button class="btn btn-outline-secondary toggle-password" type="button">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    
-                    <div class="alert alert-info small mb-0" id="info-alert">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <span id="info-text">After creating the user, an email with login instructions will be sent to the user's email address.</span>
-                    </div>
-                </div>
-                
-                <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-2"></i>Cancel
-                    </button>
-                    <button type="submit" class="btn btn-primary" id="adminSubmit" data-no-global-handler>
-                        <i class="fas fa-user-plus me-2" id="submit-icon"></i>
-                        <span id="submit-text">Create User</span>
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+{{-- Create/Edit now use dedicated pages (admins/create and admins/{id}/edit) --}}
 
 <!-- Pay Salary Modal -->
 <div class="modal fade" id="paySalaryModal" tabindex="-1" aria-labelledby="paySalaryModalLabel" aria-hidden="true">
@@ -954,8 +784,9 @@
 }
 
 .card-header {
-        background: #dc3545;
+        background: #ffffff;
         border: none;
+        border-bottom: 1px solid #dee2e6 !important;
         padding: 0.75rem 1.25rem;
 }
 
@@ -1483,249 +1314,6 @@
 </style>
 
 <script>
-// Global variables for modal handling
-let isSubmitting = false;
-const originalButtonText = '<i class="fas fa-user-plus me-2"></i>Create User';
-
-// Cache DOM elements for better performance
-let cachedElements = null;
-
-function getCachedElements() {
-    if (!cachedElements) {
-        const form = document.getElementById('adminForm');
-        if (!form) return null;
-        
-        cachedElements = {
-            form: form,
-            modal: document.getElementById('adminModal'),
-            modalInstance: null,
-            formMethod: document.getElementById('form_method'),
-            adminId: document.getElementById('admin_id'),
-            modalTitleText: document.getElementById('modal-title-text'),
-            modalIcon: document.getElementById('modal-icon'),
-            submitText: document.getElementById('submit-text'),
-            submitIcon: document.getElementById('submit-icon'),
-            passwordRow: document.getElementById('password-row'),
-            passwordField: document.getElementById('password'),
-            passwordConfirmField: document.getElementById('password_confirmation'),
-            passwordRequired: document.getElementById('password-required'),
-            passwordConfirmRequired: document.getElementById('password-confirm-required'),
-            metaDetails: document.getElementById('user-meta-details'),
-            metaName: document.getElementById('meta-name'),
-            metaJoined: document.getElementById('meta-joined'),
-            metaId: document.getElementById('meta-id'),
-            metaAvatar: document.getElementById('meta-avatar'),
-            isActive: document.getElementById('is_active'),
-            infoAlert: document.getElementById('info-alert'),
-            createBtn: document.getElementById('createAdminBtn'),
-            createBtnText: document.getElementById('createBtnText')
-        };
-        
-        // Initialize modal instance once
-        if (cachedElements.modal) {
-            cachedElements.modalInstance = bootstrap.Modal.getOrCreateInstance(cachedElements.modal);
-        }
-    }
-    return cachedElements;
-}
-
-// Create new admin - Optimized version
-function createAdmin() {
-    const el = getCachedElements();
-    if (!el || !el.form) {
-        console.error('Required elements not found');
-        return;
-    }
-    
-    // Show immediate visual feedback
-    if (el.createBtn) {
-        const originalBtnContent = el.createBtn.innerHTML;
-        el.createBtn.disabled = true;
-        el.createBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Opening...';
-        
-        // Use requestAnimationFrame for smooth UI update
-        requestAnimationFrame(() => {
-            try {
-                // Reset form efficiently
-                el.form.reset();
-                el.form.action = '{{ route('admin.admins.store') }}';
-                el.formMethod.value = 'POST';
-                el.adminId.value = '';
-                
-                // Batch DOM updates
-                if (el.modalTitleText) el.modalTitleText.textContent = 'Create New Team Member';
-                if (el.modalIcon) el.modalIcon.className = 'fas fa-user-plus me-2';
-                if (el.submitText) el.submitText.textContent = 'Create User';
-                if (el.submitIcon) el.submitIcon.className = 'fas fa-user-plus me-2';
-                
-                // Password fields
-                if (el.passwordRow) el.passwordRow.style.display = 'flex';
-                if (el.passwordField) {
-                    el.passwordField.required = true;
-                    el.passwordField.setAttribute('minlength', '8');
-                }
-                if (el.passwordConfirmField) el.passwordConfirmField.required = true;
-                if (el.passwordRequired) el.passwordRequired.style.display = 'inline';
-                if (el.passwordConfirmRequired) el.passwordConfirmRequired.style.display = 'inline';
-                
-                // Hide meta details
-                if (el.metaDetails) el.metaDetails.style.display = 'none';
-
-                // Active status
-                if (el.isActive) el.isActive.checked = true;
-                
-                // Info alert
-                if (el.infoAlert) {
-                    el.infoAlert.style.display = 'block';
-                    const infoText = el.infoAlert.querySelector('#info-text');
-                    if (infoText) {
-                        infoText.textContent = 'After creating the user, an email with login instructions will be sent to the user\'s email address.';
-                    }
-                }
-                
-                // Clear validation
-                el.form.classList.remove('was-validated');
-                
-                // Clear errors efficiently
-                const invalidFields = el.form.querySelectorAll('.is-invalid');
-                invalidFields.forEach(field => field.classList.remove('is-invalid'));
-                
-                const errorAlerts = el.form.querySelectorAll('.alert-danger');
-                errorAlerts.forEach(alert => alert.remove());
-                
-                // Show modal
-                if (el.modalInstance) {
-                    el.modalInstance.show();
-                }
-                
-            } catch (error) {
-                console.error('Error in createAdmin:', error);
-            } finally {
-                // Restore button state after a short delay
-                setTimeout(() => {
-                    if (el.createBtn) {
-                        el.createBtn.disabled = false;
-                        el.createBtn.innerHTML = originalBtnContent;
-                    }
-                }, 300);
-            }
-        });
-    } else {
-        // Fallback if button not found
-        const form = document.getElementById('adminForm');
-        if (!form) return;
-        
-        form.reset();
-        form.action = '{{ route('admin.admins.store') }}';
-        document.getElementById('form_method').value = 'POST';
-        
-        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('adminModal'));
-        modal.show();
-    }
-}
-
-// Edit existing admin - Optimized version
-function editAdmin(adminId, name, email, phone, role, isActive, joinedDate, avatarUrl, departmentId, salary) {
-    const el = getCachedElements();
-    if (!el || !el.form) {
-        console.error('Required elements not found');
-        return;
-    }
-    
-    // Use requestAnimationFrame for smooth UI update
-    requestAnimationFrame(() => {
-        try {
-            // Set form action and method
-            el.form.action = `/admin/admins/${adminId}`;
-            el.formMethod.value = 'PUT';
-            el.adminId.value = adminId;
-            
-            // Populate form fields efficiently
-            const nameField = document.getElementById('name');
-            const emailField = document.getElementById('email');
-            const phoneField = document.getElementById('phone');
-            const roleField = document.getElementById('role');
-            const deptField = document.getElementById('department_id');
-            const salaryField = document.getElementById('monthly_salary');
-            
-            if (nameField) nameField.value = name || '';
-            if (emailField) emailField.value = email || '';
-            if (phoneField) phoneField.value = phone || '';
-            if (roleField) roleField.value = role || '';
-            if (deptField) deptField.value = departmentId || '';
-            if (salaryField) salaryField.value = salary || '0';
-            if (el.isActive) el.isActive.checked = isActive !== false;
-
-            // Show meta details
-            if (el.metaDetails) {
-                el.metaDetails.style.display = 'block';
-                if (el.metaName) el.metaName.textContent = name;
-                if (el.metaJoined) el.metaJoined.textContent = joinedDate || 'N/A';
-                if (el.metaId) el.metaId.textContent = adminId;
-                
-                // Set avatar
-                if (el.metaAvatar) {
-                    if (avatarUrl) {
-                        el.metaAvatar.innerHTML = `<img src="${avatarUrl}" alt="${name}" class="rounded">`;
-                    } else {
-                        el.metaAvatar.innerHTML = name.charAt(0).toUpperCase();
-                        // Reset gradient background just in case image covered it
-                        el.metaAvatar.style.background = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
-                    }
-                }
-            }
-            
-            // Clear password fields (not required for edit)
-            if (el.passwordField) {
-                el.passwordField.value = '';
-                el.passwordField.required = false;
-                el.passwordField.removeAttribute('minlength');
-            }
-            if (el.passwordConfirmField) {
-                el.passwordConfirmField.value = '';
-                el.passwordConfirmField.required = false;
-            }
-            
-            // Hide password required indicators
-            if (el.passwordRequired) el.passwordRequired.style.display = 'none';
-            if (el.passwordConfirmRequired) el.passwordConfirmRequired.style.display = 'none';
-            
-            // Update modal title and icon
-            if (el.modalTitleText) el.modalTitleText.textContent = `Edit Admin: ${name}`;
-            if (el.modalIcon) el.modalIcon.className = 'fas fa-user-edit me-2';
-            if (el.submitText) el.submitText.textContent = 'Update Admin';
-            if (el.submitIcon) el.submitIcon.className = 'fas fa-save me-2';
-            
-            // Hide info alert for edit mode
-            if (el.infoAlert) {
-                el.infoAlert.style.display = 'none';
-                const infoText = el.infoAlert.querySelector('#info-text');
-                if (infoText) {
-                    infoText.textContent = 'Leave password fields blank to keep the current password.';
-                }
-            }
-            
-            // Clear validation
-            el.form.classList.remove('was-validated');
-            
-            // Clear old error classes
-            const invalidFields = el.form.querySelectorAll('.is-invalid');
-            invalidFields.forEach(field => field.classList.remove('is-invalid'));
-            
-            // Hide any error alerts
-            const errorAlerts = el.form.querySelectorAll('.alert-danger');
-            errorAlerts.forEach(alert => alert.remove());
-            
-            // Show modal
-            if (el.modalInstance) {
-                el.modalInstance.show();
-            }
-        } catch (error) {
-            console.error('Error in editAdmin:', error);
-        }
-    });
-}
-
 // Delete admin
 function deleteAdmin(adminId, adminName) {
     if (confirm(`Are you sure you want to delete admin "${adminName}"? This action cannot be undone.`)) {
@@ -1779,149 +1367,5 @@ function payAllModal() {
     modal.show();
 }
 
-// Handle form submission
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize cached elements
-    getCachedElements();
-    
-    const el = getCachedElements();
-    if (!el || !el.form || !document.getElementById('adminSubmit')) {
-        console.error('Admin form or button not found');
-        return;
-    }
-    
-    const form = el.form;
-    const submitBtn = document.getElementById('adminSubmit');
-    const modal = el.modal;
-    
-    // Reopen modal if there are validation errors
-    @if($errors->any() && old('name'))
-        requestAnimationFrame(() => {
-            // If editing (has admin_id in old data), populate for edit mode
-            @if(old('admin_id'))
-                editAdmin({{ old('admin_id') }}, '{{ addslashes(old('name')) }}', '{{ old('email') }}', '{{ old('phone') }}', '{{ old('role') }}', {{ old('is_active', true) ? 'true' : 'false' }}, '{{ old('created_at') }}', '');
-            @else
-                createAdmin();
-            @endif
-        });
-    @endif
-    
-    // Handle form submission
-    form.addEventListener('submit', function(e) {
-        // Prevent double submission
-        if (isSubmitting) {
-            e.preventDefault();
-            return false;
-        }
-        
-        // Check if password is required (for create mode)
-        const isEditMode = document.getElementById('form_method').value === 'PUT';
-        const passwordField = document.getElementById('password');
-        const passwordConfirmField = document.getElementById('password_confirmation');
-        
-        if (!isEditMode) {
-            // Create mode - password is required
-            passwordField.required = true;
-            passwordConfirmField.required = true;
-        } else {
-            // Edit mode - password is optional, but if one is filled, both must be filled
-            if (passwordField.value || passwordConfirmField.value) {
-                passwordField.required = true;
-                passwordConfirmField.required = true;
-                if (passwordField.value.length < 8) {
-                    e.preventDefault();
-                    passwordField.setCustomValidity('Password must be at least 8 characters');
-                    passwordField.reportValidity();
-                    form.classList.add('was-validated');
-                    return false;
-                }
-                if (passwordField.value !== passwordConfirmField.value) {
-                    e.preventDefault();
-                    passwordConfirmField.setCustomValidity('Passwords do not match');
-                    passwordConfirmField.reportValidity();
-                    form.classList.add('was-validated');
-                    return false;
-                }
-            } else {
-                passwordField.required = false;
-                passwordConfirmField.required = false;
-            }
-            passwordField.setCustomValidity('');
-            passwordConfirmField.setCustomValidity('');
-        }
-        
-        // Validate form
-        if (!form.checkValidity()) {
-            e.preventDefault();
-            e.stopPropagation();
-            form.classList.add('was-validated');
-            return false;
-        }
-        
-        // Set submitting state
-        isSubmitting = true;
-        submitBtn.disabled = true;
-        const currentText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
-        
-        // Auto-recovery after 10 seconds
-        setTimeout(() => {
-            if (isSubmitting) {
-                isSubmitting = false;
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = currentText;
-                console.warn('Form submission timeout - resetting button');
-            }
-        }, 10000);
-        
-        // Form will submit naturally
-        return true;
-    });
-    
-    // Reset form when modal closes
-    modal.addEventListener('hidden.bs.modal', function() {
-        isSubmitting = false;
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = originalButtonText;
-        form.reset();
-        form.classList.remove('was-validated');
-    
-        // Reset form action to create
-        form.action = '{{ route('admin.admins.store') }}';
-        document.getElementById('form_method').value = 'POST';
-        document.getElementById('admin_id').value = '';
-        
-        // Reset select if used, for now just normal select
-        document.getElementById('role').value = '';
-        
-        // Set default phone to 255
-        if(document.getElementById('phone')) document.getElementById('phone').value = '255';
-
-        // Show info alert (for create mode default)
-        document.getElementById('info-alert').style.display = 'block';
-        
-        // Clear all error messages
-        document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-        const errorAlerts = form.querySelectorAll('.alert-danger');
-        errorAlerts.forEach(alert => alert.remove());
-    });
-                
-    // Toggle password visibility
-    document.querySelectorAll('.toggle-password').forEach(button => {
-        button.addEventListener('click', function() {
-            const input = this.parentElement.querySelector('input');
-            const icon = this.querySelector('i');
-            if (input.type === 'password') {
-                input.type = 'text';
-                icon.classList.remove('fa-eye');
-                icon.classList.add('fa-eye-slash');
-            } else {
-                input.type = 'password';
-                icon.classList.remove('fa-eye-slash');
-                icon.classList.add('fa-eye');
-            }
-                });
-    });
-});
 </script>
 @endsection

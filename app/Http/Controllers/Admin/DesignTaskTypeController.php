@@ -13,8 +13,9 @@ class DesignTaskTypeController extends Controller
      */
     public function index()
     {
-        $types = DesignTaskType::latest()->get();
-        return view('admin.design-task-types.index', compact('types'));
+        $types = DesignTaskType::with('department')->latest()->get();
+        $departments = \App\Models\Department::orderBy('name')->get();
+        return view('admin.design-task-types.index', compact('types', 'departments'));
     }
 
     /**
@@ -22,7 +23,8 @@ class DesignTaskTypeController extends Controller
      */
     public function create()
     {
-        return view('admin.design-task-types.create');
+        $departments = \App\Models\Department::orderBy('name')->get();
+        return view('admin.design-task-types.create', compact('departments'));
     }
 
     /**
@@ -34,7 +36,13 @@ class DesignTaskTypeController extends Controller
             'name' => 'required|string|unique:design_task_types,name|max:255',
             'price' => 'required|numeric|min:0',
             'description' => 'nullable|string',
+            'department_id' => 'nullable|exists:departments,id',
+            'image' => 'nullable|image|max:2048',
         ]);
+
+        if ($request->hasFile('image')) {
+            $validated['image_path'] = $request->file('image')->store('design-task-types', 'public');
+        }
 
         DesignTaskType::create($validated);
 
@@ -51,7 +59,8 @@ class DesignTaskTypeController extends Controller
      */
     public function edit(DesignTaskType $designTaskType)
     {
-        return view('admin.design-task-types.edit', compact('designTaskType'));
+        $departments = \App\Models\Department::orderBy('name')->get();
+        return view('admin.design-task-types.edit', compact('designTaskType', 'departments'));
     }
 
     /**
@@ -63,7 +72,13 @@ class DesignTaskTypeController extends Controller
             'name' => 'required|string|max:255|unique:design_task_types,name,' . $designTaskType->id,
             'price' => 'required|numeric|min:0',
             'description' => 'nullable|string',
+            'department_id' => 'nullable|exists:departments,id',
+            'image' => 'nullable|image|max:2048',
         ]);
+
+        if ($request->hasFile('image')) {
+            $validated['image_path'] = $request->file('image')->store('design-task-types', 'public');
+        }
 
         $designTaskType->update($validated);
 

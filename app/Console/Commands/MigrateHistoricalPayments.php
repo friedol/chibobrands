@@ -21,7 +21,7 @@ class MigrateHistoricalPayments extends Command
         // 1. Create Default Departments if none exist
         if (Department::count() === 0) {
             $this->info('Creating default departments...');
-            $departments = ['Printing', 'Design', 'Branding', 'Photography', 'Marketing'];
+            $departments = ['MIFUKO', 'CHIBO- MAIN', 'CHIBO – SIGNAGE', 'CHIBO- PROMO TECH', 'GENERAL'];
             foreach ($departments as $name) {
                 Department::firstOrCreate(
                     ['slug' => \Illuminate\Support\Str::slug($name)],

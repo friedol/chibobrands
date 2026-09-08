@@ -14,7 +14,7 @@ class Attendance extends Model
     protected $fillable = [
         'employee_id', 'attendance_date', 'clock_in', 'clock_out',
         'hours_worked', 'status', 'is_late', 'late_minutes',
-        'location', 'method', 'notes', 'recorded_by',
+        'location', 'method', 'notes', 'recorded_by', 'hikvision_event_id',
     ];
 
     protected $casts = [

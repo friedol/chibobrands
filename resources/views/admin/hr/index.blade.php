@@ -8,7 +8,6 @@
     <div class="row mb-3 align-items-center">
         <div class="col-lg-6">
             <h4 class="fw-bold mb-0"><i class="fas fa-users-cog text-primary me-2"></i>Human Resources</h4>
-            <p class="text-muted small mb-0">Employee Management, Attendance & Performance</p>
         </div>
         <div class="col-lg-6 text-lg-end mt-2 mt-lg-0 d-flex flex-wrap justify-content-lg-end gap-2">
             <a href="{{ route('admin.hr.attendance') }}" class="btn btn-outline-info btn-sm px-3">
@@ -23,37 +22,107 @@
             <a href="{{ route('admin.hr.kpis') }}" class="btn btn-outline-success btn-sm px-3">
                 <i class="fas fa-chart-bar me-1"></i>KPI Evaluations
             </a>
-            <button class="btn btn-primary btn-sm px-3" data-bs-toggle="modal" data-bs-target="#addEmployeeModal">
+            <a href="{{ route('admin.hr.create') }}" class="btn btn-primary btn-sm px-3">
                 <i class="fas fa-user-plus me-1"></i>Add Employee
-            </button>
+            </a>
         </div>
     </div>
 
     {{-- ── Summary Cards ── --}}
-    <div class="row g-3 mb-4">
+    <div class="row g-2 g-md-3 mb-4 hr-summary-row">
         @php
             $summaryCards = [
                 ['label' => 'Active Staff', 'value' => $totalActive, 'icon' => 'fas fa-user-check', 'color' => 'success'],
-                ['label' => 'On Leave', 'value' => $onLeave, 'icon' => 'fas fa-beach', 'color' => 'warning'],
+                ['label' => 'On Leave', 'value' => $onLeave, 'icon' => 'fas fa-plane-departure', 'color' => 'warning'],
                 ['label' => 'Pending Leaves', 'value' => $pendingLeaves, 'icon' => 'fas fa-clock', 'color' => 'danger'],
                 ['label' => 'Present Today', 'value' => $todayPresent, 'icon' => 'fas fa-calendar-day', 'color' => 'info'],
             ];
         @endphp
         @foreach($summaryCards as $c)
-        <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body d-flex align-items-center py-3">
-                    <div class="rounded-circle bg-{{ $c['color'] }} bg-opacity-10 p-3 me-3">
-                        <i class="{{ $c['icon'] }} text-{{ $c['color'] }}"></i>
+        <div class="col-6 col-md-3 hr-summary-item">
+            <div class="hr-stat-card h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="hr-stat-icon bg-{{ $c['color'] }}-subtle text-{{ $c['color'] }}">
+                        <i class="{{ $c['icon'] }}"></i>
                     </div>
-                    <div>
-                        <div class="fs-3 fw-bold">{{ $c['value'] }}</div>
-                        <div class="x-small text-muted fw-semibold">{{ $c['label'] }}</div>
+                    <span class="hr-stat-sub">Today</span>
+                </div>
+                <div class="hr-stat-val text-dark">{{ number_format($c['value']) }}</div>
+                <div class="hr-stat-lbl">{{ $c['label'] }}</div>
+            </div>
+        </div>
+        @endforeach
+    </div>
+
+    {{-- ── HR Automated Leave Sync Widget ── --}}
+    <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);">
+        <div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="fw-bold text-dark mb-0"><i class="fas fa-robot text-primary me-2"></i>HR Automated Leave Status Monitor</h6>
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1 rounded-pill small">
+                    <i class="fas fa-check-circle me-1"></i>Active Status Auto-Restored Upon Leave Expiry
+                </span>
+            </div>
+            
+            <div class="row g-3 mt-1">
+                <!-- On Leave Employees -->
+                <div class="col-md-4">
+                    <div class="bg-white border rounded p-3 h-100 shadow-2fs">
+                        <span class="text-uppercase x-small fw-bold text-muted d-block mb-1">Employees On Leave Currently</span>
+                        @if(empty($leaveMetrics['on_leave_employees']) || count($leaveMetrics['on_leave_employees']) == 0)
+                            <div class="text-muted small py-2"><i class="fas fa-info-circle me-1"></i>No employees on leave.</div>
+                        @else
+                            <div class="d-flex flex-column gap-2 mt-2">
+                                @foreach($leaveMetrics['on_leave_employees'] as $emp)
+                                    <div class="d-flex justify-content-between align-items-center border-bottom pb-1">
+                                        <span class="fw-semibold small text-dark">{{ $emp->full_name }}</span>
+                                        <span class="badge bg-warning text-dark"><i class="fas fa-umbrella-beach me-1"></i>On Leave</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+                </div>
+
+                <!-- Returning Today & Returning Soon -->
+                <div class="col-md-4">
+                    <div class="bg-white border rounded p-3 h-100">
+                        <span class="text-uppercase x-small fw-bold text-success d-block mb-1">Returning Today (Active Status Restored)</span>
+                        @if(empty($leaveMetrics['returning_today']) || count($leaveMetrics['returning_today']) == 0)
+                            <div class="text-muted small py-2"><i class="fas fa-calendar-check me-1"></i>No leave expirations today.</div>
+                        @else
+                            <div class="d-flex flex-column gap-2 mt-2">
+                                @foreach($leaveMetrics['returning_today'] as $ret)
+                                    <div class="d-flex justify-content-between align-items-center border-bottom pb-1">
+                                        <span class="fw-semibold small text-dark">{{ $ret->employee?->full_name }}</span>
+                                        <span class="badge bg-success"><i class="fas fa-user-check me-1"></i>Active Restored</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+                </div>
+
+                <!-- Recently Completed Leaves -->
+                <div class="col-md-4">
+                    <div class="bg-white border rounded p-3 h-100">
+                        <span class="text-uppercase x-small fw-bold text-primary d-block mb-1">Recently Completed Leaves</span>
+                        @if(empty($leaveMetrics['recently_completed']) || count($leaveMetrics['recently_completed']) == 0)
+                            <div class="text-muted small py-2"><i class="fas fa-history me-1"></i>No recently completed leaves.</div>
+                        @else
+                            <div class="d-flex flex-column gap-2 mt-2">
+                                @foreach($leaveMetrics['recently_completed']->take(3) as $comp)
+                                    <div class="d-flex justify-content-between align-items-center border-bottom pb-1">
+                                        <span class="fw-semibold small text-dark">{{ $comp->employee?->full_name }}</span>
+                                        <span class="badge bg-secondary-subtle text-secondary small">{{ $comp->end_date->format('d M') }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
                     </div>
                 </div>
             </div>
         </div>
-        @endforeach
     </div>
 
     {{-- ── Filters ── --}}
@@ -164,12 +233,9 @@
                                     <a href="{{ route('admin.hr.show', $emp) }}" class="btn btn-sm btn-outline-primary py-0 px-2" title="View Profile">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    <button class="btn btn-sm btn-outline-secondary py-0 px-2"
-                                        data-bs-toggle="modal" data-bs-target="#editEmployeeModal"
-                                        onclick="fillEditModal({{ $emp->toJson() }})"
-                                        title="Edit">
+                                    <a href="{{ route('admin.hr.edit', $emp) }}" class="btn btn-sm btn-outline-secondary py-0 px-2" title="Edit">
                                         <i class="fas fa-edit"></i>
-                                    </button>
+                                    </a>
                                 </div>
                             </td>
                         </tr>
@@ -186,192 +252,70 @@
     </div>
 </div>
 
-{{-- ── Add Employee Modal ── --}}
-<div class="modal fade" id="addEmployeeModal" tabindex="-1">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header border-bottom-0">
-                <h5 class="modal-title fw-bold"><i class="fas fa-user-plus text-primary me-2"></i>Add Employee</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form action="{{ route('admin.hr.store') }}" method="POST" enctype="multipart/form-data">
-                @csrf
-                <div class="modal-body">
-                    <div class="row g-3">
-                        {{-- Personal Info --}}
-                        <div class="col-12"><h6 class="fw-bold text-muted small text-uppercase border-bottom pb-1">Personal Information</h6></div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold small">Full Name *</label>
-                            <input type="text" name="full_name" class="form-control form-control-sm" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold small">Phone</label>
-                            <input type="text" name="phone" class="form-control form-control-sm">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold small">Email</label>
-                            <input type="email" name="email" class="form-control form-control-sm">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold small">National ID</label>
-                            <input type="text" name="national_id" class="form-control form-control-sm">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold small">Photo</label>
-                            <input type="file" name="photo" class="form-control form-control-sm" accept="image/*">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold small">Link to System User</label>
-                            <select name="user_id" class="form-select form-select-sm">
-                                <option value="">Not Linked</option>
-                                @foreach($linkedUsers as $u)
-                                    <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->role }})</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        {{-- Employment --}}
-                        <div class="col-12 mt-2"><h6 class="fw-bold text-muted small text-uppercase border-bottom pb-1">Employment Details</h6></div>
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold small">Department</label>
-                            <input type="text" name="department" class="form-control form-control-sm" list="dept-list">
-                            <datalist id="dept-list">
-                                @foreach($departments as $d)<option value="{{ $d }}">@endforeach
-                            </datalist>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold small">Role / Job Title</label>
-                            <input type="text" name="role_title" class="form-control form-control-sm">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold small">Contract Type *</label>
-                            <select name="contract_type" class="form-select form-select-sm" required>
-                                <option value="permanent">Permanent</option>
-                                <option value="contract">Contract</option>
-                                <option value="part_time">Part-Time</option>
-                                <option value="intern">Intern</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold small">Hire Date</label>
-                            <input type="date" name="hire_date" class="form-control form-control-sm">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold small">Contract End Date</label>
-                            <input type="date" name="contract_end_date" class="form-control form-control-sm">
-                        </div>
-
-                        {{-- Salary --}}
-                        <div class="col-12 mt-2"><h6 class="fw-bold text-muted small text-uppercase border-bottom pb-1">Salary Information</h6></div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold small">Basic Salary (TZS)</label>
-                            <input type="number" name="basic_salary" class="form-control form-control-sm" min="0" step="any">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold small">Allowances (TZS)</label>
-                            <input type="number" name="allowances" class="form-control form-control-sm" min="0" step="any">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold small">Deductions (TZS)</label>
-                            <input type="number" name="deductions" class="form-control form-control-sm" min="0" step="any">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small">Bank Name</label>
-                            <input type="text" name="bank_name" class="form-control form-control-sm">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small">Bank Account Number</label>
-                            <input type="text" name="bank_account" class="form-control form-control-sm">
-                        </div>
-
-                        {{-- Emergency --}}
-                        <div class="col-12 mt-2"><h6 class="fw-bold text-muted small text-uppercase border-bottom pb-1">Emergency Contact</h6></div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small">Contact Name</label>
-                            <input type="text" name="emergency_contact_name" class="form-control form-control-sm">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small">Contact Phone</label>
-                            <input type="text" name="emergency_contact_phone" class="form-control form-control-sm">
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label fw-semibold small">Home Address</label>
-                            <textarea name="address" class="form-control form-control-sm" rows="2"></textarea>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label fw-semibold small">Notes</label>
-                            <textarea name="notes" class="form-control form-control-sm" rows="2"></textarea>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary btn-sm px-4">Save Employee</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-{{-- ── Edit Employee Modal (simplified, fields pre-filled via JS) ── --}}
-<div class="modal fade" id="editEmployeeModal" tabindex="-1">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header border-bottom-0">
-                <h5 class="modal-title fw-bold">Edit Employee</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form id="editEmployeeForm" method="POST" enctype="multipart/form-data">
-                @csrf @method('PUT')
-                <div class="modal-body" id="editModalBody">
-                    {{-- Populated by JS --}}
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary btn-sm px-4">Update Employee</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 @endsection
 
-@push('scripts')
-<script>
-function fillEditModal(emp) {
-    document.getElementById('editEmployeeForm').action = `/admin/hr/${emp.id}`;
-    document.getElementById('editModalBody').innerHTML = `
-        <div class="row g-3">
-            <div class="col-md-4"><label class="form-label fw-semibold small">Full Name *</label>
-                <input type="text" name="full_name" class="form-control form-control-sm" value="${emp.full_name}" required></div>
-            <div class="col-md-4"><label class="form-label fw-semibold small">Phone</label>
-                <input type="text" name="phone" class="form-control form-control-sm" value="${emp.phone || ''}"></div>
-            <div class="col-md-4"><label class="form-label fw-semibold small">Email</label>
-                <input type="email" name="email" class="form-control form-control-sm" value="${emp.email || ''}"></div>
-            <div class="col-md-4"><label class="form-label fw-semibold small">Department</label>
-                <input type="text" name="department" class="form-control form-control-sm" value="${emp.department || ''}"></div>
-            <div class="col-md-4"><label class="form-label fw-semibold small">Role / Job Title</label>
-                <input type="text" name="role_title" class="form-control form-control-sm" value="${emp.role_title || ''}"></div>
-            <div class="col-md-4"><label class="form-label fw-semibold small">Status</label>
-                <select name="status" class="form-select form-select-sm">
-                    ${['active','inactive','terminated','on_leave'].map(s =>
-                        `<option value="${s}" ${emp.status===s?'selected':''}>${s.replace('_',' ').replace(/\b\w/g,c=>c.toUpperCase())}</option>`
-                    ).join('')}
-                </select></div>
-            <div class="col-md-4"><label class="form-label fw-semibold small">Contract Type *</label>
-                <select name="contract_type" class="form-select form-select-sm" required>
-                    ${['permanent','contract','part_time','intern'].map(t =>
-                        `<option value="${t}" ${emp.contract_type===t?'selected':''}>${t.replace('_',' ').replace(/\b\w/g,c=>c.toUpperCase())}</option>`
-                    ).join('')}
-                </select></div>
-            <div class="col-md-4"><label class="form-label fw-semibold small">Basic Salary</label>
-                <input type="number" name="basic_salary" class="form-control form-control-sm" value="${emp.basic_salary || 0}" min="0" step="any"></div>
-            <div class="col-md-4"><label class="form-label fw-semibold small">Allowances</label>
-                <input type="number" name="allowances" class="form-control form-control-sm" value="${emp.allowances || 0}" min="0" step="any"></div>
-            <div class="col-md-4"><label class="form-label fw-semibold small">Deductions</label>
-                <input type="number" name="deductions" class="form-control form-control-sm" value="${emp.deductions || 0}" min="0" step="any"></div>
-        </div>
-    `;
-}
-</script>
+@push('styles')
+<style>
+    .hr-stat-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 11px;
+        padding: 11px 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .hr-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .hr-stat-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        flex-shrink: 0;
+    }
+
+    .hr-stat-val {
+        font-size: 1.3rem;
+        font-weight: 700;
+        line-height: 1.15;
+        margin-top: 8px;
+    }
+
+    .hr-stat-lbl {
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748b;
+        margin-top: 2px;
+    }
+
+    .hr-stat-sub {
+        font-size: 10px;
+        font-weight: 500;
+        color: #94a3b8;
+    }
+
+    @media (max-width: 768px) {
+        .hr-stat-card {
+            padding: 9px 10px;
+        }
+
+        .hr-stat-val {
+            font-size: 1.08rem;
+        }
+
+        .hr-stat-lbl {
+            font-size: 11px;
+        }
+    }
+</style>
 @endpush

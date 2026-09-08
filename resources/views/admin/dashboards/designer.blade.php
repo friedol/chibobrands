@@ -2,6 +2,19 @@
 
 @section('title', 'Designer Dashboard')
 
+@push('styles')
+<style>
+    .dash-stat-card { border-radius:14px; padding:13px 13px 11px; background:#fff; border:1.5px solid rgba(0,0,0,0.08); display:block; height:100%; box-sizing:border-box; }
+    .dsc-icon { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:0.88rem; flex-shrink:0; }
+    .dsc-trend { font-size:0.67rem; color:#94a3b8; font-weight:500; white-space:nowrap; }
+    .dsc-value { font-size:1.05rem; font-weight:700; color:#1e293b; line-height:1.2; margin-top:10px; }
+    .dsc-label { font-size:0.7rem; color:#94a3b8; margin-top:3px; font-weight:500; }
+    .hover-lift { transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
+    .hover-lift:hover { transform: translateY(-5px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1) !important; }
+    .x-small { font-size: 0.75rem; }
+</style>
+@endpush
+
 @section('content')
     <div class="container-fluid">
         <!-- Header -->
@@ -122,62 +135,43 @@
         <!-- Designer Stats -->
         <div class="row g-2 g-md-3 mb-4">
             <div class="col-6 col-lg-3 stats-col">
-                <div class="card shadow-sm h-100 border-0 border-start border-4 border-primary hover-lift">
-                    <div class="card-body p-3">
-                        <div class="d-flex align-items-center mb-2">
-                            <div class="icon-circle bg-primary bg-opacity-10 text-primary me-2">
-                                <i class="fas fa-tasks"></i>
-                            </div>
-                            <span class="text-uppercase x-small fw-bold text-muted">Assigned</span>
-                        </div>
-                        <div class="h3 mb-0 fw-bold">{{ $stats['assigned_tasks'] }}</div>
-                        <div class="mt-2 x-small text-muted">Tasks in queue</div>
+                <div class="dash-stat-card hover-lift" style="border-color:rgba(13,110,253,0.3);background:linear-gradient(150deg,rgba(13,110,253,0.06) 0%,#fff 100%);">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="dsc-icon" style="background:rgba(13,110,253,0.13);color:#0d6efd;"><i class="fas fa-tasks"></i></div>
+                        <span class="dsc-trend">&#8212; Stable</span>
                     </div>
+                    <div class="dsc-value">{{ $stats['assigned_tasks'] }}</div>
+                    <div class="dsc-label">Assigned Tasks</div>
                 </div>
             </div>
-
             <div class="col-6 col-lg-3 stats-col">
-                <div class="card shadow-sm h-100 border-0 border-start border-4 border-warning hover-lift">
-                    <div class="card-body p-3">
-                        <div class="d-flex align-items-center mb-2">
-                            <div class="icon-circle bg-warning bg-opacity-10 text-warning me-2">
-                                <i class="fas fa-magic"></i>
-                            </div>
-                            <span class="text-uppercase x-small fw-bold text-muted">Designing</span>
-                        </div>
-                        <div class="h3 mb-0 fw-bold">{{ $stats['in_progress'] }}</div>
-                        <div class="mt-2 x-small text-muted">Actively working</div>
+                <div class="dash-stat-card hover-lift" style="border-color:rgba(245,158,11,0.3);background:linear-gradient(150deg,rgba(245,158,11,0.06) 0%,#fff 100%);">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="dsc-icon" style="background:rgba(245,158,11,0.13);color:#f59e0b;"><i class="fas fa-magic"></i></div>
+                        <span class="dsc-trend">&#8212; Stable</span>
                     </div>
+                    <div class="dsc-value">{{ $stats['in_progress'] }}</div>
+                    <div class="dsc-label">Designing</div>
                 </div>
             </div>
-
             <div class="col-6 col-lg-3 stats-col">
-                <div class="card shadow-sm h-100 border-0 border-start border-4 border-info hover-lift">
-                    <div class="card-body p-3">
-                        <div class="d-flex align-items-center mb-2">
-                            <div class="icon-circle bg-info bg-opacity-10 text-info me-2">
-                                <i class="fas fa-eye"></i>
-                            </div>
-                            <span class="text-uppercase x-small fw-bold text-muted">Review</span>
-                        </div>
-                        <div class="h3 mb-0 fw-bold">{{ $stats['pending_review'] }}</div>
-                        <div class="mt-2 x-small text-muted">Feedback phase</div>
+                <div class="dash-stat-card hover-lift" style="border-color:rgba(13,202,240,0.3);background:linear-gradient(150deg,rgba(13,202,240,0.06) 0%,#fff 100%);">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="dsc-icon" style="background:rgba(13,202,240,0.13);color:#0dcaf0;"><i class="fas fa-eye"></i></div>
+                        <span class="dsc-trend">&#8212; Stable</span>
                     </div>
+                    <div class="dsc-value">{{ $stats['pending_review'] }}</div>
+                    <div class="dsc-label">In Review</div>
                 </div>
             </div>
-
             <div class="col-6 col-lg-3 stats-col">
-                <div class="card shadow-sm h-100 border-0 border-start border-4 border-success hover-lift">
-                    <div class="card-body p-3">
-                        <div class="d-flex align-items-center mb-2">
-                            <div class="icon-circle bg-success bg-opacity-10 text-success me-2">
-                                <i class="fas fa-check-circle"></i>
-                            </div>
-                            <span class="text-uppercase x-small fw-bold text-muted">Done</span>
-                        </div>
-                        <div class="h3 mb-0 fw-bold">{{ $stats['completed'] }}</div>
-                        <div class="mt-2 x-small text-muted">Completed today</div>
+                <div class="dash-stat-card hover-lift" style="border-color:rgba(25,135,84,0.3);background:linear-gradient(150deg,rgba(25,135,84,0.06) 0%,#fff 100%);">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="dsc-icon" style="background:rgba(25,135,84,0.13);color:#198754;"><i class="fas fa-check-circle"></i></div>
+                        <span class="dsc-trend">&#8212; Stable</span>
                     </div>
+                    <div class="dsc-value">{{ $stats['completed'] }}</div>
+                    <div class="dsc-label">Completed</div>
                 </div>
             </div>
         </div>

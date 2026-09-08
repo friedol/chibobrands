@@ -12,9 +12,11 @@
         </div>
         <div class="col-lg-6 text-lg-end">
             <div class="d-flex flex-wrap justify-content-lg-end gap-2">
-                <button type="button" onclick="printDirect('{{ route('admin.finance.payment-requests.print', request()->all()) }}')" class="btn btn-dark btn-sm px-3 fw-bold shadow-sm">
-                    <i class="fas fa-print me-1"></i>
-                </button>
+                <x-report-export-menu
+                    :print-url="route('admin.finance.payment-requests.print', request()->all())"
+                    :pdf-url="route('admin.finance.payment-requests.pdf', request()->all())"
+                    :excel-url="route('admin.finance.payment-requests.excel', request()->all())"
+                />
                 <button class="btn btn-outline-warning btn-sm px-3 fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
                     <i class="fas fa-filter me-1"></i>
                     @if(request()->anyFilled(['search', 'approval_status', 'payment_status', 'department_id', 'date_from', 'date_to']))

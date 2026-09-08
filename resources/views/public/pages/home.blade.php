@@ -151,10 +151,10 @@
                 <div class="ad-container" data-ad-id="{{ $ad->id }}" data-ad-type="banner">
                     <div class="ad-content">
                         @if($ad->image_path)
-                            <img src="{{ asset('storage/' . $ad->image_path) }}" 
-                                 alt="{{ $ad->title }}" 
+                            <img src="{{ asset('storage/' . $ad->image_path) }}"
+                                 alt="{{ $ad->title }}"
                                  class="img-fluid w-100 ad-image"
-                                 style="border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                                 style="border-radius: 8px;">
                         @endif
                         @if($ad->title || $ad->subtitle)
                             <div class="ad-overlay">
@@ -216,7 +216,7 @@
         width: 100%;
         height: 100%;
         object-fit: cover;
-        filter: drop-shadow(0 12px 35px rgba(255, 0, 0, 0.25));
+        filter: none;
         opacity: 0.98;
     }
 
@@ -240,7 +240,7 @@
         font-weight: 800;
         color: #fff;
         line-height: 1.2;
-        text-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        text-shadow: none;
     }
 
     .hero-subtitle {
@@ -1047,7 +1047,6 @@
 
             .ad-container:hover {
                 transform: translateY(-2px);
-                box-shadow: 0 4px 20px rgba(0,0,0,0.15);
             }
 
             .ad-content {
@@ -1081,13 +1080,13 @@
                 font-size: 1.2rem;
                 font-weight: 700;
                 margin-bottom: 0.5rem;
-                text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+                text-shadow: none;
             }
 
             .ad-subtitle {
                 font-size: 0.9rem;
                 margin-bottom: 1rem;
-                text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+                text-shadow: none;
             }
 
             .ad-button {

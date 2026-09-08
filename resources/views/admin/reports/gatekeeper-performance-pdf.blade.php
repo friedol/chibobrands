@@ -33,9 +33,17 @@
 </head>
 <body>
     <!-- Header -->
+    @php
+        $logoPath = public_path('images/logo-pdf.png');
+        if (!file_exists($logoPath)) $logoPath = public_path('images/logo.png');
+        if (!file_exists($logoPath)) $logoPath = public_path('images/logo.webp');
+    @endphp
     <div class="header clearfix">
         <div style="float: left; width: 30%;">
-            <div style="font-size: 24px; font-weight: bold; color: #333;">CHIBO</div>
+            @if(file_exists($logoPath))
+                <img src="data:image/{{ pathinfo($logoPath, PATHINFO_EXTENSION) === 'webp' ? 'webp' : 'png' }};base64,{{ base64_encode(file_get_contents($logoPath)) }}" style="height:50px; margin-bottom:4px;">
+            @endif
+            <div style="font-size: 12px; font-weight: bold; color: #333;">CHIBOBRAND CO. LTD</div>
             <div style="font-size: 10px; color: #666;">Performance Analytics</div>
         </div>
         <div class="title" style="float: right; width: 65%;">
@@ -56,7 +64,6 @@
             <div class="value">{{ number_format($summary['total_in']) }}</div>
         </div>
         <div class="metric-box">
-            <div class="metric-box">
             <div class="label">Outgoing</div>
             <div class="value">{{ number_format($summary['total_out']) }}</div>
         </div>

@@ -27,7 +27,7 @@
                         <option value="">All Employees</option>
                         @foreach($employees as $emp)
                             <option value="{{ $emp->id }}" {{ request('employee_id') == $emp->id ? 'selected' : '' }}>
-                                {{ $emp->full_name }}
+                                {{ $emp->full_name }} @if($emp->status !== 'active') [{{ ucfirst($emp->status) }}] @endif @if($emp->sales_count > 0) (Sales: {{ $emp->sales_count }}) @endif
                             </option>
                         @endforeach
                     </select>
@@ -124,7 +124,7 @@
                             <select name="employee_id" class="form-select form-select-sm" required>
                                 <option value="">Select Employee</option>
                                 @foreach($employees as $emp)
-                                    <option value="{{ $emp->id }}">{{ $emp->full_name }}</option>
+                                    <option value="{{ $emp->id }}">{{ $emp->full_name }} @if($emp->status !== 'active') [{{ ucfirst($emp->status) }}] @endif @if($emp->sales_count > 0) (Sales: {{ $emp->sales_count }}) @endif</option>
                                 @endforeach
                             </select>
                         </div>

@@ -7,14 +7,13 @@
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="d-flex align-items-center justify-content-between">
+            <div class="dashboard-header d-flex align-items-center justify-content-between">
                 <div>
-                    <h2 class="fw-bold mb-1">Welcome, {{ auth()->user()->name }}</h2>
-                    <p class="text-muted small mb-0">You have <a href="{{ route('admin.customers.index') }}" class="fw-bold text-primary text-decoration-none border-bottom border-primary border-opacity-25">{{ $customers }}</a> active customers in your portfolio</p>
+                    <h2 class="fw-bold mb-1">Hi, {{ auth()->user()->name }}</h2>
                 </div>
-                <div class="d-flex gap-2 align-items-center">
-                    <form method="GET" action="{{ route('admin.saler.my-dashboard') }}" id="periodForm" class="d-flex align-items-center gap-2" data-no-global-handler>
-                        <select name="period" id="periodSelect" class="form-select form-select-sm rounded-pill px-3 border-0 shadow-sm text-uppercase fw-bold x-small" style="background-color: #f8f9fa; cursor: pointer;">
+                <div class="dashboard-header-actions d-flex gap-2 align-items-center">
+                    <form method="GET" action="{{ route('admin.saler.my-dashboard') }}" id="periodForm" class="dashboard-period-form d-flex align-items-center gap-2" data-no-global-handler>
+                        <select name="period" id="periodSelect" class="form-select form-select-sm rounded-3 px-3 border-0 shadow-sm text-uppercase fw-bold x-small dashboard-filter-select" style="background-color: #f8f9fa; cursor: pointer;">
                             <option value="today" {{ ($period ?? '') == 'today' ? 'selected' : '' }}>Today</option>
                             <option value="yesterday" {{ ($period ?? '') == 'yesterday' ? 'selected' : '' }}>Yesterday</option>
                             <option value="week" {{ ($period ?? '') == 'week' ? 'selected' : '' }}>This Week</option>
@@ -26,18 +25,20 @@
                             <option value="all" {{ ($period ?? '') == 'all' ? 'selected' : '' }}>All Time</option>
                         </select>
                         <div id="customDateRange" class="d-flex align-items-center gap-1 {{ ($period ?? '') == 'custom' ? '' : 'd-none' }}">
-                            <input type="date" name="start_date" class="form-control form-control-sm rounded-pill border-0 shadow-sm x-small" value="{{ request('start_date') }}" style="width: 110px;">
+                            <input type="date" name="start_date" class="form-control form-control-sm rounded-3 border-0 shadow-sm x-small" value="{{ request('start_date') }}" style="width: 110px;">
                             <span class="x-small text-muted">to</span>
-                            <input type="date" name="end_date" class="form-control form-control-sm rounded-pill border-0 shadow-sm x-small" value="{{ request('end_date') }}" style="width: 110px;">
-                            <button type="submit" class="btn btn-primary btn-sm rounded-pill px-2 x-small"><i class="fas fa-check"></i></button>
+                            <input type="date" name="end_date" class="form-control form-control-sm rounded-3 border-0 shadow-sm x-small" value="{{ request('end_date') }}" style="width: 110px;">
+                            <button type="submit" class="btn btn-primary btn-sm rounded-3 px-2 x-small"><i class="fas fa-check"></i></button>
                         </div>
                     </form>
-                    <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill x-small no-print">
-                        <i class="fas fa-chart-line me-1"></i> Performance: Active
-                    </span>
-                    <button class="btn btn-primary btn-sm rounded-pill px-3" onclick="window.print()">
-                        <i class="fas fa-print me-1"></i> Print Report
-                    </button>
+                    <a href="{{ route('admin.saler-performance.print') }}?period={{ $period }}&start_date={{ request('start_date') }}&end_date={{ request('end_date') }}"
+                       target="_blank"
+                       class="btn btn-danger btn-sm rounded-3 px-3 print-report-btn"
+                       aria-label="Print report"
+                       title="Print report">
+                        <i class="fas fa-print"></i>
+                        <span class="print-report-label ms-1">Print Report</span>
+                    </a>
                 </div>
             </div>
         </div>
@@ -47,7 +48,7 @@
     <div class="print-only report-header">
         <div class="d-flex justify-content-between align-items-center">
             <div>
-                <img src="{{ asset('images/logo.webp') }}" alt="Logo" style="height: 50px;" onerror="this.style.display='none'">
+                @include('partials.logo-print', ['logoStyle' => 'height:50px;object-fit:contain;'])
                 <h1 class="fw-bold text-dark mt-2">Agent Performance Summary</h1>
                 <p class="mb-0 text-dark">Agent: {{ auth()->user()->name }}</p>
                 <p class="mb-0 text-dark">Period: {{ ucfirst(str_replace('_', ' ', $period ?? 'month')) }}</p>
@@ -61,75 +62,44 @@
     </div>
 
     <div class="row g-2 g-md-3 mb-4">
-        <!-- Revenue Card -->
         <div class="col-6 col-lg-3 stats-col">
-            <div class="card shadow-sm h-100 border-0 border-start border-4 border-success hover-lift">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center mb-2">
-                        <div class="icon-circle bg-success bg-opacity-10 text-success me-2">
-                            <i class="fas fa-wallet"></i>
-                        </div>
-                        <span class="text-uppercase x-small fw-bold text-muted">Total Sales</span>
-                    </div>
-                    <div class="h3 mb-0 fw-bold text-dark">TZS {{ number_format($totalRevenue + $tasksRevenue) }}</div>
-                    <div class="mt-2 x-small text-success">
-                        <i class="fas fa-plus me-1"></i> Orders & Tasks
-                    </div>
+            <div class="cust-stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="cust-stat-icon bg-success-subtle text-success"><i class="fas fa-wallet"></i></div>
+                    <span class="cust-stat-sub">Stable</span>
                 </div>
+                <div class="cust-stat-val">TZS {{ number_format($totalRevenue + $tasksRevenue) }}</div>
+                <div class="cust-stat-lbl">Total Sales</div>
             </div>
         </div>
-
-        <!-- Paid Card -->
         <div class="col-6 col-lg-3 stats-col">
-            <div class="card shadow-sm h-100 border-0 border-start border-4 border-primary hover-lift">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center mb-2">
-                        <div class="icon-circle bg-primary bg-opacity-10 text-primary me-2">
-                            <i class="fas fa-hand-holding-usd"></i>
-                        </div>
-                        <span class="text-uppercase x-small fw-bold text-muted">Amount Paid</span>
-                    </div>
-                    <div class="h3 mb-0 fw-bold text-dark">TZS {{ number_format($overallPaid) }}</div>
-                    <div class="mt-2 x-small text-primary">
-                        <i class="fas fa-check-circle me-1"></i> Collected
-                    </div>
+            <div class="cust-stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="cust-stat-icon bg-primary-subtle text-primary"><i class="fas fa-hand-holding-usd"></i></div>
+                    <span class="cust-stat-sub">Stable</span>
                 </div>
+                <div class="cust-stat-val text-primary">TZS {{ number_format($overallPaid) }}</div>
+                <div class="cust-stat-lbl">Amount Paid</div>
             </div>
         </div>
-
-        <!-- Outstanding Card -->
         <div class="col-6 col-lg-3 stats-col">
-            <div class="card shadow-sm h-100 border-0 border-start border-4 border-danger hover-lift">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center mb-2">
-                        <div class="icon-circle bg-danger bg-opacity-10 text-danger me-2">
-                            <i class="fas fa-exclamation-circle"></i>
-                        </div>
-                        <span class="text-uppercase x-small fw-bold text-muted">Unpaid Balance</span>
-                    </div>
-                    <div class="h3 mb-0 fw-bold text-dark">TZS {{ number_format($overallBalance) }}</div>
-                    <div class="mt-2 x-small text-danger">
-                        <i class="fas fa-clock me-1"></i> Pending Payment
-                    </div>
+            <div class="cust-stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="cust-stat-icon bg-danger-subtle text-danger"><i class="fas fa-exclamation-circle"></i></div>
+                    <span class="cust-stat-sub">Stable</span>
                 </div>
+                <div class="cust-stat-val text-danger">TZS {{ number_format($overallBalance) }}</div>
+                <div class="cust-stat-lbl">Unpaid Balance</div>
             </div>
         </div>
-
-        <!-- Invoices Card -->
         <div class="col-6 col-lg-3 stats-col">
-            <div class="card shadow-sm h-100 border-0 border-start border-4 border-info hover-lift">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center mb-2">
-                        <div class="icon-circle bg-info bg-opacity-10 text-info me-2">
-                            <i class="fas fa-file-invoice"></i>
-                        </div>
-                        <span class="text-uppercase x-small fw-bold text-muted">Total Invoices</span>
-                    </div>
-                    <div class="h3 mb-0 fw-bold text-dark">{{ $totalInvoices }}</div>
-                    <div class="mt-2 x-small text-info">
-                        <i class="fas fa-shopping-bag me-1"></i> Orders Count
-                    </div>
+            <div class="cust-stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="cust-stat-icon bg-info-subtle text-info"><i class="fas fa-file-invoice"></i></div>
+                    <span class="cust-stat-sub">Stable</span>
                 </div>
+                <div class="cust-stat-val text-info">{{ $totalInvoices }}</div>
+                <div class="cust-stat-lbl">Total Invoices</div>
             </div>
         </div>
     </div>
@@ -269,59 +239,43 @@
     </div>
     <div class="row g-2 g-md-3 mb-4">
         <div class="col-6 col-lg-3 stats-col">
-            <div class="card shadow-sm h-100 border-0 border-start border-4 border-warning hover-lift">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center mb-2">
-                        <div class="icon-circle bg-warning bg-opacity-10 text-warning me-2">
-                            <i class="fas fa-clock"></i>
-                        </div>
-                        <span class="text-uppercase x-small fw-bold text-muted">Awaiting</span>
-                    </div>
-                    <div class="h3 mb-0 fw-bold">{{ $taskStatus['pending'] }}</div>
-                    <div class="x-small text-muted mt-2">New tasks</div>
+            <div class="cust-stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="cust-stat-icon" style="background:#fef3c7;color:#d97706;"><i class="fas fa-clock"></i></div>
+                    <span class="cust-stat-sub">Stable</span>
                 </div>
+                <div class="cust-stat-val" style="color:#d97706;">{{ $taskStatus['pending'] }}</div>
+                <div class="cust-stat-lbl">Awaiting</div>
             </div>
         </div>
         <div class="col-6 col-lg-3 stats-col">
-            <div class="card shadow-sm h-100 border-0 border-start border-4 border-primary hover-lift">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center mb-2">
-                        <div class="icon-circle bg-primary bg-opacity-10 text-primary me-2">
-                            <i class="fas fa-magic"></i>
-                        </div>
-                        <span class="text-uppercase x-small fw-bold text-muted">Designing</span>
-                    </div>
-                    <div class="h3 mb-0 fw-bold">{{ $taskStatus['in_progress'] }}</div>
-                    <div class="x-small text-muted mt-2">In progress</div>
+            <div class="cust-stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="cust-stat-icon bg-primary-subtle text-primary"><i class="fas fa-magic"></i></div>
+                    <span class="cust-stat-sub">Stable</span>
                 </div>
+                <div class="cust-stat-val text-primary">{{ $taskStatus['in_progress'] }}</div>
+                <div class="cust-stat-lbl">Designing</div>
             </div>
         </div>
         <div class="col-6 col-lg-3 stats-col">
-            <div class="card shadow-sm h-100 border-0 border-start border-4 border-info hover-lift">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center mb-2">
-                        <div class="icon-circle bg-info bg-opacity-10 text-info me-2">
-                            <i class="fas fa-eye"></i>
-                        </div>
-                        <span class="text-uppercase x-small fw-bold text-muted">Review</span>
-                    </div>
-                    <div class="h3 mb-0 fw-bold">{{ $taskStatus['in_review'] }}</div>
-                    <div class="x-small text-muted mt-2">Feedback phase</div>
+            <div class="cust-stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="cust-stat-icon bg-info-subtle text-info"><i class="fas fa-eye"></i></div>
+                    <span class="cust-stat-sub">Stable</span>
                 </div>
+                <div class="cust-stat-val text-info">{{ $taskStatus['in_review'] }}</div>
+                <div class="cust-stat-lbl">Review</div>
             </div>
         </div>
         <div class="col-6 col-lg-3 stats-col">
-            <div class="card shadow-sm h-100 border-0 border-start border-4 border-dark hover-lift">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center mb-2">
-                        <div class="icon-circle bg-dark bg-opacity-10 text-dark me-2">
-                            <i class="fas fa-print"></i>
-                        </div>
-                        <span class="text-uppercase x-small fw-bold text-muted">Printing</span>
-                    </div>
-                    <div class="h3 mb-0 fw-bold">{{ $taskStatus['printing'] }}</div>
-                    <div class="x-small text-muted mt-2">Production</div>
+            <div class="cust-stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="cust-stat-icon bg-dark-subtle text-dark"><i class="fas fa-print"></i></div>
+                    <span class="cust-stat-sub">Stable</span>
                 </div>
+                <div class="cust-stat-val text-dark">{{ $taskStatus['printing'] }}</div>
+                <div class="cust-stat-lbl">Printing</div>
             </div>
         </div>
     </div>
@@ -468,13 +422,19 @@
 
         // Category Pie Chart
         const catCtx = document.getElementById('salerMyCategoryChart').getContext('2d');
+        const rawCategoryLabels = @json($categoryLabels);
+        const rawCategorySales = @json($categorySales);
+        const hasCategoryData = Array.isArray(rawCategorySales) && rawCategorySales.some(value => Number(value) > 0);
+
         new Chart(catCtx, {
             type: 'doughnut',
             data: {
-                labels: @json($categoryLabels),
+                labels: hasCategoryData ? rawCategoryLabels : ['No category sales yet'],
                 datasets: [{
-                    data: @json($categorySales),
-                    backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'],
+                    data: hasCategoryData ? rawCategorySales : [1],
+                    backgroundColor: hasCategoryData
+                        ? ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b']
+                        : ['#e2e8f0'],
                     borderWidth: 0
                 }]
             },
@@ -544,11 +504,74 @@
         border-radius: 8px;
         font-size: 0.8rem;
     }
-    .hover-lift {
-        transition: transform 0.2s ease-in-out;
+    .cust-stat-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 9px 11px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        transition: all 0.2s ease;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
     }
-    .hover-lift:hover {
-        transform: translateY(-5px);
+    .cust-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    .cust-stat-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        flex-shrink: 0;
+    }
+    .cust-stat-val {
+        font-size: 1.05rem;
+        font-weight: 700;
+        line-height: 1.25;
+        margin-top: 4px;
+    }
+    .cust-stat-lbl {
+        font-size: 11px;
+        font-weight: 600;
+        color: #64748b;
+        margin-top: 1px;
+    }
+    .cust-stat-sub {
+        font-size: 10px;
+        font-weight: 500;
+        color: #94a3b8;
+    }
+
+    .dashboard-header-actions {
+        flex-wrap: wrap;
+        margin-left: auto;
+        justify-content: flex-end;
+    }
+
+    .dashboard-period-form {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .dashboard-period-form #periodSelect {
+        min-width: 120px;
+    }
+
+    .dashboard-filter-select {
+        min-width: 110px;
+        max-width: 132px;
+        font-size: 0.73rem;
+        letter-spacing: 0.02em;
+        padding-top: 0.3rem;
+        padding-bottom: 0.3rem;
+        padding-left: 0.65rem;
+        padding-right: 1.6rem;
     }
     
     @media (max-width: 768px) {
@@ -556,6 +579,85 @@
         .card-body { padding: 0.75rem !important; }
         .icon-circle { width: 28px; height: 28px; font-size: 11px; }
         .x-small { font-size: 9px; }
+
+        .dashboard-header {
+            flex-direction: row;
+            align-items: center !important;
+            justify-content: space-between;
+            flex-wrap: nowrap;
+            gap: 0.5rem;
+        }
+
+        .dashboard-header h2 {
+            margin-bottom: 0 !important;
+            font-size: 1.05rem;
+            line-height: 1.1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        .dashboard-header > div:first-child {
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+
+        .dashboard-header-actions {
+            width: auto;
+            margin-left: auto;
+            flex: 0 0 auto;
+            justify-content: flex-end;
+            gap: 0.35rem !important;
+        }
+
+        .dashboard-period-form {
+            width: auto;
+            gap: 0.35rem !important;
+            justify-content: flex-end;
+            flex-wrap: nowrap;
+        }
+
+        .dashboard-period-form #periodSelect {
+            flex: 0 0 auto;
+            min-width: 96px;
+            max-width: 112px;
+        }
+
+        .dashboard-filter-select {
+            font-size: 0.65rem;
+            padding-top: 0.22rem;
+            padding-bottom: 0.22rem;
+            padding-left: 0.5rem;
+            padding-right: 1.35rem;
+        }
+
+        .dashboard-period-form #customDateRange {
+            width: auto;
+            gap: 0.4rem !important;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .dashboard-period-form #customDateRange input[type="date"] {
+            flex: 1 1 122px;
+            width: auto !important;
+        }
+
+        .print-report-btn {
+            width: auto;
+            min-width: 38px;
+            height: 34px;
+            padding-left: 0.55rem !important;
+            padding-right: 0.55rem !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .print-report-label {
+            display: none;
+        }
     }
 </style>
 @endpush

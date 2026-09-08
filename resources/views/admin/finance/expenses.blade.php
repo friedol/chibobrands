@@ -8,13 +8,14 @@
     <div class="row mb-3 align-items-end">
         <div class="col-lg-6 mb-2 mb-lg-0">
             <h4 class="fw-bold mb-0">Expense Tracking</h4>
-            <p class="text-muted small mb-0">Monitor company spendings and department distributions</p>
         </div>
         <div class="col-lg-6 text-lg-end">
             <div class="d-flex flex-wrap justify-content-lg-end gap-2">
-                <button type="button" onclick="printDirect('{{ route('admin.finance.expenses.print', request()->all()) }}')" class="btn btn-dark btn-sm px-3 fw-bold shadow-sm">
-                    <i class="fas fa-print me-1"></i> Print
-                </button>
+                <x-report-export-menu
+                    :print-url="route('admin.finance.expenses.print', request()->all())"
+                    :pdf-url="route('admin.finance.expenses.pdf', request()->all())"
+                    :excel-url="route('admin.finance.expenses.excel', request()->all())"
+                />
                 <button class="btn btn-outline-danger btn-sm px-3 fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
                     <i class="fas fa-filter me-1"></i> Filter
                     @if(request()->anyFilled(['search', 'category', 'department_id', 'date_from', 'date_to']))

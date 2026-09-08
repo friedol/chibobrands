@@ -18,55 +18,40 @@
     </div>
 
     {{-- ── Summary cards ── --}}
-    <div class="row g-3 mb-4">
-        <div class="col-6 col-md-4">
+    <div class="row g-2 g-md-3 mb-4">
+        <div class="col-12 col-md-4">
             <a href="{{ request()->fullUrlWithQuery(['filter' => 'overdue']) }}" class="text-decoration-none">
-                <div class="card border-0 shadow-sm border-start border-4 border-danger h-100">
-                    <div class="card-body py-3">
-                        <div class="d-flex align-items-center">
-                            <div class="rounded-circle bg-danger bg-opacity-10 p-3 me-3">
-                                <i class="fas fa-calendar-times text-danger fa-lg"></i>
-                            </div>
-                            <div>
-                                <div class="fs-3 fw-bold text-danger">{{ $overdueCount }}</div>
-                                <div class="small text-muted fw-semibold">OVERDUE</div>
-                            </div>
-                        </div>
+                <div class="cust-stat-card {{ $filter === 'overdue' ? 'border-danger shadow-sm' : '' }}">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="cust-stat-icon bg-danger-subtle text-danger"><i class="fas fa-calendar-times"></i></div>
+                        <span class="cust-stat-sub text-danger fw-bold">Needs action</span>
                     </div>
+                    <div class="cust-stat-val text-danger">{{ number_format($overdueCount) }}</div>
+                    <div class="cust-stat-lbl">Overdue Follow-Ups</div>
                 </div>
             </a>
         </div>
-        <div class="col-6 col-md-4">
+        <div class="col-12 col-md-4">
             <a href="{{ request()->fullUrlWithQuery(['filter' => 'today']) }}" class="text-decoration-none">
-                <div class="card border-0 shadow-sm border-start border-4 border-warning h-100">
-                    <div class="card-body py-3">
-                        <div class="d-flex align-items-center">
-                            <div class="rounded-circle bg-warning bg-opacity-10 p-3 me-3">
-                                <i class="fas fa-clock text-warning fa-lg"></i>
-                            </div>
-                            <div>
-                                <div class="fs-3 fw-bold text-warning">{{ $todayCount }}</div>
-                                <div class="small text-muted fw-semibold">DUE TODAY</div>
-                            </div>
-                        </div>
+                <div class="cust-stat-card {{ $filter === 'today' ? 'border-warning shadow-sm' : '' }}">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="cust-stat-icon bg-warning-subtle text-warning"><i class="fas fa-clock"></i></div>
+                        <span class="cust-stat-sub text-warning fw-bold">Today</span>
                     </div>
+                    <div class="cust-stat-val text-warning">{{ number_format($todayCount) }}</div>
+                    <div class="cust-stat-lbl">Due Today</div>
                 </div>
             </a>
         </div>
-        <div class="col-6 col-md-4">
+        <div class="col-12 col-md-4">
             <a href="{{ request()->fullUrlWithQuery(['filter' => 'upcoming']) }}" class="text-decoration-none">
-                <div class="card border-0 shadow-sm border-start border-4 border-success h-100">
-                    <div class="card-body py-3">
-                        <div class="d-flex align-items-center">
-                            <div class="rounded-circle bg-success bg-opacity-10 p-3 me-3">
-                                <i class="fas fa-calendar-check text-success fa-lg"></i>
-                            </div>
-                            <div>
-                                <div class="fs-3 fw-bold text-success">{{ $upcomingCount }}</div>
-                                <div class="small text-muted fw-semibold">UPCOMING (7d)</div>
-                            </div>
-                        </div>
+                <div class="cust-stat-card {{ $filter === 'upcoming' ? 'border-success shadow-sm' : '' }}">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="cust-stat-icon bg-success-subtle text-success"><i class="fas fa-calendar-check"></i></div>
+                        <span class="cust-stat-sub text-success fw-bold">Next 7 days</span>
                     </div>
+                    <div class="cust-stat-val text-success">{{ number_format($upcomingCount) }}</div>
+                    <div class="cust-stat-lbl">Upcoming Follow-Ups</div>
                 </div>
             </a>
         </div>
@@ -104,8 +89,8 @@
                     <label class="form-label fw-bold x-small text-uppercase mb-1">Source</label>
                     <select name="source" class="form-select form-select-sm">
                         <option value="all">All Sources</option>
-                        @foreach(['promo','instagram','follow_up','referral','walk_in','whatsapp','other'] as $src)
-                            <option value="{{ $src }}" {{ request('source') === $src ? 'selected' : '' }}>{{ ucfirst(str_replace('_',' ',$src)) }}</option>
+                        @foreach(\App\Models\CustomerSource::active()->get() as $src)
+                            <option value="{{ $src->name }}" {{ request('source') === $src->name ? 'selected' : '' }}>{{ $src->name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -292,7 +277,7 @@
                     <input type="hidden" name="lead_id_ref" id="modal_lead_id">
                     <div class="mb-3">
                         <label class="form-label fw-semibold small">Lead Name</label>
-                        <input type="text" class="form-control form-control-sm" id="modal_lead_name" disabled>
+                        <input type="text" name="customer_name" class="form-control form-control-sm" id="modal_lead_name" required>
                     </div>
                     <div class="row g-2">
                         <div class="col-6">

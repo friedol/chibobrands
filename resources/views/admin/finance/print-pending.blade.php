@@ -12,7 +12,7 @@
         body {
             font-family: 'Nunito Sans', sans-serif;
             background-color: #fff;
-            color: #444;
+            color: #222;
             font-size: 8.5pt;
             line-height: 1.3;
         }
@@ -49,7 +49,7 @@
             text-transform: uppercase;
             margin: 0;
             text-align: right;
-            color: #444;
+            color: #dc2626;
         }
 
         /* Meta Information */
@@ -85,13 +85,14 @@
             font-weight: 800;
             text-transform: uppercase;
             font-size: 8pt;
-            color: #444;
+            color: #334155;
         }
 
         .table-pro td {
             border: 1px solid #ddd;
             padding: 8px 10px;
             vertical-align: middle;
+            color: #222;
         }
 
         /* Footer Positioning */
@@ -169,22 +170,20 @@
 </head>
 <body>
 
-    <div class="no-print p-3 bg-dark text-white d-flex justify-content-between align-items-center mb-4">
-        <div class="ms-2">
-            <h6 class="mb-0 fw-bold"><i class="fas fa-print me-2"></i> PENDING PAYMENTS PRINT PREVIEW</h6>
-        </div>
-        <div class="me-2">
-            <button class="btn btn-primary fw-bold px-4" onclick="window.print()">PRINT NOW</button>
-            <button class="btn btn-outline-light ms-2" onclick="window.close()">CLOSE</button>
+    <div class="no-print py-1 px-3 bg-dark text-white d-flex justify-content-between align-items-center mb-3">
+        <small class="fw-semibold"><i class="fas fa-print me-1"></i> PENDING PAYMENTS PRINT PREVIEW</small>
+        <div class="d-flex gap-1">
+            <button class="btn btn-primary btn-sm fw-bold px-3" onclick="window.print()">Print</button>
+            <button class="btn btn-outline-light btn-sm px-2" onclick="window.close()">Close</button>
         </div>
     </div>
 
     <div class="log-wrapper">
         <!-- Header -->
         <div class="report-header">
-            <div class="row align-items-end">
+            <div class="row align-items-start">
                 <div class="col-7">
-                    <img src="{{ asset('images/logo.webp') }}" alt="BRAND LOGO" class="brand-logo" onerror="this.style.display='none'">
+                    @include('partials.logo-print')
                     <h1 class="company-name">CHIBOBRAND CO. LTD.</h1>
                 </div>
                 <div class="col-5 text-end">
@@ -199,12 +198,17 @@
             <div>
                 <span class="section-label">Report Status</span>
                 <div class="fw-bold">
-                    @if($search)
+                    @if($salerName ?? null)
+                        Salesperson: {{ $salerName }}
+                    @elseif($search)
                         Filtered Results: "{{ $search }}"
                     @else
                         All Pending Payments
                     @endif
                 </div>
+                @if(($salerName ?? null) && $search)
+                    <div class="text-muted small">Search: "{{ $search }}"</div>
+                @endif
             </div>
             <div class="text-end">
                 <span class="section-label">Financial Summary</span>
@@ -230,6 +234,7 @@
                             <th style="width: 120px;">TASK CODE</th>
                             <th>TASK TITLE</th>
                             <th>CUSTOMER</th>
+                            <th>SALESPERSON</th>
                             <th class="text-end">TOTAL</th>
                             <th class="text-end">PAID</th>
                             <th class="text-end">BALANCE</th>
@@ -250,13 +255,14 @@
                                     <div class="fw-bold">{{ $task->customer->name ?? 'Walk-in' }}</div>
                                     <div class="text-muted small">{{ $task->customer->phone ?? '' }}</div>
                                 </td>
+                                <td>{{ $task->saler->name ?? '-' }}</td>
                                 <td class="text-end">{{ number_format($taskTotal) }}</td>
                                 <td class="text-end text-success">{{ number_format($task->amount_paid) }}</td>
                                 <td class="text-end fw-bold text-danger">{{ number_format($task->balance) }}</td>
                             </tr>
                         @endforeach
                         <tr style="background-color: #f8f8f8; border-top: 2px solid #222;">
-                            <td colspan="3" class="text-end fw-bold" style="padding: 10px;">TOTALS:</td>
+                            <td colspan="4" class="text-end fw-bold" style="padding: 10px;">TOTALS:</td>
                             <td class="text-end fw-bold" style="padding: 10px;">
                                 @php
                                     $tasksTotalSum = 0;

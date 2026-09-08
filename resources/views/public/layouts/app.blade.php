@@ -100,7 +100,7 @@ if ($salerParam) {
         <div class="container">
             <!-- Brand Logo -->
             <a class="navbar-brand" href="{{ url($prefix . '/') }}">
-                <img src="{{ asset('images/logo.webp') }}" alt="CHIBO BRAND Logo" style="height: 50px; width: auto;"
+                <img src="{{ asset('images/logo.webp') }}" alt="CHIBO BRAND Logo" style="height: 40px; width: auto;"
                     loading="lazy" onerror="this.onerror=null; this.src='{{ asset('images/default.webp') }}'">
             </a>
 
@@ -131,46 +131,49 @@ if ($salerParam) {
                         <i class="fas fa-sign-in-alt" style="font-size: 1.1rem;"></i>
                     </a>
                 @endauth
+
+                <!-- Mobile menu toggle (hamburger) -->
+                <button class="btn btn-link p-1 text-dark" onclick="toggleMobileSidebar()" aria-label="Open menu">
+                    <i class="fas fa-bars" style="font-size: 1.2rem;"></i>
+                </button>
             </div>
 
             <!-- Desktop Navigation -->
             <div class="collapse navbar-collapse d-none d-lg-block" id="navbarNav">
                 <div class="d-flex align-items-center w-100">
-                    <!-- Main Navigation Links -->
-                    <ul class="navbar-nav me-auto ms-lg-4">
-                        <li class="nav-item"><a class="nav-link" href="{{ url($prefix . '/') }}">Home</a></li>
-                        <li class="nav-item"><a class="nav-link"
-                                href="{{ $channel === 'wholesale' ? route('wholesale.products.index') : url($prefix . '/products') }}">Products</a>
-                        </li>
-                        <li class="nav-item"><a class="nav-link"
-                                href="{{ $channel === 'wholesale' ? route('wholesale.categories.index') : url($prefix . '/categories') }}">Categories</a>
-                        </li>
-                        <li class="nav-item"><a class="nav-link"
-                                href="{{ $channel === 'wholesale' ? url('/b2b/our-brand') : url('/our-brand') }}">Our
-                                Brand</a></li>
-                        <li class="nav-item"><a class="nav-link"
-                                href="{{ $channel === 'wholesale' ? url('/b2b/services') : url('/services') }}">Services</a>
-                        </li>
-                        <li class="nav-item"><a class="nav-link"
-                                href="{{ $channel === 'wholesale' ? url('/b2b/about') : url('/about') }}">About</a></li>
-                        <li class="nav-item"><a class="nav-link"
-                                href="{{ $channel === 'wholesale' ? url('/b2b/contact') : url('/contact') }}">Contact
-                                Us</a></li>
-                    </ul>
-
-                    <!-- Right Side: Cart & User Account -->
-                    <div class="ms-auto d-flex align-items-center justify-content-end gap-3" style="max-width: 450px;">
-                        <!-- Search (top/app bar) -->
-                        <div class="d-none d-lg-flex align-items-center position-relative me-2" style="width: 280px;">
-                            <div class="search-wrapper w-100 m-0 p-0 position-relative">
-                                <i class="fas fa-search search-icon text-muted"
-                                    style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); z-index: 10;"></i>
-                                <input id="hero-search-input" type="text"
-                                    class="form-control search-input border rounded-1" placeholder="search products..."
-                                    autocomplete="off" style="padding-left: 36px; height: 38px;">
-                                <div id="hero-search-results" class="search-results-dropdown"></div>
-                            </div>
+                    <!-- Search (left, next to logo) -->
+                    <div class="d-flex align-items-center position-relative ms-lg-3" style="width: 240px;">
+                        <div class="search-wrapper w-100 m-0 p-0 position-relative">
+                            <i class="fas fa-search search-icon text-muted"
+                                style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); z-index: 10;"></i>
+                            <input id="hero-search-input" type="text"
+                                class="form-control search-input border rounded-1" placeholder="search products..."
+                                autocomplete="off" style="padding-left: 36px; height: 38px;">
+                            <div id="hero-search-results" class="search-results-dropdown"></div>
                         </div>
+                    </div>
+
+                    <!-- Right Side: Nav Links + Cart + User -->
+                    <div class="ms-auto d-flex align-items-center gap-3">
+                        <!-- Main Navigation Links -->
+                        <ul class="navbar-nav d-flex flex-row gap-1 mb-0">
+                            <li class="nav-item"><a class="nav-link" href="{{ url($prefix . '/') }}">Home</a></li>
+                            <li class="nav-item"><a class="nav-link"
+                                    href="{{ $channel === 'wholesale' ? route('wholesale.products.index') : url($prefix . '/products') }}">Products</a>
+                            </li>
+                            <li class="nav-item"><a class="nav-link"
+                                    href="{{ $channel === 'wholesale' ? route('wholesale.categories.index') : url($prefix . '/categories') }}">Categories</a>
+                            </li>
+                            <li class="nav-item"><a class="nav-link"
+                                    href="{{ $channel === 'wholesale' ? url('/b2b/our-brand') : url('/our-brand') }}">Our Brand</a></li>
+                            <li class="nav-item"><a class="nav-link"
+                                    href="{{ $channel === 'wholesale' ? url('/b2b/services') : url('/services') }}">Services</a>
+                            </li>
+                            <li class="nav-item"><a class="nav-link"
+                                    href="{{ $channel === 'wholesale' ? url('/b2b/about') : url('/about') }}">About</a></li>
+                            <li class="nav-item"><a class="nav-link"
+                                    href="{{ $channel === 'wholesale' ? url('/b2b/contact') : url('/contact') }}">Contact Us</a></li>
+                        </ul>
 
                         <!-- Cart -->
                         <div class="nav-item d-flex align-items-center">

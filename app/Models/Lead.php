@@ -13,6 +13,7 @@ class Lead extends Model
     use HasFactory;
 
     protected $fillable = [
+        'customer_id',
         'customer_name',
         'phone',
         'email',
@@ -21,6 +22,7 @@ class Lead extends Model
         'follow_up_date',
         'assigned_seller_id',
         'status',
+        'converted_at',
         'interest_level',
         'customer_response',
         'priority',
@@ -31,14 +33,27 @@ class Lead extends Model
         'last_follow_up_date',
         'days_overdue',
         'last_reminder_sms_at',
+        'campaign_id',
+        'program_id',
     ];
 
     protected $casts = [
         'follow_up_date'      => 'date',
         'promised_order_date' => 'date',
         'last_follow_up_date' => 'date',
+        'converted_at'        => 'datetime',
         'promised_amount'     => 'decimal:2',
     ];
+
+    public function setPhoneAttribute($value)
+    {
+        $this->attributes['phone'] = \App\Services\PhoneNormalizationService::normalize($value);
+    }
+
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
+    }
 
     public function seller(): BelongsTo
     {
@@ -48,6 +63,16 @@ class Lead extends Model
     public function followUps(): HasMany
     {
         return $this->hasMany(LeadFollowUp::class);
+    }
+
+    public function campaign(): BelongsTo
+    {
+        return $this->belongsTo(Campaign::class);
+    }
+
+    public function salesProgram(): BelongsTo
+    {
+        return $this->belongsTo(SalesProgram::class, 'program_id');
     }
 
     // ── Scopes ──────────────────────────────────────────────────────────────

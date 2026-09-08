@@ -9,20 +9,6 @@
             .no-print { display: none !important; }
         }
     </style>
-    @php
-        $pdfParams = array_filter([
-            'period' => $period ?? null,
-            'start_date' => $dateFrom ? \Carbon\Carbon::parse($dateFrom)->format('Y-m-d') : null,
-            'end_date' => $dateTo ? \Carbon\Carbon::parse($dateTo)->format('Y-m-d') : null,
-        ], fn($v) => $v !== null && $v !== '');
-
-        $pdfUrl = route('admin.finance.profit-loss.pdf', $pdfParams);
-        $pdfFilename = 'profit-loss-' . ($dateFrom && $dateTo
-            ? $dateFrom->format('Y-m-d') . '_to_' . $dateTo->format('Y-m-d')
-            : ($period ?? 'report')
-        ) . '.pdf';
-    @endphp
-
     <div class="row mb-4">
         <div class="col-12">
             <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
@@ -37,19 +23,11 @@
                     <p class="text-muted small mb-0">Amount displayed in base currency: <strong>TZS</strong></p>
                 </div>
                 <div class="d-flex gap-2 no-print">
-                    <a href="{{ $pdfUrl }}"
-                       target="_blank"
-                       rel="noopener"
-                       class="btn btn-success btn-sm share-pdf-btn"
-                       data-pdf-url="{{ $pdfUrl }}"
-                       data-pdf-filename="{{ $pdfFilename }}"
-                       title="Share this Profit & Loss as PDF (email, messaging, etc.).">
-                        <i class="fas fa-share-alt me-1"></i> Share PDF
-                    </a>
-
-                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="window.print()">
-                        <i class="fas fa-print me-1"></i> Print
-                    </button>
+                    <x-report-export-menu
+                        :print-url="route('admin.finance.profit-loss.print', request()->all())"
+                        :pdf-url="route('admin.finance.profit-loss.pdf', request()->all())"
+                        :excel-url="route('admin.finance.profit-loss.excel', request()->all())"
+                    />
                 </div>
             </div>
         </div>

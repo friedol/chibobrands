@@ -10,15 +10,20 @@ use App\Models\Order;
 use App\Models\DesignTask;
 use App\Models\Customer;
 use App\Models\User;
+use App\Models\FinanceAuditTrail;
+use App\Models\FinanceReconciliation;
+use App\Services\FinanceHealthService;
+use App\Services\ZohoComparisonService;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\URL;
 
 class FinanceController extends Controller
 {
     public function dashboard(Request $request)
     {
-        $period = $request->get('period', 'month');
+        $period = $request->get('period', 'today');
         
         // Harmonize date range logic
         $dateRange = match($period) {
@@ -116,6 +121,8 @@ class FinanceController extends Controller
             $dept->total_collected = $payQuery->sum('amount');
             $deptTaskPending = $taskQuery->sum('balance');
             
+            $dept->total_sales = $taskQuery->sum('price');
+            
             $dept->total_revenue = $dept->total_collected + $deptTaskPending;
             $dept->profit = $dept->total_collected - $dept->total_expenses;
             return $dept;
@@ -148,61 +155,155 @@ class FinanceController extends Controller
             'generalBalanceDue', 'totalCredits', 'totalLosses', 'recentLosses', 'creditTasks', 'creditOrders'
         ));
     }
+
+    /**
+     * Build payroll data (active employees). Shared by view, print, PDF and Excel exports
+     * so all four surfaces show the exact same figures.
+     */
+    private function buildPayrollData(): \Illuminate\Support\Collection
+    {
+        return \App\Models\Employee::orderBy('full_name')->get();
+    }
+
+    /**
+     * Display payroll for active employees.
+     */
+    public function payroll(Request $request)
+    {
+        $employees = $this->buildPayrollData();
+        return view('admin.finance.payroll', compact('employees'));
+    }
+
+    /**
+     * Print payroll (browser print view).
+     */
+    public function payrollPrint(Request $request)
+    {
+        $employees = $this->buildPayrollData();
+        return view('admin.finance.print-payroll', compact('employees'));
+    }
+
+    /**
+     * Download payroll as PDF.
+     */
+    public function payrollPdf(Request $request)
+    {
+        $employees = $this->buildPayrollData();
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.finance.payroll-pdf', compact('employees'))
+            ->setPaper('a4', 'portrait');
+        return $pdf->download('payroll-' . now()->format('Y-m') . '.pdf');
+    }
+
+    /**
+     * Download payroll as Excel.
+     */
+    public function payrollExcel(Request $request)
+    {
+        $employees = $this->buildPayrollData();
+
+        $rows = $employees->map(function ($emp) {
+            return [
+                $emp->full_name . ' (' . $emp->employee_code . ')',
+                $emp->department ?? '—',
+                (float) $emp->basic_salary,
+                (float) $emp->allowances,
+                (float) $emp->deductions,
+                (float) $emp->net_salary,
+                ucfirst($emp->status),
+            ];
+        })->toArray();
+
+        $headings = ['Employee', 'Department', 'Basic Salary', 'Allowances', 'Deductions', 'Net Salary', 'Status'];
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\SimpleArrayExport($rows, $headings, 'Payroll'),
+            'payroll-' . now()->format('Y-m') . '.xlsx'
+        );
+    }
+
+    /**
+     * Download payslip as PDF.
+     */
+    public function payslipPdf($id)
+    {
+        $employee = \App\Models\Employee::findOrFail($id);
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.finance.payslip-pdf', compact('employee'))
+            ->setPaper('a4', 'portrait');
+        return $pdf->download('payslip-' . $employee->employee_code . '-' . now()->format('Y-m') . '.pdf');
+    }
+
     /**
      * Display all pending payments for both Design Tasks and Orders.
      */
-    public function pendingPayments(Request $request)
+    /**
+     * Build pending payments data (orders + design tasks with an outstanding balance).
+     * Shared by view, print, PDF and Excel exports so all four surfaces show identical figures.
+     */
+    private function buildPendingPaymentsData(Request $request): array
     {
-        $search = $request->get('search');
-        $period = $request->get('period', 'all');
-        
+        $search   = $request->get('search');
+        $salerId  = $request->get('saler_id');
+        $period   = $request->get('period', 'all');
+
         // Harmonize date range logic
         $dateRange = match($period) {
-            'today' => [now()->startOfDay(), now()->endOfDay()],
+            'today'     => [now()->startOfDay(), now()->endOfDay()],
             'yesterday' => [now()->subDay()->startOfDay(), now()->subDay()->endOfDay()],
-            'week' => [now()->startOfWeek(), now()->endOfWeek()],
-            'month' => [now()->startOfMonth(), now()->endOfMonth()],
-            '6_months' => [now()->subMonths(6), now()],
-            'year' => [now()->startOfYear(), now()->endOfYear()],
-            '2_years' => [now()->subYears(2), now()],
-            'custom' => [
+            'week'      => [now()->startOfWeek(), now()->endOfWeek()],
+            'month'     => [now()->startOfMonth(), now()->endOfMonth()],
+            '6_months'  => [now()->subMonths(6), now()],
+            'year'      => [now()->startOfYear(), now()->endOfYear()],
+            '2_years'   => [now()->subYears(2), now()],
+            'custom'    => [
                 $request->get('start_date') ? \Carbon\Carbon::parse($request->get('start_date'))->startOfDay() : null,
-                $request->get('end_date') ? \Carbon\Carbon::parse($request->get('end_date'))->endOfDay() : null
+                $request->get('end_date')   ? \Carbon\Carbon::parse($request->get('end_date'))->endOfDay()   : null,
             ],
             'all' => [null, null],
-            default => [null, null]
+            default => [null, null],
         };
 
         $dateFrom = $dateRange[0];
-        $dateTo = $dateRange[1];
-        
+        $dateTo   = $dateRange[1];
+
         // Orders query
-        $ordersQuery = Order::activeFinance()->with(['user'])
+        $ordersQuery = Order::activeFinance()->with(['user', 'saler'])
             ->whereIn('payment_status', ['pending', 'partial']);
-            
+
         if ($dateFrom && $dateTo) {
             $ordersQuery->whereBetween('created_at', [$dateFrom, $dateTo]);
         }
-            
+
+        if ($salerId) {
+            $ordersQuery->where('saler_id', $salerId);
+        }
+
         if ($search) {
             $ordersQuery->where(function($q) use ($search) {
                 $q->where('order_code', 'like', "%{$search}%")
                   ->orWhereHas('user', function($uq) use ($search) {
                       $uq->where('name', 'like', "%{$search}%")
                         ->orWhere('phone', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('saler', function($sq) use ($search) {
+                      $sq->where('name', 'like', "%{$search}%");
                   });
             });
         }
         $pendingOrders = $ordersQuery->orderBy('created_at', 'desc')->get();
-        
+
         // Design Tasks query
-        $tasksQuery = DesignTask::activeFinance()->with(['customer', 'receptionist', 'designer'])
+        $tasksQuery = DesignTask::activeFinance()->with(['customer', 'receptionist', 'designer', 'saler'])
             ->where('balance', '>', 0);
-            
+
         if ($dateFrom && $dateTo) {
             $tasksQuery->whereBetween('created_at', [$dateFrom, $dateTo]);
         }
-            
+
+        // Filter by specific salesperson
+        if ($salerId) {
+            $tasksQuery->where('saler_id', $salerId);
+        }
+
         if ($search) {
             $tasksQuery->where(function($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
@@ -210,16 +311,41 @@ class FinanceController extends Controller
                   ->orWhereHas('customer', function($cq) use ($search) {
                       $cq->where('name', 'like', "%{$search}%")
                         ->orWhere('phone', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('saler', function($sq) use ($search) {
+                      $sq->where('name', 'like', "%{$search}%");
                   });
             });
         }
         $pendingTasks = $tasksQuery->orderBy('created_at', 'desc')->get();
-        
-        $templates = \App\Models\MessageTemplate::active()->get();
+
+        return [
+            'pendingOrders' => $pendingOrders,
+            'pendingTasks' => $pendingTasks,
+            'search' => $search,
+            'salerId' => $salerId,
+            'period' => $period,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+        ];
+    }
+
+    public function pendingPayments(Request $request)
+    {
+        $data = $this->buildPendingPaymentsData($request);
+        ['pendingOrders' => $pendingOrders, 'pendingTasks' => $pendingTasks, 'search' => $search,
+         'salerId' => $salerId, 'period' => $period, 'dateFrom' => $dateFrom, 'dateTo' => $dateTo] = $data;
+
+        $templates   = \App\Models\MessageTemplate::active()->get();
+        $salers      = User::where('role', 'saler')
+                   ->viewableStaff()->orderBy('name')->get();
         $dateFromStr = $dateFrom ? $dateFrom->format('Y-m-d') : null;
-        $dateToStr = $dateTo ? $dateTo->format('Y-m-d') : null;
-        
-        return view('admin.finance.pending-payments', compact('pendingOrders', 'pendingTasks', 'templates', 'search', 'period', 'dateFromStr', 'dateToStr'));
+        $dateToStr   = $dateTo   ? $dateTo->format('Y-m-d')   : null;
+
+        return view('admin.finance.pending-payments', compact(
+            'pendingOrders', 'pendingTasks', 'templates',
+            'search', 'salerId', 'salers', 'period', 'dateFromStr', 'dateToStr'
+        ));
     }
 
     /**
@@ -227,69 +353,87 @@ class FinanceController extends Controller
      */
     public function printPendingPayments(Request $request)
     {
-        $search = $request->get('search');
-        $period = $request->get('period', 'all');
-        
-        // Harmonize date range logic
-        $dateRange = match($period) {
-            'today' => [now()->startOfDay(), now()->endOfDay()],
-            'yesterday' => [now()->subDay()->startOfDay(), now()->subDay()->endOfDay()],
-            'week' => [now()->startOfWeek(), now()->endOfWeek()],
-            'month' => [now()->startOfMonth(), now()->endOfMonth()],
-            '6_months' => [now()->subMonths(6), now()],
-            'year' => [now()->startOfYear(), now()->endOfYear()],
-            '2_years' => [now()->subYears(2), now()],
-            'custom' => [
-                $request->get('start_date') ? \Carbon\Carbon::parse($request->get('start_date'))->startOfDay() : null,
-                $request->get('end_date') ? \Carbon\Carbon::parse($request->get('end_date'))->endOfDay() : null
-            ],
-            'all' => [null, null],
-            default => [null, null]
-        };
+        $data = $this->buildPendingPaymentsData($request);
+        ['pendingOrders' => $pendingOrders, 'pendingTasks' => $pendingTasks, 'search' => $search,
+         'salerId' => $salerId, 'period' => $period, 'dateFrom' => $dateFrom, 'dateTo' => $dateTo] = $data;
 
-        $dateFrom = $dateRange[0];
-        $dateTo = $dateRange[1];
-        
-        // Orders query
-        $ordersQuery = Order::activeFinance()->with(['user'])
-            ->whereIn('payment_status', ['pending', 'partial']);
-            
-        if ($dateFrom && $dateTo) {
-            $ordersQuery->whereBetween('created_at', [$dateFrom, $dateTo]);
+        $salerName = $salerId
+            ? User::where('role', 'saler')->where('id', $salerId)->value('name')
+            : null;
+
+        return view('admin.finance.print-pending', compact(
+            'pendingOrders', 'pendingTasks', 'search', 'salerId', 'salerName', 'period', 'dateFrom', 'dateTo'
+        ));
+    }
+
+    /**
+     * Download all pending payments as PDF.
+     */
+    public function pendingPaymentsPdf(Request $request)
+    {
+        $data = $this->buildPendingPaymentsData($request);
+        ['pendingOrders' => $pendingOrders, 'pendingTasks' => $pendingTasks, 'search' => $search,
+         'salerId' => $salerId] = $data;
+
+        $salerName = $salerId
+            ? User::where('role', 'saler')->where('id', $salerId)->value('name')
+            : null;
+        $title = 'Outstanding Payments';
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.reports.exports.pending-payments', compact(
+            'pendingOrders', 'pendingTasks', 'search', 'salerName', 'title'
+        ))->setPaper('a4', 'portrait');
+        return $pdf->download('pending-payments-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    /**
+     * Download all pending payments as Excel.
+     */
+    public function pendingPaymentsExcel(Request $request)
+    {
+        $data = $this->buildPendingPaymentsData($request);
+        $pendingOrders = $data['pendingOrders'];
+        $pendingTasks = $data['pendingTasks'];
+
+        $rows = [];
+
+        foreach ($pendingTasks as $task) {
+            $basePrice = $task->requires_receipt ? $task->price * 1.18 : $task->price;
+            $deliveryCost = (float) ($task->delivery_cost ?? 0);
+            $deliveryDiscount = (float) ($task->delivery_discount ?? 0);
+            $taskTotal = $basePrice + $deliveryCost - $deliveryDiscount;
+
+            $rows[] = [
+                'Design Task',
+                $task->task_code,
+                $task->customer->name ?? 'Walk-in',
+                $task->saler->name ?? '-',
+                (float) $taskTotal,
+                (float) $task->amount_paid,
+                (float) $task->balance,
+                $task->created_at->format('Y-m-d'),
+            ];
         }
-            
-        if ($search) {
-            $ordersQuery->where(function($q) use ($search) {
-                $q->where('order_code', 'like', "%{$search}%")
-                  ->orWhereHas('user', function($uq) use ($search) {
-                      $uq->where('name', 'like', "%{$search}%")
-                        ->orWhere('phone', 'like', "%{$search}%");
-                  });
-            });
+
+        foreach ($pendingOrders as $order) {
+            $rows[] = [
+                'Order',
+                $order->order_code,
+                $order->user->name ?? 'Walk-in',
+                $order->saler->name ?? '-',
+                (float) $order->total_amount,
+                (float) $order->amount_paid,
+                (float) $order->balance,
+                $order->created_at->format('Y-m-d'),
+            ];
         }
-        $pendingOrders = $ordersQuery->orderBy('created_at', 'desc')->get();
-        
-        // Design Tasks query
-        $tasksQuery = DesignTask::activeFinance()->with(['customer', 'receptionist', 'designer'])
-            ->where('balance', '>', 0);
-            
-        if ($dateFrom && $dateTo) {
-            $tasksQuery->whereBetween('created_at', [$dateFrom, $dateTo]);
-        }
-            
-        if ($search) {
-            $tasksQuery->where(function($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('task_code', 'like', "%{$search}%")
-                  ->orWhereHas('customer', function($cq) use ($search) {
-                      $cq->where('name', 'like', "%{$search}%")
-                        ->orWhere('phone', 'like', "%{$search}%");
-                  });
-            });
-        }
-        $pendingTasks = $tasksQuery->orderBy('created_at', 'desc')->get();
-        
-        return view('admin.finance.print-pending', compact('pendingOrders', 'pendingTasks', 'search', 'period', 'dateFrom', 'dateTo'));
+
+        $headings = ['Type', 'Code', 'Customer', 'Salesperson', 'Total', 'Paid', 'Balance', 'Created'];
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\SimpleArrayExport($rows, $headings, 'Pending Payments'),
+            'pending-payments-' . now()->format('Y-m-d') . '.xlsx'
+        );
     }
 
 
@@ -303,6 +447,80 @@ class FinanceController extends Controller
      * Currency note: Values are shown in base currency (TZS).
      */
     public function profitLoss(Request $request): \Illuminate\View\View
+    {
+        $data = $this->buildProfitLossData($request);
+        return view('admin.finance.profit-loss', $data);
+    }
+
+    /**
+     * Print Profit & Loss (browser print view).
+     */
+    public function profitLossPrint(Request $request)
+    {
+        $data = $this->buildProfitLossData($request);
+        return view('admin.finance.print-profit-loss', $data);
+    }
+
+    /**
+     * Download Profit & Loss as PDF (used by Share PDF button).
+     */
+    public function profitLossPdf(Request $request)
+    {
+        $data = $this->buildProfitLossData($request);
+
+        $dateFrom = $data['dateFrom'];
+        $dateTo = $data['dateTo'];
+        $period = $data['period'];
+        $filename = 'profit-loss-' . ($dateFrom && $dateTo ? $dateFrom->format('Y-m-d') . '_to_' . $dateTo->format('Y-m-d') : ($period ?? 'report')) . '.pdf';
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.finance.profit-loss-pdf', $data)
+            ->setPaper('a4', 'portrait');
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Download Profit & Loss as Excel.
+     */
+    public function profitLossExcel(Request $request)
+    {
+        $data = $this->buildProfitLossData($request);
+
+        $rows = [
+            ['Operating Income', $data['operatingIncome']],
+            ['Sales', $data['sales']],
+            ['Discount', $data['discount']],
+            ['Total Operating Income', $data['operatingIncome']],
+            ['Cost of Goods Sold', $data['cogs']],
+            ['Gross Profit', $data['grossProfit']],
+            ['Operating Expense', -abs($data['operatingExpense'])],
+            ['Operating Profit', $data['operatingProfit']],
+            ['Non Operating Income', 0],
+            ['Non Operating Expense', 0],
+            [$data['netProfitLoss'] < 0 ? 'Net Loss' : 'Net Profit', $data['netProfitLoss']],
+        ];
+
+        $headings = ['Account', 'Amount (TZS)'];
+
+        $dateFrom = $data['dateFrom'];
+        $dateTo = $data['dateTo'];
+        $filename = 'profit-loss-' . ($dateFrom && $dateTo ? $dateFrom->format('Y-m-d') . '_to_' . $dateTo->format('Y-m-d') : ($data['period'] ?? 'report')) . '.xlsx';
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\SimpleArrayExport($rows, $headings, 'Profit and Loss'),
+            $filename
+        );
+    }
+
+    /**
+     * Build Profit & Loss data (accrual basis) for the requested period.
+     * Shared by view, print, PDF and Excel exports so all four surfaces agree.
+     *
+     * P&L from design tasks (not orders). DesignTask math:
+     * - base "price" is subtotal
+     * - if requires_receipt = true, VAT is applied as (price * 1.18)
+     * - delivery_discount is stored as a positive value and we show it as a negative line item
+     */
+    private function buildProfitLossData(Request $request): array
     {
         $period = $request->get('period', 'year');
 
@@ -322,11 +540,6 @@ class FinanceController extends Controller
 
         [$dateFrom, $dateTo] = $range;
 
-        // P&L from design tasks (not orders).
-        // DesignTask math:
-        // - base "price" is subtotal
-        // - if requires_receipt = true, VAT is applied as (price * 1.18)
-        // - delivery_discount is stored as a positive value and we show it as a negative line item
         $tasksQuery = DesignTask::activeFinance()
             ->where('status', '!=', DesignTask::STATUS_REJECTED);
 
@@ -370,89 +583,7 @@ class FinanceController extends Controller
 
         $netProfitLoss = $operatingProfit; // No non-operating sections in current data model
 
-        return view('admin.finance.profit-loss', [
-            'period' => $period,
-            'dateFrom' => $dateFrom,
-            'dateTo' => $dateTo,
-            'basisLabel' => 'Accrual',
-            'sales' => $sales,
-            'discount' => $discount,
-            'operatingIncome' => $operatingIncome,
-            'cogs' => $cogs,
-            'grossProfit' => $grossProfit,
-            'operatingExpense' => $operatingExpense,
-            'operatingProfit' => $operatingProfit,
-            'netProfitLoss' => $netProfitLoss,
-        ]);
-    }
-
-    /**
-     * Download Profit & Loss as PDF (used by Share PDF button).
-     */
-    public function profitLossPdf(Request $request)
-    {
-        $period = $request->get('period', 'year');
-
-        $range = match ($period) {
-            'today' => [now()->startOfDay(), now()->endOfDay()],
-            'yesterday' => [now()->subDay()->startOfDay(), now()->subDay()->endOfDay()],
-            'week' => [now()->startOfWeek(), now()->endOfWeek()],
-            'month' => [now()->startOfMonth(), now()->endOfMonth()],
-            'year' => [now()->startOfYear(), now()->endOfYear()],
-            'custom' => [
-                $request->filled('start_date') ? Carbon::parse($request->get('start_date'))->startOfDay() : now()->startOfYear(),
-                $request->filled('end_date') ? Carbon::parse($request->get('end_date'))->endOfDay() : now()->endOfYear(),
-            ],
-            'all' => [null, null],
-            default => [now()->startOfYear(), now()->endOfYear()],
-        };
-
-        [$dateFrom, $dateTo] = $range;
-
-        // P&L from design tasks (not orders).
-        $tasksQuery = DesignTask::activeFinance()
-            ->where('status', '!=', DesignTask::STATUS_REJECTED);
-
-        if ($dateFrom && $dateTo) {
-            $tasksQuery->whereBetween('created_at', [$dateFrom, $dateTo]);
-        }
-
-        $sales = (float) $tasksQuery
-            ->selectRaw(
-                'COALESCE(SUM(' .
-                '(CASE WHEN requires_receipt = 1 THEN (price * 1.18) ELSE price END) ' .
-                '+ COALESCE(delivery_cost, 0)' .
-                '), 0) as sales_gross'
-            )
-            ->value('sales_gross');
-
-        $discountRaw = (float) $tasksQuery->sum('delivery_discount');
-        $discount = $discountRaw === 0.0 ? 0.0 : -abs($discountRaw);
-
-        $operatingIncome = (float) $tasksQuery
-            ->selectRaw(
-                'COALESCE(SUM(' .
-                '(CASE WHEN requires_receipt = 1 THEN (price * 1.18) ELSE price END) ' .
-                '+ COALESCE(delivery_cost, 0) ' .
-                '- COALESCE(delivery_discount, 0)' .
-                '), 0) as operating_income'
-            )
-            ->value('operating_income');
-
-        $expensesQuery = Expense::query();
-        if ($dateFrom && $dateTo) {
-            $expensesQuery->whereBetween('date', [$dateFrom, $dateTo]);
-        }
-        $operatingExpense = (float) $expensesQuery->sum('amount');
-
-        $cogs = 0.0;
-        $grossProfit = $operatingIncome - $cogs;
-        $operatingProfit = $grossProfit - $operatingExpense;
-        $netProfitLoss = $operatingProfit;
-
-        $filename = 'profit-loss-' . ($dateFrom && $dateTo ? $dateFrom->format('Y-m-d') . '_to_' . $dateTo->format('Y-m-d') : ($period ?? 'report')) . '.pdf';
-
-        $data = [
+        return [
             'period' => $period,
             'dateFrom' => $dateFrom,
             'dateTo' => $dateTo,
@@ -466,10 +597,6 @@ class FinanceController extends Controller
             'operatingProfit' => $operatingProfit,
             'netProfitLoss' => $netProfitLoss,
         ];
-
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.finance.profit-loss-pdf', $data)
-            ->setPaper('a4', 'portrait');
-        return $pdf->download($filename);
     }
 
     private function getDateRangeFromPeriod($period)
@@ -764,10 +891,64 @@ class FinanceController extends Controller
         return $pdf->download($filename);
     }
 
-    public function expenses(Request $request)
+    /**
+     * Balance sheet print view (same filters as page).
+     */
+    public function balanceSheetPrint(Request $request)
+    {
+        [$dateFrom, $dateTo] = $this->resolveBalanceSheetPeriod($request);
+        $departmentId = $request->get('department_id') ?: null;
+        $currentDept = $departmentId ? Department::find($departmentId) : null;
+        $data = $this->buildBalanceSheetData($dateFrom, $dateTo, $departmentId);
+        $data['period'] = $request->get('period', 'month');
+        $data['currentDept'] = $currentDept;
+
+        return view('admin.finance.print-balance-sheet', $data);
+    }
+
+    /**
+     * Balance sheet Excel export (same filters as page).
+     */
+    public function balanceSheetExcel(Request $request)
+    {
+        [$dateFrom, $dateTo] = $this->resolveBalanceSheetPeriod($request);
+        $departmentId = $request->get('department_id') ?: null;
+        $data = $this->buildBalanceSheetData($dateFrom, $dateTo, $departmentId);
+
+        $headings = ['Item', 'Amount (TZS)', 'Department', 'Mobile', 'Cash', 'Bank', 'Receivables', 'Total Assets'];
+
+        $rows = [
+            ['Mobile (net)', $data['cash_mobile'], '', '', '', '', '', ''],
+            ['Cash (net)', $data['cash_cash'], '', '', '', '', '', ''],
+            ['Bank (net)', $data['cash_bank'], '', '', '', '', '', ''],
+            ['Accounts receivable', $data['receivables'], '', '', '', '', '', ''],
+            ['Total assets', $data['total_assets'], '', '', '', '', '', ''],
+            ['Liabilities', $data['liabilities'], '', '', '', '', '', ''],
+            ['Equity (net position)', $data['equity'], '', '', '', '', '', ''],
+            ['Total liabilities & equity', $data['total_liabilities_equity'], '', '', '', '', '', ''],
+        ];
+
+        foreach ($data['department_breakdown'] as $d) {
+            $rows[] = ['', '', $d['name'], $d['mobile'] ?? 0, $d['cash'] ?? 0, $d['bank'] ?? 0, $d['receivables'], $d['total_assets']];
+        }
+
+        $asAtStr = $data['asAt']->format('Y-m-d');
+        $filename = 'balance-sheet-' . $asAtStr . ($departmentId ? '-dept-' . $departmentId : '') . '.xlsx';
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\SimpleArrayExport($rows, $headings, 'Balance Sheet'),
+            $filename
+        );
+    }
+
+    /**
+     * Build the filtered expenses query (search / category / department / date range).
+     * Shared by index, print, PDF and Excel so all four surfaces show identical figures.
+     */
+    private function buildExpensesQuery(Request $request): \Illuminate\Database\Eloquent\Builder
     {
         $query = Expense::with(['department', 'approvedBy']);
-        
+
         // Search filter (Notes)
         if ($request->filled('search')) {
             $query->where('notes', 'like', '%' . $request->search . '%');
@@ -790,8 +971,13 @@ class FinanceController extends Controller
         if ($request->filled('date_to')) {
             $query->whereDate('date', '<=', $request->date_to);
         }
-        
-        $expenses = $query->latest('date')->paginate(25)->withQueryString();
+
+        return $query->latest('date');
+    }
+
+    public function expenses(Request $request)
+    {
+        $expenses = $this->buildExpensesQuery($request)->paginate(25)->withQueryString();
         $departments = Department::all();
 
         return view('admin.finance.expenses', compact('expenses', 'departments'));
@@ -799,30 +985,51 @@ class FinanceController extends Controller
 
     public function printExpenses(Request $request)
     {
-        $query = Expense::with(['department', 'approvedBy']);
-        
-        if ($request->filled('search')) {
-            $query->where('notes', 'like', '%' . $request->search . '%');
-        }
-
-        if ($request->filled('category') && $request->category !== 'all') {
-            $query->where('category', $request->category);
-        }
-
-        if ($request->filled('department_id') && $request->department_id !== 'all') {
-            $query->where('department_id', $request->department_id);
-        }
-
-        if ($request->filled('date_from')) {
-            $query->whereDate('date', '>=', $request->date_from);
-        }
-        if ($request->filled('date_to')) {
-            $query->whereDate('date', '<=', $request->date_to);
-        }
-        
-        $expenses = $query->latest('date')->get();
+        $expenses = $this->buildExpensesQuery($request)->get();
 
         return view('admin.finance.print-expenses', compact('expenses'));
+    }
+
+    /**
+     * Download filtered expenses as PDF.
+     */
+    public function expensesPdf(Request $request)
+    {
+        $expenses = $this->buildExpensesQuery($request)->get();
+        $title = 'Expense Report';
+        $dateFrom = $request->get('date_from');
+        $dateTo = $request->get('date_to');
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.reports.exports.expenses', compact('expenses', 'title', 'dateFrom', 'dateTo'))
+            ->setPaper('a4', 'portrait');
+        return $pdf->download('expense-report-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    /**
+     * Download filtered expenses as Excel.
+     */
+    public function expensesExcel(Request $request)
+    {
+        $expenses = $this->buildExpensesQuery($request)->get();
+
+        $rows = $expenses->map(function ($expense) {
+            return [
+                $expense->date->format('Y-m-d'),
+                $expense->category,
+                $expense->department->name ?? 'General',
+                $expense->notes ?: '',
+                ucfirst(str_replace('_', ' ', $expense->payment_method)),
+                (float) $expense->amount,
+                $expense->approvedBy->name ?? '',
+            ];
+        })->toArray();
+
+        $headings = ['Date', 'Category', 'Department', 'Notes', 'Payment Method', 'Amount (TZS)', 'Approved By'];
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\SimpleArrayExport($rows, $headings, 'Expenses'),
+            'expense-report-' . now()->format('Y-m-d') . '.xlsx'
+        );
     }
 
     public function storeExpense(Request $request)
@@ -869,21 +1076,94 @@ class FinanceController extends Controller
         return redirect()->back()->with('success', 'Expense deleted successfully.');
     }
 
+    public function destroyPayment($id)
+    {
+        if (auth()->user()->role !== 'super_admin') {
+            abort(403, 'Unauthorized action. Only Superadmins can delete payments.');
+        }
+
+        $payment = Payment::findOrFail($id);
+        $amount = (float) $payment->amount;
+
+        // Revert DesignTask balance if linked
+        if ($payment->design_task_id) {
+            $task = DesignTask::find($payment->design_task_id);
+            if ($task) {
+                $task->amount_paid = max(0, (float)$task->amount_paid - $amount);
+                
+                // Recalculate balance
+                $basePrice = $task->requires_receipt ? $task->price * 1.18 : $task->price;
+                $deliveryCost = floatval($task->delivery_cost ?? 0);
+                $deliveryDiscount = floatval($task->delivery_discount ?? 0);
+                $totalPrice = $basePrice + $deliveryCost - $deliveryDiscount;
+                $task->balance = max(0, $totalPrice - $task->amount_paid);
+                $task->save();
+
+                // Log a task update
+                \App\Models\TaskUpdate::create([
+                    'task_id' => $task->id,
+                    'admin_id' => auth()->id(),
+                    'type' => \App\Models\TaskUpdate::TYPE_COMMENT,
+                    'content' => "Payment transaction deleted by Superadmin. Amount reverted: TZS " . number_format($amount) . ".",
+                ]);
+            }
+        }
+
+        // Revert Order balance and status if linked
+        if ($payment->order_id) {
+            $order = Order::find($payment->order_id);
+            if ($order) {
+                $order->amount_paid = max(0, (float)$order->amount_paid - $amount);
+                $order->balance = max(0, (float)$order->total_amount - $order->amount_paid);
+                
+                // Determine payment status
+                if ($order->amount_paid <= 0) {
+                    $order->payment_status = 'pending';
+                } elseif ($order->balance <= 0) {
+                    $order->payment_status = 'paid';
+                } else {
+                    $order->payment_status = 'partial';
+                }
+
+                // Log payment deletion in order notes
+                $noteEntry = "Payment deleted: TZS " . number_format($amount) . " by Superadmin [" . now()->format('d/m/Y H:i') . "]";
+                $order->notes = ($order->notes ? $order->notes . "\n" : "") . $noteEntry;
+                $order->save();
+            }
+        }
+
+        $customerId = $payment->customer_id;
+
+        // Permanently delete the payment
+        $payment->delete();
+
+        // Recalculate customer analytics
+        if ($customerId) {
+            try {
+                $analyticsService = app(\App\Services\CustomerAnalyticsService::class);
+                $analyticsService->recalculateCustomerAnalytics($customerId);
+            } catch (\Exception $e) {
+                \Log::error('Failed to update customer analytics on payment deletion', ['error' => $e->getMessage()]);
+            }
+        }
+
+        return redirect()->back()->with('success', 'Payment deleted and transaction reverted successfully.');
+    }
+
     public function voucher($id)
     {
         $expense = Expense::with(['department', 'approvedBy'])->findOrFail($id);
         return view('admin.finance.voucher', compact('expense'));
     }
 
-    public function cashFlow(Request $request)
+    /**
+     * Resolve [dateFrom, dateTo] (Y-m-d strings or null) for the cash flow ledger from
+     * either explicit date_from/date_to request params or a named period.
+     * Shared by view, print, PDF and Excel so period shortcuts behave identically everywhere
+     * (previously printCashFlow ignored the "period" param entirely, drifting from the page).
+     */
+    private function resolveCashFlowDates(Request $request): array
     {
-        $view = $request->get('view', 'history');
-        $sellers = User::whereIn('role', ['saler', 'admin', 'super_admin', 'manager', 'accountant'])
-            ->viewableStaff()
-            ->get();
-        $departments = Department::all();
-
-        // --- PERIOD LOGIC ---
         $period = $request->get('period');
         $dateFrom = $request->get('date_from');
         $dateTo = $request->get('date_to');
@@ -908,24 +1188,34 @@ class FinanceController extends Controller
                     break;
             }
         }
-        
-        if ($view === 'customers') {
-            $customers = Customer::select('customers.*')
-                ->selectRaw('(SELECT SUM(amount) FROM payments WHERE payments.customer_id = customers.id) as total_paid')
-                ->selectRaw('(SELECT SUM(balance) FROM design_tasks WHERE design_tasks.customer_id = customers.id) as unpaid_balance')
-                ->selectRaw('(SELECT status FROM leads WHERE leads.phone = customers.phone ORDER BY created_at DESC LIMIT 1) as lead_status')
-                ->when($request->search, function($q) use ($request) {
-                    $q->where('name', 'like', "%{$request->search}%")
-                      ->orWhere('phone', 'like', "%{$request->search}%");
-                })
-                ->orderByDesc('unpaid_balance')
-                ->orderByDesc('total_paid')
-                ->paginate(20)->withQueryString();
-                
-            return view('admin.finance.cash-flow', compact('customers', 'view', 'sellers', 'departments', 'period', 'dateFrom', 'dateTo'));
-        }
 
-        // --- UNIFIED LEDGER LOGIC ---
+        return [$dateFrom, $dateTo];
+    }
+
+    /**
+     * Cash flow "customers" view query (outstanding balance per customer). Shared by view, print,
+     * PDF and Excel.
+     */
+    private function buildCashFlowCustomersQuery(Request $request): \Illuminate\Database\Eloquent\Builder
+    {
+        return Customer::select('customers.*')
+            ->selectRaw('(SELECT SUM(amount) FROM payments WHERE payments.customer_id = customers.id) as total_paid')
+            ->selectRaw('(SELECT SUM(balance) FROM design_tasks WHERE design_tasks.customer_id = customers.id AND design_tasks.deleted_at IS NULL) as unpaid_balance')
+            ->selectRaw('(SELECT status FROM leads WHERE leads.phone = customers.phone ORDER BY created_at DESC LIMIT 1) as lead_status')
+            ->when($request->search, function($q) use ($request) {
+                $q->where('name', 'like', "%{$request->search}%")
+                  ->orWhere('phone', 'like', "%{$request->search}%");
+            })
+            ->orderByDesc('unpaid_balance')
+            ->orderByDesc('total_paid');
+    }
+
+    /**
+     * Cash flow unified ledger (payments + expenses, sorted by date desc). Shared by view, print,
+     * PDF and Excel so all four surfaces show identical figures.
+     */
+    private function buildCashFlowLedgerEntries(Request $request, ?string $dateFrom, ?string $dateTo): \Illuminate\Support\Collection
+    {
         // Fetch Payments (Cash In)
         $paymentQuery = Payment::activeFinance()->with(['customer', 'order.items.product', 'seller', 'department']);
         if ($dateFrom) $paymentQuery->whereDate('date', '>=', $dateFrom);
@@ -964,7 +1254,26 @@ class FinanceController extends Controller
         });
 
         // Combine and Sort
-        $allEntries = $payments->concat($expenses)->sortByDesc('date');
+        return $payments->concat($expenses)->sortByDesc('date');
+    }
+
+    public function cashFlow(Request $request)
+    {
+        $view = $request->get('view', 'history');
+        $sellers = User::whereIn('role', ['saler', 'admin', 'super_admin', 'manager', 'accountant'])
+            ->viewableStaff()
+            ->get();
+        $departments = Department::all();
+        $period = $request->get('period');
+        [$dateFrom, $dateTo] = $this->resolveCashFlowDates($request);
+
+        if ($view === 'customers') {
+            $customers = $this->buildCashFlowCustomersQuery($request)->paginate(20)->withQueryString();
+
+            return view('admin.finance.cash-flow', compact('customers', 'view', 'sellers', 'departments', 'period', 'dateFrom', 'dateTo'));
+        }
+
+        $allEntries = $this->buildCashFlowLedgerEntries($request, $dateFrom, $dateTo);
 
         // Manual Pagination
         $perPage = 25;
@@ -976,72 +1285,101 @@ class FinanceController extends Controller
             $page,
             ['path' => $request->url(), 'query' => $request->query()]
         );
-            
+
         return view('admin.finance.cash-flow', compact('pagedEntries', 'view', 'sellers', 'departments', 'period', 'dateFrom', 'dateTo'));
     }
 
     public function printCashFlow(Request $request)
     {
         $view = $request->get('view', 'history');
+        [$dateFrom, $dateTo] = $this->resolveCashFlowDates($request);
 
         if ($view === 'customers') {
-            $customers = Customer::select('customers.*')
-                ->selectRaw('(SELECT SUM(amount) FROM payments WHERE payments.customer_id = customers.id) as total_paid')
-                ->selectRaw('(SELECT SUM(balance) FROM design_tasks WHERE design_tasks.customer_id = customers.id) as unpaid_balance')
-                ->selectRaw('(SELECT status FROM leads WHERE leads.phone = customers.phone ORDER BY created_at DESC LIMIT 1) as lead_status')
-                ->when($request->search, function($q) use ($request) {
-                    $q->where('name', 'like', "%{$request->search}%")
-                      ->orWhere('phone', 'like', "%{$request->search}%");
-                })
-                ->orderByDesc('unpaid_balance')
-                ->orderByDesc('total_paid')
-                ->get();
-                
+            $customers = $this->buildCashFlowCustomersQuery($request)->get();
+
             return view('admin.finance.print-cash-flow', compact('customers', 'view'));
         }
 
-        // Default: Unified Ledger (History)
-        // Fetch Payments (Cash In)
-        $paymentQuery = Payment::activeFinance()->with(['customer', 'order.items.product', 'seller', 'department']);
-        if ($request->filled('date_from')) $paymentQuery->whereDate('date', '>=', $request->date_from);
-        if ($request->filled('date_to')) $paymentQuery->whereDate('date', '<=', $request->date_to);
-        if ($request->filled('payment_method')) $paymentQuery->where('payment_method', $request->payment_method);
-        if ($request->filled('seller_id')) $paymentQuery->where('seller_id', $request->seller_id);
-        if ($request->filled('department_id')) $paymentQuery->where('department_id', $request->department_id);
-        if ($request->filled('search')) {
-            $paymentQuery->whereHas('customer', function($q) use ($request) {
-                $q->where('name', 'like', "%{$request->search}%")
-                  ->orWhere('phone', 'like', "%{$request->search}%");
-            });
+        $entries = $this->buildCashFlowLedgerEntries($request, $dateFrom, $dateTo);
+
+        return view('admin.finance.print-cash-flow', compact('entries', 'view', 'dateFrom', 'dateTo'));
+    }
+
+    /**
+     * Download cash flow (ledger or customers, matching ?view=) as PDF.
+     */
+    public function cashFlowPdf(Request $request)
+    {
+        $view = $request->get('view', 'history');
+        [$dateFrom, $dateTo] = $this->resolveCashFlowDates($request);
+
+        if ($view === 'customers') {
+            $customers = $this->buildCashFlowCustomersQuery($request)->get();
+            $title = 'Customer Balances';
+
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.reports.exports.cash-flow-customers', compact('customers', 'title'))
+                ->setPaper('a4', 'portrait');
+            return $pdf->download('cash-flow-customers-' . now()->format('Y-m-d') . '.pdf');
         }
-        $payments = $paymentQuery->get()->map(function($p) {
-            $p->entry_type = 'payment';
-            $p->date = \Carbon\Carbon::parse($p->date);
-            return $p;
-        });
 
-        // Fetch Expenses (Cash Out)
-        $expenseQuery = Expense::with(['department', 'approvedBy']);
-        if ($request->filled('date_from')) $expenseQuery->whereDate('date', '>=', $request->date_from);
-        if ($request->filled('date_to')) $expenseQuery->whereDate('date', '<=', $request->date_to);
-        if ($request->filled('payment_method')) $expenseQuery->where('payment_method', $request->payment_method);
-        if ($request->filled('department_id')) $expenseQuery->where('department_id', $request->department_id);
-        if ($request->filled('search')) {
-            $expenseQuery->where(function($q) use ($request) {
-                $q->where('category', 'like', "%{$request->search}%")
-                  ->orWhere('notes', 'like', "%{$request->search}%");
-            });
+        $entries = $this->buildCashFlowLedgerEntries($request, $dateFrom, $dateTo);
+        $title = 'Cash Flow Statement';
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.reports.exports.cash-flow', compact('entries', 'title', 'dateFrom', 'dateTo'))
+            ->setPaper('a4', 'landscape');
+        return $pdf->download('cash-flow-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    /**
+     * Download cash flow (ledger or customers, matching ?view=) as Excel.
+     */
+    public function cashFlowExcel(Request $request)
+    {
+        $view = $request->get('view', 'history');
+        [$dateFrom, $dateTo] = $this->resolveCashFlowDates($request);
+
+        if ($view === 'customers') {
+            $customers = $this->buildCashFlowCustomersQuery($request)->get();
+
+            $rows = $customers->map(function ($c) {
+                return [
+                    $c->name,
+                    $c->phone,
+                    (float) ($c->total_paid ?? 0),
+                    (float) ($c->unpaid_balance ?? 0),
+                    $c->lead_status ? ucfirst($c->lead_status) : 'New',
+                ];
+            })->toArray();
+
+            $headings = ['Customer Name', 'Phone', 'Total Paid', 'Outstanding Balance', 'Lead Status'];
+
+            return \Maatwebsite\Excel\Facades\Excel::download(
+                new \App\Exports\SimpleArrayExport($rows, $headings, 'Customer Balances'),
+                'cash-flow-customers-' . now()->format('Y-m-d') . '.xlsx'
+            );
         }
-        $expenses = $expenseQuery->get()->map(function($e) {
-            $e->entry_type = 'expense';
-            $e->date = \Carbon\Carbon::parse($e->date);
-            return $e;
-        });
 
-        // Combine and Sort
-        $entries = $payments->concat($expenses)->sortByDesc('date');
+        $entries = $this->buildCashFlowLedgerEntries($request, $dateFrom, $dateTo);
 
-        return view('admin.finance.print-cash-flow', compact('entries', 'view'));
+        $rows = $entries->map(function ($entry) {
+            return [
+                $entry->entry_type === 'payment' ? 'IN' : 'OUT',
+                $entry->date->format('Y-m-d'),
+                $entry->entry_type === 'payment' ? ($entry->customer->name ?? 'Unknown') : $entry->category,
+                $entry->entry_type === 'payment'
+                    ? ($entry->order ? 'Order #' . $entry->order->order_code : ($entry->designTask->title ?? 'Manual Payment'))
+                    : ($entry->notes ?: ''),
+                ucfirst(str_replace('_', ' ', $entry->payment_method)),
+                (float) $entry->amount,
+            ];
+        })->toArray();
+
+        $headings = ['Flow', 'Date', 'Source / Recipient', 'Details', 'Method', 'Amount (TZS)'];
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\SimpleArrayExport($rows, $headings, 'Cash Flow'),
+            'cash-flow-' . now()->format('Y-m-d') . '.xlsx'
+        );
     }
 
     public function reports(Request $request)
@@ -1535,6 +1873,15 @@ class FinanceController extends Controller
             $request->get('date_to')
         );
         $data = $this->buildDailyReportData($period, $dateFrom, $dateTo);
+        $data['previewUrl'] = URL::temporarySignedRoute(
+            'finance.daily-report.shared',
+            now()->addHours(12),
+            array_filter([
+                'period' => $period,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+            ], fn ($v) => $v !== null && $v !== '')
+        );
         return view('admin.finance.daily-report', $data);
     }
 
@@ -1593,5 +1940,217 @@ class FinanceController extends Controller
         $departments = Department::all();
 
         return view('admin.finance.proforma-index', compact('proformas', 'departments'));
+    }
+
+    public function getProformaDetails($id)
+    {
+        $order = Order::with(['items', 'user', 'saler', 'department'])->where('type', 'proforma')->findOrFail($id);
+        return response()->json([
+            'id'              => $order->id,
+            'order_code'      => $order->order_code,
+            'date'            => $order->created_at->format('M d, Y H:i'),
+            'status'          => $order->approval_status,
+            'notes'           => $order->notes,
+            'subtotal'        => $order->subtotal,
+            'total_amount'    => $order->total_amount,
+            'customer'        => [
+                'name'    => $order->user->name ?? 'N/A',
+                'phone'   => $order->user->phone ?? '',
+                'email'   => $order->user->email ?? '',
+                'address' => $order->user->address ?? '',
+            ],
+            'saler'           => $order->saler->name ?? 'N/A',
+            'department'      => $order->department->name ?? 'N/A',
+            'print_url'       => route('admin.finance.invoices.proforma', $order->order_code),
+            'items'           => $order->items->map(fn($item) => [
+                'product_name' => $item->product_name,
+                'quantity'     => $item->quantity,
+                'unit_price'   => $item->unit_price,
+                'subtotal'     => $item->subtotal,
+            ]),
+        ]);
+    }
+
+    public function getProformaEditData($id)
+    {
+        $order = Order::with('items')->where('type', 'proforma')->findOrFail($id);
+        return response()->json([
+            'id'         => $order->id,
+            'order_code' => $order->order_code,
+            'notes'      => $order->notes,
+            'items'      => $order->items->map(fn($item) => [
+                'id'           => $item->id,
+                'product_name' => $item->product_name,
+                'quantity'     => $item->quantity,
+                'unit_price'   => $item->unit_price,
+                'subtotal'     => $item->subtotal,
+            ]),
+        ]);
+    }
+
+    public function updateProforma(Request $request, $id)
+    {
+        $order = Order::with('items')->where('type', 'proforma')->findOrFail($id);
+
+        $request->validate([
+            'notes'              => 'nullable|string|max:1000',
+            'items'              => 'required|array|min:1',
+            'items.*.id'         => 'required|integer',
+            'items.*.quantity'   => 'required|integer|min:1',
+            'items.*.unit_price' => 'required|numeric|min:0',
+        ]);
+
+        $subtotal = 0;
+        foreach ($request->items as $itemData) {
+            $item = $order->items()->findOrFail($itemData['id']);
+            $itemSubtotal = $itemData['quantity'] * $itemData['unit_price'];
+            $item->update([
+                'quantity'   => $itemData['quantity'],
+                'unit_price' => $itemData['unit_price'],
+                'subtotal'   => $itemSubtotal,
+            ]);
+            $subtotal += $itemSubtotal;
+        }
+
+        $order->notes        = $request->notes;
+        $order->subtotal     = $subtotal;
+        $order->total_amount = $subtotal;
+        $order->balance      = $subtotal;
+        $order->save();
+
+        return response()->json(['success' => true, 'message' => 'Proforma invoice updated.']);
+    }
+
+    public function convertProformaToTasks(Request $request, $id)
+    {
+        $order = Order::with(['items', 'user'])->where('type', 'proforma')->findOrFail($id);
+
+        // Resolve Customer from CustomerBusiness or User contact info
+        $customer = null;
+        if ($order->customer_business_id) {
+            $business = \App\Models\CustomerBusiness::find($order->customer_business_id);
+            if ($business) {
+                $customer = Customer::find($business->customer_id);
+            }
+        }
+        if (!$customer && $order->user) {
+            $user = $order->user;
+            $customer = Customer::where(function ($q) use ($user) {
+                if ($user->email) $q->where('email', $user->email);
+                if ($user->phone) $q->orWhere('phone', $user->phone);
+            })->first();
+        }
+
+        $tasksCreated = [];
+        foreach ($order->items as $item) {
+            $task = DesignTask::create([
+                'title'       => $item->product_name,
+                'task_code'   => DesignTask::generateTaskCode(),
+                'customer_id' => $customer?->id,
+                'receptionist_id' => auth()->id(),
+                'saler_id'    => $order->saler_id,
+                'department_id' => $order->department_id,
+                'price'       => $item->subtotal,
+                'qty'         => $item->quantity,
+                'rate'        => $item->unit_price,
+                'amount_paid' => 0,
+                'balance'     => $item->subtotal,
+                'status'      => DesignTask::STATUS_PENDING,
+                'priority'    => 3,
+            ]);
+            $tasksCreated[] = $task;
+
+            try {
+                if ($customer) {
+                    \App\Services\AuditLogService::created(
+                        $task,
+                        "Converted from Proforma Invoice {$order->order_code} by " . auth()->user()->name
+                    );
+                }
+            } catch (\Exception $e) {}
+
+            $staffToNotify = User::whereIn('role', ['operator', 'admin', 'super_admin', 'accountant'])->get();
+            foreach ($staffToNotify as $staff) {
+                try {
+                    $staff->notify(new \App\Notifications\NewTaskCreatedNotification($task, auth()->user()));
+                } catch (\Exception $e) {}
+            }
+        }
+
+        // Mark the proforma as converted so it isn't exported again accidentally
+        $order->approval_status = 'approved';
+        $conversionNote = 'Converted to ' . count($tasksCreated) . ' task(s) on ' . now()->format('Y-m-d H:i') . ' by ' . auth()->user()->name . '.';
+        $order->notes = $order->notes ? $order->notes . "\n" . $conversionNote : $conversionNote;
+        $order->save();
+
+        return response()->json([
+            'success'    => true,
+            'tasks_count' => count($tasksCreated),
+            'message'    => count($tasksCreated) . ' task(s) created from this proforma.',
+            'tasks_url'  => route('admin.design-tasks.index'),
+        ]);
+    }
+
+    // ── VERIFICATION DASHBOARD ────────────────────────────────
+
+    public function verificationDashboard(Request $request)
+    {
+        $health = new FinanceHealthService();
+
+        $healthScore        = $health->computeHealthScore();
+        $outstandingBals    = $health->getOutstandingBalances();
+        $duplicatePayments  = $health->detectDuplicatePayments();
+        $missingTx          = $health->detectMissingTransactions();
+        $debtMismatches     = $health->getDebtStatusMismatches();
+        $reconSummary       = $health->getReconciliationSummary();
+
+        // Top debtors (top 20)
+        $topDebtors = $outstandingBals->take(20);
+
+        // Stats for header cards
+        $stats = [
+            'total_outstanding'     => $outstandingBals->sum('total_outstanding'),
+            'outstanding_customers' => $outstandingBals->count(),
+            'duplicate_count'       => $duplicatePayments->count(),
+            'missing_count'         => $missingTx->count(),
+            'mismatch_count'        => $debtMismatches->count(),
+            'reconciliation_count'  => $reconSummary['total_reconciliations'],
+        ];
+
+        return view('admin.finance.verification-dashboard', compact(
+            'healthScore', 'topDebtors', 'outstandingBals',
+            'duplicatePayments', 'missingTx', 'debtMismatches',
+            'reconSummary', 'stats'
+        ));
+    }
+
+    // ── ZOHO COMPARISON ───────────────────────────────────────
+
+    public function zohoComparison(Request $request)
+    {
+        return view('admin.finance.zoho-comparison', [
+            'result'   => null,
+            'dateFrom' => $request->date_from ?? now()->startOfMonth()->toDateString(),
+            'dateTo'   => $request->date_to   ?? now()->toDateString(),
+        ]);
+    }
+
+    public function zohoCompare(Request $request)
+    {
+        $request->validate([
+            'zoho_file'  => 'required|file|mimes:csv,txt',
+            'date_from'  => 'required|date',
+            'date_to'    => 'required|date|after_or_equal:date_from',
+        ]);
+
+        $service = new ZohoComparisonService();
+        $zohoRows = $service->importZohoCsv($request->file('zoho_file'));
+        $result   = $service->compare($zohoRows, $request->date_from, $request->date_to);
+
+        return view('admin.finance.zoho-comparison', [
+            'result'   => $result,
+            'dateFrom' => $request->date_from,
+            'dateTo'   => $request->date_to,
+        ]);
     }
 }

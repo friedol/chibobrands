@@ -224,6 +224,16 @@
                                 <li><a class="dropdown-item text-danger rounded-3 py-2" href="#" data-bs-toggle="modal" data-bs-target="#cancelTaskModal"><i class="fas fa-ban me-2"></i> Cancel Task</a></li>
                                 <li><a class="dropdown-item text-warning rounded-3 py-2" href="#" data-bs-toggle="modal" data-bs-target="#markLossModal"><i class="fas fa-heart-crack me-2"></i> Mark as Loss</a></li>
                             @endif
+                            @if($user->role === 'super_admin')
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form method="POST" action="{{ route('admin.design-tasks.destroy', $designTask) }}" onsubmit="return confirm('Are you sure you want to permanently delete this task? This action cannot be undone.')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="dropdown-item text-danger rounded-3 py-2 bg-transparent border-0 w-100 text-start"><i class="fas fa-trash-alt me-2"></i> Delete Task</button>
+                                    </form>
+                                </li>
+                            @endif
                         </ul>
                     </div>
                 @endif
@@ -664,7 +674,7 @@
                         </div>
                     @endif
 
-                    @if($designTask->status === 'printed' && in_array($user->role, ['operator', 'receptionist', 'admin', 'super_admin', 'manager', 'accountant']))
+                    @if($designTask->status === 'printed' && in_array($user->role, ['receptionist', 'admin', 'super_admin', 'manager', 'accountant']))
                         <div class="card border shadow-sm mb-4">
                             <div class="card-header bg-white text-dark fw-bold border-bottom py-2">
                                 <i class="fas fa-box-open me-2 text-success"></i>Ready for Pickup

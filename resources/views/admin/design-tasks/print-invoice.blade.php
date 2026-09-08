@@ -265,13 +265,11 @@
 </head>
 <body>
 
-    <div class="no-print p-3 bg-white text-dark d-flex justify-content-between align-items-center mb-4 border-bottom">
-        <div class="ms-2">
-            <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-print me-2 text-primary"></i> PROFESSIONAL PRINT PREVIEW</h6>
-        </div>
-        <div class="me-2">
-            <button class="btn btn-dark fw-bold px-4" onclick="window.print()">PRINT NOW</button>
-            <button class="btn btn-outline-dark ms-2" onclick="window.close()">CLOSE</button>
+    <div class="no-print py-1 px-3 bg-white text-dark d-flex justify-content-between align-items-center mb-3 border-bottom">
+        <small class="fw-semibold text-dark"><i class="fas fa-print me-1 text-primary"></i> PROFESSIONAL PRINT PREVIEW</small>
+        <div class="d-flex gap-1">
+            <button class="btn btn-dark btn-sm fw-bold px-3" onclick="window.print()">Print</button>
+            <button class="btn btn-outline-dark btn-sm px-2" onclick="window.close()">Close</button>
         </div>
     </div>
 
@@ -279,7 +277,7 @@
         <!-- Header -->
         <div class="header-section">
             <div class="company-header-info">
-                <img src="{{ asset('public/images/logo.png') }}" alt="CHIBO BRANDS" style="height: 60px; margin-bottom: 10px;" onerror="this.src='{{ asset('images/logo.webp') }}'">
+                @include('partials.logo-print', ['logoStyle' => 'height:60px;margin-bottom:10px;object-fit:contain;'])
                 <h1>Chibo Brands Co Ltd</h1>
                 <div>Kinondoni Dar es Salaam 14108</div>
                 <div>Tanzania</div>

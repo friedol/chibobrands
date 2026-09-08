@@ -355,6 +355,22 @@
                         <span class="text-muted" style="font-size: 0.75rem;">Discount applied to delivery charge</span>
                     </div>
 
+                    <!-- VAT Toggle -->
+                    <div class="col-12">
+                        <div class="p-3 rounded-3 border d-flex align-items-center justify-content-between" style="background:#f0fdf4;">
+                            <div>
+                                <div class="fw-semibold" style="font-size:13px;"><i class="fas fa-file-invoice me-1 text-warning"></i> VAT (18%)</div>
+                                <div class="text-muted" style="font-size:11px;">Enable if this task requires a VAT receipt</div>
+                            </div>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" role="switch"
+                                       id="edit_requires_receipt" name="requires_receipt" value="1"
+                                       {{ old('requires_receipt', $designTask->requires_receipt) ? 'checked' : '' }}
+                                       style="width:2.5rem;height:1.25rem;cursor:pointer;">
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Live Total Preview -->
                     <div class="col-12">
                         <div class="p-3 rounded-3 border" style="background: #f8fafc;">
@@ -370,12 +386,10 @@
                                 <div class="text-muted small">Delivery Discount</div>
                                 <div class="fw-bold text-success" id="preview_delivery_discount">- TZS {{ number_format($designTask->delivery_discount ?? 0, 2) }}</div>
                             </div>
-                            @if($designTask->requires_receipt)
-                            <div class="d-flex justify-content-between align-items-center mt-1">
+                            <div class="d-flex justify-content-between align-items-center mt-1" id="vat_preview_row" style="{{ $designTask->requires_receipt ? '' : 'display:none!important;' }}">
                                 <div class="text-muted small">VAT (18%)</div>
-                                <div class="fw-bold text-warning" id="preview_vat">TZS {{ number_format($designTask->price * 0.18, 2) }}</div>
+                                <div class="fw-bold text-warning" id="preview_vat">TZS 0.00</div>
                             </div>
-                            @endif
                             <hr class="my-2">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div class="fw-bold">Grand Total</div>

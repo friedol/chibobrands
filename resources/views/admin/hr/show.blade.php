@@ -2,144 +2,184 @@
 @section('title', 'Employee Profile — ' . $employee->full_name)
 
 @section('content')
-<div class="container-fluid py-3">
+<div class="container-fluid py-2 pt-1">
 
     {{-- ── Header ── --}}
-    <div class="row mb-3 align-items-center">
-        <div class="col-lg-8">
-            <div class="d-flex align-items-center gap-3">
-                @if($employee->photo)
-                    <img src="{{ Storage::url($employee->photo) }}" class="rounded-circle shadow" width="64" height="64" style="object-fit:cover">
-                @else
-                    <div class="rounded-circle bg-primary bg-opacity-15 d-flex align-items-center justify-content-center shadow" style="width:64px;height:64px">
-                        <span class="fw-bold text-primary fs-3">{{ strtoupper(substr($employee->full_name, 0, 1)) }}</span>
-                    </div>
-                @endif
-                <div>
-                    <h4 class="fw-bold mb-0">{{ $employee->full_name }}</h4>
-                    <div class="text-muted small">
-                        <code>{{ $employee->employee_code }}</code> &bull;
-                        {{ $employee->role_title ?? 'No Role' }} &bull;
-                        {{ $employee->department ?? 'No Department' }}
-                    </div>
-                    @php $statusColors = ['active'=>'success','inactive'=>'secondary','terminated'=>'danger','on_leave'=>'warning']; @endphp
-                    <span class="badge bg-{{ $statusColors[$employee->status] ?? 'secondary' }} mt-1">
-                        {{ ucfirst(str_replace('_',' ',$employee->status)) }}
-                    </span>
-                </div>
-            </div>
+    <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+        <div>
+            <h4 class="fw-bold mb-1 text-dark d-flex align-items-center gap-2">
+                <i class="fas fa-id-badge text-primary"></i> Employee Master Profile
+            </h4>
+            <p class="text-muted small mb-0">Detailed administrative profile and records for <strong>{{ $employee->full_name }}</strong>.</p>
         </div>
-        <div class="col-lg-4 text-lg-end mt-2 mt-lg-0">
-            <a href="{{ route('admin.hr.index') }}" class="btn btn-outline-secondary btn-sm px-3">
-                <i class="fas fa-arrow-left me-1"></i>Back to HR
+        <div class="d-flex align-items-center gap-2">
+            <a href="{{ route('admin.hr.edit', $employee) }}" class="btn btn-primary btn-sm rounded-2 px-3 fw-semibold">
+                <i class="fas fa-edit me-1"></i> Edit Profile
+            </a>
+            <a href="{{ route('admin.hr.index') }}" class="btn btn-outline-secondary btn-sm rounded-2 px-3 fw-semibold">
+                <i class="fas fa-arrow-left me-1"></i> Back to HR
             </a>
         </div>
     </div>
 
     <div class="row g-4">
-        {{-- ── Left Column: Profile ── --}}
-        <div class="col-lg-4">
-            {{-- Personal Info --}}
-            <div class="card border-0 shadow-sm mb-3">
-                <div class="card-header bg-white border-bottom py-2 fw-bold small text-uppercase">
-                    <i class="fas fa-id-card text-primary me-2"></i>Personal Information
-                </div>
-                <div class="card-body small">
-                    @foreach([
-                        'Phone' => $employee->phone,
-                        'Email' => $employee->email,
-                        'National ID' => $employee->national_id,
-                        'Address' => $employee->address,
-                    ] as $lbl => $val)
-                    <div class="d-flex justify-content-between py-1 border-bottom">
-                        <span class="text-muted">{{ $lbl }}</span>
-                        <span class="fw-semibold text-end">{{ $val ?? '—' }}</span>
+        {{-- ── Left Column: Identity, Status & Leaves ── --}}
+        <div class="col-12 col-lg-4">
+            <!-- Profile Photo & Identity Card -->
+            <div class="card border-0 shadow-sm mb-4 position-relative overflow-hidden hover-lift" style="border-radius:16px;">
+                <div class="card-body p-4 text-center">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <p class="fw-bold x-small text-uppercase text-muted m-0" style="letter-spacing:.08em;">Identity & Status</p>
+                        <span class="badge bg-secondary rounded-pill font-monospace" style="font-size:10px; padding: 4px 8px;">{{ $employee->employee_code }}</span>
                     </div>
-                    @endforeach
-                    <div class="d-flex justify-content-between py-1 border-bottom">
-                        <span class="text-muted">Emergency Contact</span>
-                        <span class="fw-semibold text-end">
-                            {{ $employee->emergency_contact_name ?? '—' }}
-                            @if($employee->emergency_contact_phone)
-                                <br><small>{{ $employee->emergency_contact_phone }}</small>
+                    
+                    <!-- Avatar preview fallback -->
+                    <div class="position-relative d-inline-block mb-3">
+                        <div class="rounded-circle shadow-sm border border-3 border-white overflow-hidden" 
+                             style="width: 140px; height: 140px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                            @if($employee->photo)
+                                <img src="{{ Storage::url($employee->photo) }}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">
+                            @else
+                                <div class="w-100 h-100 bg-primary bg-opacity-10 d-flex align-items-center justify-content-center">
+                                    <span class="fw-bold text-primary fs-1">{{ strtoupper(substr($employee->full_name, 0, 1)) }}</span>
+                                </div>
                             @endif
+                        </div>
+                    </div>
+                    
+                    <h5 class="fw-bold mb-1 text-dark">{{ $employee->full_name }}</h5>
+                    <p class="text-muted small mb-3">{{ $employee->role_title ?? 'No Role' }} &bull; {{ $employee->department ?? 'No Department' }}</p>
+                    
+                    @php $statusColors = ['active'=>'success','inactive'=>'secondary','terminated'=>'danger','on_leave'=>'warning']; @endphp
+                    <div class="mb-2">
+                        <span class="badge bg-{{ $statusColors[$employee->status] ?? 'secondary' }} px-3 py-2 rounded-pill small">
+                            <i class="fas fa-circle me-1" style="font-size:8px;"></i>
+                            {{ ucfirst(str_replace('_',' ',$employee->status)) }}
                         </span>
-                    </div>
-                </div>
-            </div>
-
-            {{-- Employment Info --}}
-            <div class="card border-0 shadow-sm mb-3">
-                <div class="card-header bg-white border-bottom py-2 fw-bold small text-uppercase">
-                    <i class="fas fa-briefcase text-info me-2"></i>Employment
-                </div>
-                <div class="card-body small">
-                    @foreach([
-                        'Contract Type' => ucfirst(str_replace('_',' ',$employee->contract_type)),
-                        'Hire Date' => $employee->hire_date?->format('d M Y') ?? '—',
-                        'Contract End' => $employee->contract_end_date?->format('d M Y') ?? 'N/A',
-                        'Years of Service' => $employee->years_of_service . ' yrs',
-                    ] as $lbl => $val)
-                    <div class="d-flex justify-content-between py-1 border-bottom">
-                        <span class="text-muted">{{ $lbl }}</span>
-                        <span class="fw-semibold">{{ $val }}</span>
-                    </div>
-                    @endforeach
-                </div>
-            </div>
-
-            {{-- Salary Info --}}
-            <div class="card border-0 shadow-sm mb-3">
-                <div class="card-header bg-white border-bottom py-2 fw-bold small text-uppercase">
-                    <i class="fas fa-money-bill-wave text-success me-2"></i>Salary
-                </div>
-                <div class="card-body small">
-                    @foreach([
-                        'Basic Salary' => number_format($employee->basic_salary),
-                        'Allowances' => number_format($employee->allowances),
-                        'Deductions' => number_format($employee->deductions),
-                    ] as $lbl => $val)
-                    <div class="d-flex justify-content-between py-1 border-bottom">
-                        <span class="text-muted">{{ $lbl }}</span>
-                        <span>{{ $val }}</span>
-                    </div>
-                    @endforeach
-                    <div class="d-flex justify-content-between py-1 fw-bold">
-                        <span>Net Salary (TZS)</span>
-                        <span class="text-success fs-6">{{ number_format($employee->net_salary) }}</span>
                     </div>
                 </div>
             </div>
 
             {{-- Leave Balances --}}
             @if($leaveBalances->isNotEmpty())
-            <div class="card border-0 shadow-sm mb-3">
-                <div class="card-header bg-white border-bottom py-2 fw-bold small text-uppercase">
-                    <i class="fas fa-calendar-minus text-warning me-2"></i>Leave Balances ({{ now()->year }})
+            <div class="card border-0 shadow-sm mb-4" style="border-radius:16px;">
+                <div class="card-body p-4">
+                    <p class="fw-bold x-small text-uppercase text-muted mb-3" style="letter-spacing:.08em;">
+                        <i class="fas fa-calendar-minus text-warning me-1"></i> Leave Balances ({{ now()->year }})
+                    </p>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-borderless align-middle mb-0" style="font-size: 12.5px;">
+                            <thead>
+                                <tr class="text-muted" style="border-bottom: 1px solid #f1f5f9;">
+                                    <th class="ps-0 pb-2">Type</th>
+                                    <th class="text-center pb-2">Total</th>
+                                    <th class="text-center pb-2">Used</th>
+                                    <th class="text-center pb-2">Left</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($leaveBalances as $bal)
+                                <tr style="border-bottom: 1px dashed #f1f5f9;">
+                                    <td class="ps-0 py-2 fw-semibold text-dark">{{ ucfirst($bal->leave_type) }}</td>
+                                    <td class="text-center py-2 text-dark">{{ $bal->total_days }}</td>
+                                    <td class="text-center py-2 text-danger">{{ $bal->used_days }}</td>
+                                    <td class="text-center py-2 text-success fw-bold">{{ $bal->remaining_days }}</td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div class="card-body small p-0">
-                    <table class="table table-sm mb-0">
-                        <thead class="table-light"><tr><th>Type</th><th class="text-center">Total</th><th class="text-center">Used</th><th class="text-center">Left</th></tr></thead>
-                        <tbody>
-                            @foreach($leaveBalances as $bal)
-                            <tr>
-                                <td>{{ ucfirst($bal->leave_type) }}</td>
-                                <td class="text-center">{{ $bal->total_days }}</td>
-                                <td class="text-center text-danger">{{ $bal->used_days }}</td>
-                                <td class="text-center text-success fw-bold">{{ $bal->remaining_days }}</td>
-                            </tr>
+            </div>
+            <!-- Employee Documents Explorer Card -->
+            <div class="card border-0 shadow-sm mb-4" id="documents-section" style="border-radius:16px; border-left: 4px solid #6366f1;">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <p class="fw-bold x-small text-uppercase text-muted m-0" style="letter-spacing:.08em;">
+                            <i class="fas fa-folder-open text-primary me-1"></i> E-Files ({{ $employee->documents->count() }})
+                        </p>
+                        <button class="btn btn-xs btn-primary rounded-pill px-2.5 py-1 fw-semibold shadow-sm" style="font-size:10px;" data-bs-toggle="modal" data-bs-target="#uploadDocModal">
+                            <i class="fas fa-upload me-1"></i> Upload
+                        </button>
+                    </div>
+                    
+                    @if(session('success'))
+                        <div class="alert alert-success alert-dismissible fade show mb-3 border-0 shadow-sm py-2 px-3 small" style="border-radius: 8px;">
+                            <i class="fas fa-check-circle me-1"></i>{{ session('success') }}
+                            <button type="button" class="btn-close" style="padding: 0.75rem;" data-bs-dismiss="alert"></button>
+                        </div>
+                    @endif
+                    
+                    @if($employee->documents->isEmpty())
+                        <div class="text-center py-4 bg-light rounded-3 border border-dashed">
+                            <i class="fas fa-folder-open text-muted opacity-50 mb-2" style="font-size: 24px;"></i>
+                            <p class="text-muted small mb-0" style="font-size:11px;">No documents uploaded yet.</p>
+                        </div>
+                    @else
+                        <div class="d-flex flex-column gap-2" style="max-height: 400px; overflow-y: auto;">
+                            @foreach($employee->documents as $doc)
+                                @php
+                                    $expiredClass = $doc->is_expired ? 'text-danger fw-bold' : ($doc->is_expiring_soon ? 'text-warning fw-bold' : 'text-muted');
+                                    $documentLabels = [
+                                        'national_id' => 'National ID', 'passport' => 'Passport',
+                                        'contract' => 'Contract', 'certificate' => 'Certificate',
+                                        'insurance' => 'Insurance', 'bank_letter' => 'Bank Letter',
+                                        'nssf' => 'NSSF Card', 'nhif' => 'NHIF Card', 'other' => 'Other File',
+                                    ];
+                                @endphp
+                                <div class="p-3 rounded-3 border bg-light bg-opacity-50 position-relative hover-lift">
+                                    <div class="d-flex align-items-start gap-3">
+                                        <div class="rounded-3 bg-primary bg-opacity-10 p-2 d-flex align-items-center justify-content-center" style="width:40px; height:40px; flex-shrink:0;">
+                                            <i class="fas {{ $doc->icon }} text-primary fs-5"></i>
+                                        </div>
+                                        <div class="overflow-hidden w-100">
+                                            <div class="d-flex justify-content-between align-items-start gap-2">
+                                                <h6 class="fw-bold text-dark text-truncate mb-0" style="font-size:12.5px; max-width:180px;" title="{{ $doc->title }}">{{ $doc->title }}</h6>
+                                                
+                                                <div class="d-flex gap-1" style="flex-shrink:0;">
+                                                    <a href="{{ $doc->download_url }}" target="_blank" class="btn btn-xs btn-outline-primary rounded-circle p-0 d-flex align-items-center justify-content-center shadow-xs" style="width:24px; height:24px;" title="View File">
+                                                        <i class="fas fa-download" style="font-size: 10px;"></i>
+                                                    </a>
+                                                    <form action="{{ route('admin.hr.documents.destroy', [$employee, $doc]) }}" method="POST" class="d-inline">
+                                                        @csrf @method('DELETE')
+                                                        <button type="button" class="btn btn-xs btn-outline-danger rounded-circle p-0 d-flex align-items-center justify-content-center shadow-xs" style="width:24px; height:24px;"
+                                                                onclick="modernConfirm('Delete document?', () => this.closest('form').submit())">
+                                                            <i class="fas fa-trash" style="font-size: 10px;"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                            <div class="text-muted x-small text-truncate mt-0.5" style="font-size:10.5px;">{{ $doc->file_name }} &bull; {{ $doc->file_size_human }}</div>
+                                            
+                                            <div class="mt-2 pt-2 border-top border-light d-flex flex-wrap justify-content-between gap-1" style="font-size:10px;">
+                                                <span class="badge bg-secondary bg-opacity-10 text-secondary border rounded-pill px-2" style="font-size:9px;">
+                                                    {{ $documentLabels[$doc->document_type] ?? 'Document' }}
+                                                </span>
+                                                @if($doc->expiry_date)
+                                                    <span class="{{ $expiredClass }}">Exp: {{ $doc->expiry_date->format('d M Y') }}</span>
+                                                @endif
+                                            </div>
+                                            
+                                            @if($doc->notes)
+                                                <div class="mt-1.5 p-1 bg-white rounded border small text-muted fst-italic" style="font-size: 9.5px; line-height: 1.3;">
+                                                    <i class="fas fa-sticky-note me-1"></i>{{ $doc->notes }}
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
                             @endforeach
-                        </tbody>
-                    </table>
+                        </div>
+                    @endif
                 </div>
             </div>
             @endif
         </div>
 
-        {{-- ── Right Column ── --}}
-        <div class="col-lg-8">
+        {{-- ── Right Column: Details & Stats ── --}}
+        <div class="col-12 col-lg-8">
             {{-- This Month Attendance Summary --}}
-            <div class="row g-3 mb-3">
+            <div class="row g-3 mb-4">
                 @foreach([
                     ['Present','success','fas fa-user-check',$presentDays],
                     ['Absent','danger','fas fa-user-times',$absentDays],
@@ -147,14 +187,14 @@
                     ['Hours Worked','info','fas fa-hourglass',$totalWorked],
                 ] as [$label, $color, $icon, $value])
                 <div class="col-6 col-md-3">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body d-flex align-items-center py-3">
-                            <div class="rounded-circle bg-{{ $color }} bg-opacity-10 p-2 me-2">
-                                <i class="{{ $icon }} text-{{ $color }} small"></i>
+                    <div class="card border-0 shadow-sm h-100 hover-lift" style="border-radius:12px;">
+                        <div class="card-body d-flex align-items-center py-3 px-3">
+                            <div class="rounded-circle bg-{{ $color }} bg-opacity-10 p-2 me-2 d-flex align-items-center justify-content-center" style="width:36px; height:36px; flex-shrink:0;">
+                                <i class="{{ $icon }} text-{{ $color }}" style="font-size: 14px;"></i>
                             </div>
-                            <div>
-                                <div class="fs-5 fw-bold">{{ is_float($value) ? number_format($value, 1) : $value }}</div>
-                                <div class="x-small text-muted">{{ $label }}</div>
+                            <div class="overflow-hidden">
+                                <div class="fs-5 fw-bold text-dark mb-0">{{ is_float($value) ? number_format($value, 1) : $value }}</div>
+                                <div class="x-small text-muted text-truncate" style="font-size: 10px;">{{ $label }}</div>
                             </div>
                         </div>
                     </div>
@@ -162,68 +202,205 @@
                 @endforeach
             </div>
 
-            {{-- Latest KPI --}}
-            @if($latestKpi)
-            <div class="card border-0 shadow-sm mb-3">
-                <div class="card-header bg-white border-bottom py-2 fw-bold small text-uppercase d-flex justify-content-between">
-                    <span><i class="fas fa-star text-warning me-2"></i>Latest KPI Evaluation</span>
-                    <span class="badge bg-{{ $latestKpi->grade_color }} fs-6 px-3">{{ $latestKpi->grade }}</span>
+            {{-- Personal Information Card --}}
+            <div class="card border-0 shadow-sm mb-4" style="border-radius:16px;">
+                <div class="card-body p-4">
+                    <p class="fw-bold x-small text-uppercase text-muted mb-3" style="letter-spacing:.08em;">
+                        <i class="fas fa-id-card text-primary me-1"></i> Personal Information
+                    </p>
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <div class="p-3 rounded-3 bg-light bg-opacity-50 border border-light">
+                                <span class="text-muted d-block small mb-1">Phone Number</span>
+                                <span class="fw-semibold text-dark">{{ $employee->phone ?? '—' }}</span>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="p-3 rounded-3 bg-light bg-opacity-50 border border-light">
+                                <span class="text-muted d-block small mb-1">Email Address</span>
+                                <span class="fw-semibold text-dark">{{ $employee->email ?? '—' }}</span>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="p-3 rounded-3 bg-light bg-opacity-50 border border-light">
+                                <span class="text-muted d-block small mb-1">National ID / NIDA</span>
+                                <span class="fw-semibold text-dark">{{ $employee->national_id ?? '—' }}</span>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="p-3 rounded-3 bg-light bg-opacity-50 border border-light">
+                                <span class="text-muted d-block small mb-1">Emergency Contact</span>
+                                <span class="fw-semibold text-dark">
+                                    {{ $employee->emergency_contact_name ?? '—' }}
+                                    @if($employee->emergency_contact_phone)
+                                        <span class="text-muted fw-normal">({{ $employee->emergency_contact_phone }})</span>
+                                    @endif
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="p-3 rounded-3 bg-light bg-opacity-50 border border-light">
+                                <span class="text-muted d-block small mb-1">Residential Address</span>
+                                <span class="fw-semibold text-dark">{{ $employee->address ?? '—' }}</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
+            </div>
+
+            {{-- Job Placement & Banking Compensation Card --}}
+            <div class="card border-0 shadow-sm mb-4" style="border-radius:16px; border-left: 4px solid #10b981;">
+                <div class="card-body p-4">
+                    <p class="fw-bold x-small text-uppercase text-muted mb-3" style="letter-spacing:.08em;">
+                        <i class="fas fa-briefcase text-success me-1"></i> Job Placement & Compensation
+                    </p>
+                    <div class="row g-3">
+                        <div class="col-sm-6 col-md-4">
+                            <div class="p-2 border-bottom">
+                                <span class="text-muted small">Department</span>
+                                <div class="fw-semibold text-dark">{{ $employee->department ?? '—' }}</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-md-4">
+                            <div class="p-2 border-bottom">
+                                <span class="text-muted small">Role Title</span>
+                                <div class="fw-semibold text-dark">{{ $employee->role_title ?? '—' }}</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-md-4">
+                            <div class="p-2 border-bottom">
+                                <span class="text-muted small">Contract Type</span>
+                                <div class="fw-semibold text-dark">{{ ucfirst(str_replace('_',' ',$employee->contract_type)) }}</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-md-4">
+                            <div class="p-2 border-bottom">
+                                <span class="text-muted small">Hire Date</span>
+                                <div class="fw-semibold text-dark">{{ $employee->hire_date?->format('d M Y') ?? '—' }}</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-md-4">
+                            <div class="p-2 border-bottom">
+                                <span class="text-muted small">Contract End Date</span>
+                                <div class="fw-semibold text-dark">{{ $employee->contract_end_date?->format('d M Y') ?? 'N/A' }}</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-md-4">
+                            <div class="p-2 border-bottom">
+                                <span class="text-muted small">Years of Service</span>
+                                <div class="fw-semibold text-dark">{{ $employee->years_of_service }} yrs</div>
+                            </div>
+                        </div>
+                        
+                        {{-- Salary & Banking detail items --}}
+                        <div class="col-12 mt-3">
+                            <div class="p-3 rounded-3" style="background-color: #f0fdf4; border: 1px solid #d1fae5;">
+                                <div class="row g-3">
+                                    <div class="col-6 col-md-3 border-end border-light">
+                                        <span class="text-muted small d-block mb-1">Basic Salary</span>
+                                        <span class="fw-semibold text-dark">TZS {{ number_format($employee->basic_salary) }}</span>
+                                    </div>
+                                    <div class="col-6 col-md-3 border-end border-light">
+                                        <span class="text-muted small d-block mb-1">Allowances</span>
+                                        <span class="fw-semibold text-success">+TZS {{ number_format($employee->allowances) }}</span>
+                                    </div>
+                                    <div class="col-6 col-md-3 border-end border-light">
+                                        <span class="text-muted small d-block mb-1">Deductions</span>
+                                        <span class="fw-semibold text-danger">-TZS {{ number_format($employee->deductions) }}</span>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <span class="text-muted small d-block mb-1">Net Salary</span>
+                                        <span class="fw-bold text-success fs-5">TZS {{ number_format($employee->net_salary) }}</span>
+                                    </div>
+                                </div>
+                                
+                                @if($employee->bank_name || $employee->bank_account)
+                                <div class="row mt-3 pt-2 border-top border-light g-2 small">
+                                    <div class="col-sm-6">
+                                        <span class="text-muted">Bank Name:</span>
+                                        <span class="fw-semibold text-dark ms-1">{{ $employee->bank_name ?? '—' }}</span>
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <span class="text-muted">Account Number:</span>
+                                        <span class="fw-semibold text-dark ms-1">{{ $employee->bank_account ?? '—' }}</span>
+                                    </div>
+                                </div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Latest KPI Evaluation --}}
+            @if($latestKpi)
+            <div class="card border-0 shadow-sm mb-4" style="border-radius:16px;">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <p class="fw-bold x-small text-uppercase text-muted m-0" style="letter-spacing:.08em;">
+                            <i class="fas fa-star text-warning me-1"></i> Latest KPI Evaluation
+                        </p>
+                        <span class="badge bg-{{ $latestKpi->grade_color }} fs-6 px-3 rounded-pill">{{ $latestKpi->grade }}</span>
+                    </div>
+                    
                     <div class="row g-2 text-center mb-3">
                         @foreach(['attendance_score'=>'Attendance','productivity_score'=>'Productivity','quality_score'=>'Quality','punctuality_score'=>'Punctuality','teamwork_score'=>'Teamwork'] as $field => $lbl)
                         <div class="col">
                             <div class="fw-bold fs-5 {{ $latestKpi->$field >= 80 ? 'text-success' : ($latestKpi->$field >= 60 ? 'text-warning' : 'text-danger') }}">
                                 {{ number_format($latestKpi->$field, 1) }}
                             </div>
-                            <div class="x-small text-muted">{{ $lbl }}</div>
+                            <div class="x-small text-muted" style="font-size:10px;">{{ $lbl }}</div>
                         </div>
                         @endforeach
                     </div>
-                    <div class="progress mb-2" style="height:12px">
-                        <div class="progress-bar bg-{{ $latestKpi->grade_color }}" style="width:{{ $latestKpi->overall_score }}%">
+                    
+                    <div class="progress mb-2 rounded-pill" style="height:12px">
+                        <div class="progress-bar bg-{{ $latestKpi->grade_color }} rounded-pill" style="width:{{ $latestKpi->overall_score }}%">
                             {{ number_format($latestKpi->overall_score, 1) }}%
                         </div>
                     </div>
                     @if($latestKpi->comments)
-                        <p class="text-muted small mb-0 mt-2">{{ $latestKpi->comments }}</p>
+                        <p class="text-muted small mb-0 mt-3 p-2 bg-light rounded-3 border-start border-3 border-secondary"><i class="fas fa-comment-dots text-muted me-1"></i>{{ $latestKpi->comments }}</p>
                     @endif
                 </div>
             </div>
             @endif
 
             {{-- Recent Attendance Records --}}
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white border-bottom py-2 fw-bold small text-uppercase">
-                    <i class="fas fa-list text-info me-2"></i>Recent Attendance (Last 30 records)
-                </div>
-                <div class="card-body p-0">
+            <div class="card border-0 shadow-sm mb-4" style="border-radius:16px;">
+                <div class="card-body p-4">
+                    <p class="fw-bold x-small text-uppercase text-muted mb-3" style="letter-spacing:.08em;">
+                        <i class="fas fa-list text-info me-1"></i> Recent Attendance (Last 30 records)
+                    </p>
                     @if($employee->attendances->isEmpty())
-                        <p class="text-muted text-center py-4 small">No attendance records yet.</p>
+                        <div class="text-center py-4 bg-light rounded-3">
+                            <i class="fas fa-user-clock text-muted opacity-50 mb-2" style="font-size: 24px;"></i>
+                            <p class="text-muted small mb-0">No attendance records registered yet.</p>
+                        </div>
                     @else
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover align-middle mb-0 small">
-                            <thead class="table-light">
+                    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                        <table class="table table-sm table-hover align-middle mb-0 small" style="font-size:12.5px;">
+                            <thead class="bg-light text-muted">
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Status</th>
-                                    <th>Clock In</th>
-                                    <th>Clock Out</th>
-                                    <th>Hours</th>
-                                    <th>Late</th>
+                                    <th class="ps-2 py-2">Date</th>
+                                    <th class="py-2">Status</th>
+                                    <th class="py-2">Clock In</th>
+                                    <th class="py-2">Clock Out</th>
+                                    <th class="py-2 text-center">Hours</th>
+                                    <th class="pe-2 py-2 text-end">Late</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach($employee->attendances as $att)
-                                <tr>
-                                    <td>{{ $att->attendance_date->format('d M Y') }}</td>
-                                    <td><span class="badge bg-{{ $att->status_badge }}">{{ ucfirst($att->status) }}</span></td>
-                                    <td>{{ $att->clock_in ?? '—' }}</td>
-                                    <td>{{ $att->clock_out ?? '—' }}</td>
-                                    <td>{{ $att->hours_worked ? number_format($att->hours_worked, 1).'h' : '—' }}</td>
-                                    <td>
+                                <tr style="border-bottom: 1px dashed #f1f5f9;">
+                                    <td class="ps-2 py-2 fw-semibold text-dark">{{ $att->attendance_date->format('d M Y') }}</td>
+                                    <td class="py-2"><span class="badge bg-{{ $att->status_badge }} rounded-pill" style="font-size:10px;">{{ ucfirst($att->status) }}</span></td>
+                                    <td class="py-2 text-muted">{{ $att->clock_in ?? '—' }}</td>
+                                    <td class="py-2 text-muted">{{ $att->clock_out ?? '—' }}</td>
+                                    <td class="py-2 text-center text-dark fw-medium">{{ $att->hours_worked ? number_format($att->hours_worked, 1).'h' : '—' }}</td>
+                                    <td class="pe-2 py-2 text-end">
                                         @if($att->is_late)
-                                            <span class="badge bg-warning text-dark">+{{ $att->late_minutes }}m</span>
+                                            <span class="badge bg-warning text-dark rounded-pill" style="font-size:10px;">+{{ $att->late_minutes }}m</span>
                                         @else —
                                         @endif
                                     </td>
@@ -238,124 +415,20 @@
         </div>
     </div>
 
-    {{-- ── Documents Section ─────────────────────────────────── --}}
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm" style="border-radius:15px; overflow:hidden;">
-                <div class="card-header border-0 py-2 px-4 d-flex justify-content-between align-items-center"
-                     style="background:linear-gradient(135deg,#0d6efd,#0a58ca);">
-                    <h6 class="mb-0 fw-bold text-white"><i class="fas fa-folder-open me-2"></i>Employee Documents ({{ $employee->documents->count() }})</h6>
-                    <button class="btn btn-light btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#uploadDocModal">
-                        <i class="fas fa-upload me-1"></i>Upload Document
-                    </button>
-                </div>
-
-                @if(session('success'))
-                    <div class="alert alert-success alert-dismissible fade show m-3 mb-0 border-0 shadow-sm">
-                        <i class="fas fa-check-circle me-2"></i>{{ session('success') }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                @endif
-
-                <div class="card-body p-0">
-                    @if($employee->documents->isEmpty())
-                        <div class="text-center py-5">
-                            <i class="fas fa-folder-open text-muted mb-3" style="font-size:3rem; opacity:0.2;"></i>
-                            <p class="text-muted small">No documents uploaded yet. Click <strong>Upload Document</strong> to add one.</p>
-                        </div>
-                    @else
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0 small">
-                            <thead class="bg-light text-muted text-uppercase" style="font-size:0.7rem; letter-spacing:0.05rem;">
-                                <tr>
-                                    <th class="ps-4 py-3">Document</th>
-                                    <th class="py-3">Type</th>
-                                    <th class="py-3">Size</th>
-                                    <th class="py-3">Expiry</th>
-                                    <th class="py-3">Uploaded By</th>
-                                    <th class="py-3">Date</th>
-                                    <th class="text-end pe-4 py-3">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($employee->documents as $doc)
-                                @php
-                                    $expiredClass = $doc->is_expired ? 'text-danger' : ($doc->is_expiring_soon ? 'text-warning' : 'text-dark');
-                                @endphp
-                                <tr>
-                                    <td class="ps-4 py-3">
-                                        <div class="d-flex align-items-center gap-2">
-                                            <i class="fas {{ $doc->icon }} fs-5"></i>
-                                            <div>
-                                                <div class="fw-bold text-dark">{{ $doc->title }}</div>
-                                                <div class="text-muted" style="font-size:0.7rem;">{{ $doc->file_name }}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="py-3">
-                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border rounded-pill px-2">
-                                            {{ \App\Models\EmployeeDocument::typeLabel($doc->document_type) }}
-                                        </span>
-                                    </td>
-                                    <td class="py-3 text-muted">{{ $doc->file_size_human }}</td>
-                                    <td class="py-3">
-                                        @if($doc->expiry_date)
-                                            <span class="{{ $expiredClass }} fw-bold">{{ $doc->expiry_date->format('d M Y') }}</span>
-                                            @if($doc->is_expired)
-                                                <span class="badge bg-danger ms-1 small">Expired</span>
-                                            @elseif($doc->is_expiring_soon)
-                                                <span class="badge bg-warning text-dark ms-1 small">Expiring Soon</span>
-                                            @endif
-                                        @else
-                                            <span class="text-muted">—</span>
-                                        @endif
-                                    </td>
-                                    <td class="py-3 text-muted">{{ $doc->uploader?->name ?? '—' }}</td>
-                                    <td class="py-3 text-muted">{{ $doc->created_at->format('d M Y') }}</td>
-                                    <td class="text-end pe-4 py-3">
-                                        <a href="{{ $doc->download_url }}" target="_blank"
-                                           class="btn btn-sm btn-outline-primary rounded-pill px-3 me-1">
-                                            <i class="fas fa-download me-1"></i>View
-                                        </a>
-                                        <form action="{{ route('admin.hr.documents.destroy', [$employee, $doc]) }}"
-                                              method="POST" class="d-inline">
-                                            @csrf @method('DELETE')
-                                            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3"
-                                                    onclick="modernConfirm('Delete this document?', () => this.closest('form').submit())">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                @if($doc->notes)
-                                <tr class="bg-light">
-                                    <td colspan="7" class="ps-5 py-1 text-muted small fst-italic">
-                                        <i class="fas fa-sticky-note me-1"></i>{{ $doc->notes }}
-                                    </td>
-                                </tr>
-                                @endif
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                    @endif
-                </div>
-            </div>
-        </div>
-    </div>
+    {{-- Bottom Section Padding --}}
+    <div class="pb-5"></div>
 </div>
 
 {{-- Upload Document Modal --}}
 <div class="modal fade" id="uploadDocModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0 shadow-lg" style="border-radius:20px; overflow:hidden;">
-            <div class="modal-header border-0 text-white py-3 px-4"
-                 style="background:linear-gradient(135deg,#0d6efd,#0a58ca);">
+        <div class="modal-content border-0 shadow-lg" style="border-radius:12px; overflow:hidden;">
+            <div class="modal-header py-3 px-4 bg-white border-bottom">
                 <div>
-                    <h5 class="modal-title fw-bold mb-0 text-white"><i class="fas fa-upload me-2"></i>Upload Employee Document</h5>
-                    <p class="mb-0 small text-white-50">{{ $employee->full_name }} — {{ $employee->employee_code }}</p>
+                    <h5 class="modal-title fw-bold mb-0 text-dark"><i class="fas fa-upload me-2 text-primary"></i>Upload Employee Document</h5>
+                    <p class="mb-0 small text-muted">{{ $employee->full_name }} — {{ $employee->employee_code }}</p>
                 </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form action="{{ route('admin.hr.documents.store', $employee) }}" method="POST" enctype="multipart/form-data">
                 @csrf

@@ -11,8 +11,49 @@ class Order extends Model
 {
     use HasFactory;
 
+    protected static function booted(): void
+    {
+        static::creating(function (Order $order) {
+            if (!empty($order->customer_business_id) || empty($order->user_id)) {
+                return;
+            }
+
+            $user = User::find($order->user_id);
+            if (!$user) {
+                return;
+            }
+
+            $customer = Customer::where(function ($q) use ($user) {
+                if (!empty($user->email)) {
+                    $q->where('email', $user->email);
+                }
+
+                if (!empty($user->phone)) {
+                    if (!empty($user->email)) {
+                        $q->orWhere('phone', $user->phone);
+                    } else {
+                        $q->where('phone', $user->phone);
+                    }
+                }
+            })->first();
+
+            if (!$customer) {
+                return;
+            }
+
+            $businessId = CustomerBusiness::where('customer_id', $customer->id)
+                ->orderByDesc('is_primary')
+                ->value('id');
+
+            if ($businessId) {
+                $order->customer_business_id = $businessId;
+            }
+        });
+    }
+
     protected $fillable = [
         'user_id',
+        'customer_business_id',
         'saler_id',
         'order_code',
         'subtotal',
@@ -51,6 +92,11 @@ class Order extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function customerBusiness(): BelongsTo
+    {
+        return $this->belongsTo(CustomerBusiness::class, 'customer_business_id');
     }
 
     /**

@@ -13,7 +13,7 @@ class Employee extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'employee_code', 'full_name', 'phone', 'email', 'national_id',
+        'user_id', 'employee_code', 'hikvision_no', 'full_name', 'phone', 'email', 'national_id',
         'department', 'role_title', 'contract_type', 'hire_date', 'contract_end_date',
         'basic_salary', 'allowances', 'deductions', 'bank_name', 'bank_account',
         'emergency_contact_name', 'emergency_contact_phone', 'address', 'photo',
@@ -27,6 +27,16 @@ class Employee extends Model
         'allowances' => 'decimal:2',
         'deductions' => 'decimal:2',
     ];
+
+    public function setPhoneAttribute($value)
+    {
+        $this->attributes['phone'] = \App\Services\PhoneNormalizationService::normalize($value);
+    }
+
+    public function setEmergencyContactPhoneAttribute($value)
+    {
+        $this->attributes['emergency_contact_phone'] = \App\Services\PhoneNormalizationService::normalize($value);
+    }
 
     public function user(): BelongsTo
     {
@@ -77,6 +87,16 @@ class Employee extends Model
     public function scopeActive($query)
     {
         return $query->where('status', 'active');
+    }
+
+    public function scopeByHikvisionNo($query, string $hikvisionNo)
+    {
+        return $query->where('hikvision_no', $hikvisionNo);
+    }
+
+    public function isActiveForAttendance(): bool
+    {
+        return in_array($this->status, ['active', 'on_leave']);
     }
 
     public function scopeByDepartment($query, string $department)

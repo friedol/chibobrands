@@ -52,7 +52,7 @@
             <!-- Print Header -->
             <div class="print-header d-none text-center mb-4">
                 <div class="d-flex justify-content-center align-items-center mb-3">
-                    <img src="{{ asset('images/logo.webp') }}" alt="CHIBO BRAND" style="height: 60px; margin-right: 15px;">
+                    @include('partials.logo-print', ['logoStyle' => 'height:60px;margin-right:15px;object-fit:contain;'])
                     <div class="text-start">
                         <h2 class="fw-bold fs-3 mb-0 text-dark">CHIBO BRANDS CO.LTD</h2>
                         <p class="mb-0 text-muted small">Sales & Inventory Management System</p>

@@ -27,7 +27,9 @@
                 <table class="table table-hover align-middle mb-0" id="dataTable" width="100%" cellspacing="0">
                     <thead class="bg-light text-dark">
                         <tr style="font-size: 12px; letter-spacing: 0.5px; text-transform: uppercase;">
-                            <th class="py-2 ps-4 border-0 fw-bold">Type Name</th>
+                            <th class="py-2 ps-4 border-0 fw-bold">Image</th>
+                            <th class="py-2 border-0 fw-bold">Type Name</th>
+                            <th class="py-2 border-0 fw-bold">Department</th>
                             <th class="py-2 border-0 fw-bold">Rate</th>
                             <th class="py-2 border-0 fw-bold">Description</th>
                             <th class="py-2 pe-4 border-0 text-end fw-bold">Actions</th>
@@ -36,23 +38,37 @@
                     <tbody style="font-size: 13px;">
                         @foreach($types as $type)
                             <tr>
-                                <td class="ps-4 fw-medium text-dark py-2">{{ $type->name }}</td>
+                                <td class="py-2 ps-4">
+                                    @if($type->image_path)
+                                        <img src="{{ asset('storage/' . $type->image_path) }}" alt="{{ $type->name }}" class="rounded shadow-sm" style="width: 44px; height: 44px; object-fit: cover; border: 1px solid #e2e8f0;">
+                                    @else
+                                        <div class="d-flex align-items-center justify-content-center bg-light text-muted rounded border border-dashed" style="width: 44px; height: 44px; font-size: 10px; font-weight: 600;">No Img</div>
+                                    @endif
+                                </td>
+                                <td class="fw-bold text-dark py-2">{{ $type->name }}</td>
+                                <td class="py-2">
+                                    @if($type->department)
+                                        <span class="badge bg-light text-danger border border-danger-subtle px-2 py-1" style="font-size: 11px;">{{ $type->department->name }}</span>
+                                    @else
+                                        <span class="text-muted small">N/A</span>
+                                    @endif
+                                </td>
                                 <td class="text-dark fw-bold py-2">{{ number_format($type->price) }} <span class="text-muted fw-normal" style="font-size: 11px;">TZS</span></td>
                                 <td class="text-muted py-2">{{ Str::limit($type->description, 50) ?: 'N/A' }}</td>
                                 <td class="pe-4 text-end py-2">
                                     <button class="btn btn-sm btn-outline-dark rounded-circle me-1 p-0 d-inline-flex align-items-center justify-content-center" 
-                                            onclick="openEditModal({{ $type->id }}, '{{ addslashes($type->name) }}', '{{ $type->price }}', '{{ addslashes($type->description ?? '') }}')"
+                                            onclick="openEditModal({{ $type->id }}, '{{ addslashes($type->name) }}', '{{ $type->price }}', '{{ addslashes($type->description ?? '') }}', '{{ $type->department_id ?? '' }}')"
                                             title="Edit"
-                                            style="width: 24px; height: 24px;">
-                                        <i class="fas fa-pen" style="font-size: 10px;"></i>
+                                            style="width: 28px; height: 28px;">
+                                        <i class="fas fa-pen" style="font-size: 11px;"></i>
                                     </button>
                                     <form action="{{ route('admin.design-task-types.destroy', $type->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this task type permanently?');">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-sm btn-outline-danger rounded-circle p-0 d-inline-flex align-items-center justify-content-center" 
                                                 title="Delete"
-                                                style="width: 24px; height: 24px;">
-                                            <i class="fas fa-trash" style="font-size: 10px;"></i>
+                                                style="width: 28px; height: 28px;">
+                                            <i class="fas fa-trash" style="font-size: 11px;"></i>
                                         </button>
                                     </form>
                                 </td>
@@ -82,7 +98,7 @@
                 <h5 class="modal-title fw-bold text-dark ps-2">Create New Type</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form action="{{ route('admin.design-task-types.store') }}" method="POST">
+            <form action="{{ route('admin.design-task-types.store') }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="modal-body pt-4">
                     <div class="mb-3">
@@ -90,8 +106,21 @@
                         <input type="text" name="name" class="form-control form-control-lg bg-light border-0" required placeholder="e.g. Logo Design">
                     </div>
                     <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold text-uppercase">Department</label>
+                        <select name="department_id" class="form-select form-control-lg bg-light border-0" required>
+                            <option value="">Select Department</option>
+                            @foreach($departments as $dept)
+                                <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label text-muted small fw-bold text-uppercase">Rate (TZS)</label>
                         <input type="number" name="price" class="form-control form-control-lg bg-light border-0" required min="0" step="0.01" placeholder="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold text-uppercase">Image</label>
+                        <input type="file" name="image" class="form-control bg-light border-0" accept="image/*">
                     </div>
                     <div class="mb-3">
                         <label class="form-label text-muted small fw-bold text-uppercase">Description</label>
@@ -115,7 +144,7 @@
                 <h5 class="modal-title fw-bold text-dark ps-2">Edit Type</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="editTypeForm" method="POST">
+            <form id="editTypeForm" method="POST" enctype="multipart/form-data">
                 @csrf
                 @method('PUT')
                 <div class="modal-body pt-4">
@@ -124,8 +153,21 @@
                         <input type="text" id="edit_name" name="name" class="form-control form-control-lg bg-light border-0" required>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold text-uppercase">Department</label>
+                        <select id="edit_department_id" name="department_id" class="form-select form-control-lg bg-light border-0" required>
+                            <option value="">Select Department</option>
+                            @foreach($departments as $dept)
+                                <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label text-muted small fw-bold text-uppercase">Rate (TZS)</label>
                         <input type="number" id="edit_price" name="price" class="form-control form-control-lg bg-light border-0" required min="0" step="0.01">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold text-uppercase">Image</label>
+                        <input type="file" name="image" class="form-control bg-light border-0" accept="image/*">
                     </div>
                     <div class="mb-3">
                         <label class="form-label text-muted small fw-bold text-uppercase">Description</label>
@@ -142,10 +184,11 @@
 </div>
 
 <script>
-    function openEditModal(id, name, price, description) {
+    function openEditModal(id, name, price, description, departmentId) {
         document.getElementById('edit_name').value = name;
         document.getElementById('edit_price').value = price;
         document.getElementById('edit_description').value = description;
+        document.getElementById('edit_department_id').value = departmentId || '';
         
         // Update form action
         document.getElementById('editTypeForm').action = `/admin/design-task-types/${id}`;

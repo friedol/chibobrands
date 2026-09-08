@@ -16,23 +16,23 @@
     }
 
     .icon-circle {
-        width: 38px;
-        height: 38px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 10px;
-        font-size: 0.9rem;
-        flex-shrink: 0;
+        width: 38px; height: 38px;
+        display: flex; align-items: center; justify-content: center;
+        border-radius: 10px; font-size: 0.9rem; flex-shrink: 0;
     }
 
-    .hover-lift {
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    }
+    .hover-lift { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+    .hover-lift:hover { transform: translateY(-4px); box-shadow: 0 10px 24px rgba(0,0,0,0.1) !important; }
 
-    .hover-lift:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.1) !important;
+    /* New stat card design */
+    .dash-stat-card {
+        border-radius: 14px;
+        padding: 13px 13px 11px;
+        background: #fff;
+        border: 1.5px solid rgba(0,0,0,0.08);
+        display: block;
+        height: 100%;
+        box-sizing: border-box;
     }
 
     .card-metric .h3, .card-metric .h5 {
@@ -76,48 +76,102 @@
         .mobile-cards { display: none !important; }
     }
 
-    /* Mobile Card Styles */
+    /* Single Row Compact Stat Cards Scroll Bar */
+    .stats-scroll-row {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 8px;
+        padding-bottom: 6px;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+
+    .stats-scroll-row::-webkit-scrollbar {
+        height: 4px;
+    }
+
+    .stats-scroll-row::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+
+    .dash-stat-card-compact {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 9px 11px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        transition: all 0.2s ease;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        text-decoration: none;
+        color: inherit;
+        cursor: pointer;
+    }
+    .dash-stat-card-compact:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    .dsc-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        flex-shrink: 0;
+    }
+    .dsc-val {
+        font-size: 1.05rem;
+        font-weight: 700;
+        line-height: 1.25;
+        margin-top: 4px;
+    }
+    .dsc-lbl {
+        font-size: 11px;
+        font-weight: 600;
+        color: #64748b;
+        margin-top: 1px;
+    }
+    .dsc-sub {
+        font-size: 10px;
+        font-weight: 500;
+        color: #94a3b8;
+    }
+
+    /* Mobile Card Styles - Reduced Round Corners & No Yellow Left Line */
     .task-card {
         background: #fff;
-        border: 1px solid #f1f5f9;
-        border-radius: 16px;
-        margin-bottom: 1rem;
-        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        margin-bottom: 0.75rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+        overflow: visible;
         position: relative;
         transition: all 0.2s;
     }
     
     .task-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 4px;
-        height: 100%;
+        display: none !important;
+        content: none !important;
+        width: 0 !important;
     }
-
-    .task-card.status-pending::before { background: var(--premium-warning); }
-    .task-card.status-in_progress::before { background: var(--premium-primary); }
-    .task-card.status-in_review::before { background: #8b5cf6; }
-    .task-card.status-printing::before { background: #f97316; }
-    .task-card.status-completed::before { background: var(--premium-success); }
-    .task-card.status-confirmed::before { background: var(--premium-info); }
-    .task-card.status-super_completed::before { background: #059669; }
-    .task-card.status-rejected::before { background: var(--premium-danger); }
-    .task-card.status-cancelled::before { background: var(--premium-dark); }
     
     .task-stats-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 0.75rem;
-        margin-top: 1rem;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
     }
     
     .task-stat-item {
         background: #f8fafc;
-        padding: 0.75rem;
-        border-radius: 12px;
+        padding: 0.5rem 0.65rem;
+        border-radius: 6px;
     }
     
     .task-stat-label {
@@ -161,7 +215,42 @@
     .bg-action-purple { color: #7c3aed !important; }
     .bg-action-cyan { color: #0891b2 !important; }
 
-    .dropdown-menu { z-index: 1060 !important; border: none; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border-radius: 12px; }
+    .dropdown-menu { z-index: 9999 !important; border: none; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border-radius: 12px; }
+
+    /* POS Terminal New Task Button */
+    .btn-pos-new-task {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);
+        color: #fff;
+        text-decoration: none;
+        border-radius: 8px;
+        padding: 4px 10px 4px 5px;
+        font-weight: 700;
+        border: 1px solid rgba(255,255,255,0.12);
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 8px rgba(220,53,69,0.3);
+        white-space: nowrap;
+    }
+    .btn-pos-new-task:hover {
+        background: linear-gradient(135deg, #e84e5e 0%, #dc3545 100%);
+        color: #fff;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(220,53,69,0.4);
+    }
+    .btn-pos-new-task:active { transform: translateY(0); }
+    .pos-btn-icon {
+        width: 26px; height: 26px;
+        background: rgba(255,255,255,0.15);
+        border-radius: 6px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 12px; flex-shrink: 0;
+    }
+    .pos-btn-body { display: flex; flex-direction: column; line-height: 1.2; }
+    .pos-btn-label { font-size: 12px; font-weight: 700; letter-spacing: 0.2px; }
+    .pos-btn-sub { font-size: 8px; font-weight: 500; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.6px; }
+    .pos-btn-arrow { font-size: 10px; opacity: 0.5; margin-left: 1px; }
 </style>
 @endpush
 
@@ -171,7 +260,7 @@
         <div class="col-12">
             <div class="d-flex flex-row justify-content-between align-items-center mb-3 gap-2">
                 <div class="flex-grow-1">
-                    <h1 class="h5 mb-0 text-dark fw-bold" style="font-family: 'Nunito Sans', sans-serif;">Design Tasks Management</h1>
+                    <h1 class="h3 mb-0 text-dark fw-bold" style="font-family: 'Nunito Sans', sans-serif;">Customer Tasks</h1>
                     <!-- <p class="text-muted mb-0 small" style="font-size: 13px;">
                         @if($user->role === 'receptionist' || $user->role === 'operator' || $user->role === 'accountant')
                             Manage requirements & assign to designers
@@ -184,127 +273,141 @@
                 </div>
                 <div class="d-flex flex-wrap gap-2">
                     @if(in_array($user->role, ['receptionist', 'operator', 'accountant', 'admin', 'super_admin']))
-                    <a href="{{ route('admin.design-tasks.create') }}" class="btn btn-dark btn-sm rounded-pill px-3 shadow-none" style="font-size: 13px;">
-                        <i class="fas fa-plus me-1"></i>New Task
+                    <a href="{{ route('admin.pos.index') }}" class="btn-pos-new-task">
+                        <span class="pos-btn-icon"><i class="fas fa-cash-register"></i></span>
+                        <span class="pos-btn-body">
+                            <span class="pos-btn-label">New Task</span>
+                            <span class="pos-btn-sub">POS Terminal</span>
+                        </span>
+                        <span class="pos-btn-arrow"><i class="fas fa-chevron-right"></i></span>
                     </a>
                     @endif
+                    <a href="{{ route('admin.design-tasks.trash') }}" class="btn btn-outline-danger btn-sm rounded-pill px-3 shadow-none" style="font-size: 13px;">
+                        <i class="fas fa-trash-alt me-1"></i>Trash Bin
+                        @php $trashedCount = \App\Models\DesignTask::onlyTrashed()->count(); @endphp
+                        @if($trashedCount > 0)
+                            <span class="badge rounded-pill bg-danger ms-1">{{ $trashedCount }}</span>
+                        @endif
+                    </a>
                 </div>
             </div>
             
-            <!-- Stats Cards (Dashboard Style) -->
+            <!-- Stat Cards Bar (2 Columns on Mobile, Multi-Column on Desktop) -->
             @if(isset($taskStats))
-            <div class="row g-2 g-md-3 mb-4">
-                <div class="col-6 col-md-3 col-lg-2 stats-col">
-                    <div class="card shadow-sm h-100 border-0 border-start border-4 border-primary hover-lift">
-                        <div class="card-body p-3">
-                            <div class="d-flex align-items-center mb-2">
-                                <div class="icon-circle bg-primary bg-opacity-10 text-primary me-2">
-                                    <i class="fas fa-list"></i>
-                                </div>
-                                <span class="text-uppercase x-small fw-bold text-muted">Total</span>
-                            </div>
-                            <div class="h3 mb-0 fw-bold">{{ number_format($taskStats['total']) }}</div>
+            <div class="row g-2 mb-4">
+                <!-- Total -->
+                <div class="col-6 col-md-3 col-lg-2">
+                    <a href="{{ request()->fullUrlWithQuery(['status' => '', 'delivery_filter' => '', 'is_loss' => '', 'department_id' => '']) }}" class="dash-stat-card-compact">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="dsc-icon bg-primary-subtle text-primary"><i class="fas fa-list"></i></div>
+                            <span class="dsc-sub">All</span>
                         </div>
-                    </div>
+                        <div class="dsc-val text-primary">{{ number_format($taskStats['total']) }}</div>
+                        <div class="dsc-lbl">Total Tasks</div>
+                    </a>
                 </div>
-
-                <div class="col-6 col-md-3 col-lg-2 stats-col">
-                    <div class="card shadow-sm h-100 border-0 border-start border-4 border-warning hover-lift">
-                        <div class="card-body p-3">
-                            <div class="d-flex align-items-center mb-2">
-                                <div class="icon-circle bg-warning bg-opacity-10 text-warning me-2">
-                                    <i class="fas fa-clock"></i>
-                                </div>
-                                <span class="text-uppercase x-small fw-bold text-muted">Pending</span>
-                            </div>
-                            <div class="h3 mb-0 fw-bold">{{ number_format($taskStats['pending']) }}</div>
+                <!-- Pending -->
+                <div class="col-6 col-md-3 col-lg-2">
+                    <a href="{{ request()->fullUrlWithQuery(['status' => 'pending', 'delivery_filter' => '', 'is_loss' => '', 'department_id' => '']) }}" class="dash-stat-card-compact">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="dsc-icon bg-warning-subtle text-warning"><i class="fas fa-clock"></i></div>
+                            <span class="dsc-sub">Queue</span>
                         </div>
-                    </div>
+                        <div class="dsc-val text-warning">{{ number_format($taskStats['pending']) }}</div>
+                        <div class="dsc-lbl">Pending</div>
+                    </a>
                 </div>
-
-                <div class="col-6 col-md-3 col-lg-2 stats-col">
-                    <div class="card shadow-sm h-100 border-0 border-start border-4 border-info hover-lift">
-                        <div class="card-body p-3">
-                            <div class="d-flex align-items-center mb-2">
-                                <div class="icon-circle bg-info bg-opacity-10 text-info me-2">
-                                    <i class="fas fa-spinner"></i>
-                                </div>
-                                <span class="text-uppercase x-small fw-bold text-muted">Progress</span>
-                            </div>
-                            <div class="h3 mb-0 fw-bold">{{ number_format($taskStats['in_progress']) }}</div>
+                <!-- In Progress -->
+                <div class="col-6 col-md-3 col-lg-2">
+                    <a href="{{ request()->fullUrlWithQuery(['status' => 'in_progress', 'delivery_filter' => '', 'is_loss' => '', 'department_id' => '']) }}" class="dash-stat-card-compact">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="dsc-icon bg-info-subtle text-info"><i class="fas fa-spinner"></i></div>
+                            <span class="dsc-sub">Active</span>
                         </div>
-                    </div>
+                        <div class="dsc-val text-info">{{ number_format($taskStats['in_progress']) }}</div>
+                        <div class="dsc-lbl">In Progress</div>
+                    </a>
                 </div>
-
-                <div class="col-6 col-md-3 col-lg-2 stats-col">
-                    <div class="card shadow-sm h-100 border-0 border-start border-4 border-secondary hover-lift">
-                        <div class="card-body p-3">
-                            <div class="d-flex align-items-center mb-2">
-                                <div class="icon-circle bg-secondary bg-opacity-10 text-secondary me-2">
-                                    <i class="fas fa-print"></i>
-                                </div>
-                                <span class="text-uppercase x-small fw-bold text-muted">Production</span>
-                            </div>
-                            <div class="h3 mb-0 fw-bold">{{ number_format($taskStats['printing'] + $taskStats['printed']) }}</div>
+                <!-- Production -->
+                <div class="col-6 col-md-3 col-lg-2">
+                    <a href="{{ request()->fullUrlWithQuery(['status' => 'printing', 'delivery_filter' => '', 'is_loss' => '', 'department_id' => '']) }}" class="dash-stat-card-compact">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="dsc-icon text-white" style="background:#f97316;"><i class="fas fa-print"></i></div>
+                            <span class="dsc-sub">Press</span>
                         </div>
-                    </div>
+                        <div class="dsc-val" style="color:#f97316;">{{ number_format($taskStats['printing'] + $taskStats['printed']) }}</div>
+                        <div class="dsc-lbl">Production</div>
+                    </a>
                 </div>
-
-                <div class="col-6 col-md-3 col-lg-2 stats-col">
-                    <div class="card shadow-sm h-100 border-0 border-start border-4 border-success hover-lift">
-                        <div class="card-body p-3">
-                            <div class="d-flex align-items-center mb-2">
-                                <div class="icon-circle bg-success bg-opacity-10 text-success me-2">
-                                    <i class="fas fa-check-double"></i>
-                                </div>
-                                <span class="text-uppercase x-small fw-bold text-muted">Done</span>
-                            </div>
-                            <div class="h3 mb-0 fw-bold">{{ number_format($taskStats['completed'] + $taskStats['super_completed']) }}</div>
+                <!-- Done -->
+                <div class="col-6 col-md-3 col-lg-2">
+                    <a href="{{ request()->fullUrlWithQuery(['status' => 'completed', 'delivery_filter' => '', 'is_loss' => '', 'department_id' => '']) }}" class="dash-stat-card-compact">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="dsc-icon bg-success-subtle text-success"><i class="fas fa-check-double"></i></div>
+                            <span class="dsc-sub">Done</span>
                         </div>
-                    </div>
+                        <div class="dsc-val text-success">{{ number_format($taskStats['completed'] + $taskStats['super_completed']) }}</div>
+                        <div class="dsc-lbl">Completed</div>
+                    </a>
                 </div>
-
-                <div class="col-6 col-md-3 col-lg-2 stats-col">
-                    <div class="card shadow-sm h-100 border-0 border-start border-4 border-dark hover-lift">
-                        <div class="card-body p-3">
-                            <div class="d-flex align-items-center mb-2">
-                                <div class="icon-circle bg-dark bg-opacity-10 text-dark me-2">
-                                    <i class="fas fa-shipping-fast"></i>
-                                </div>
-                                <span class="text-uppercase x-small fw-bold text-muted">Delivered</span>
-                            </div>
-                            <div class="h3 mb-0 fw-bold">{{ number_format($taskStats['delivered']) }}</div>
+                <!-- Delivered -->
+                <div class="col-6 col-md-3 col-lg-2">
+                    <a href="{{ request()->fullUrlWithQuery(['delivery_filter' => 'delivered', 'status' => '', 'is_loss' => '', 'department_id' => '']) }}" class="dash-stat-card-compact">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="dsc-icon bg-dark text-white"><i class="fas fa-shipping-fast"></i></div>
+                            <span class="dsc-sub">Shipped</span>
                         </div>
-                    </div>
+                        <div class="dsc-val text-dark">{{ number_format($taskStats['delivered']) }}</div>
+                        <div class="dsc-lbl">Delivered</div>
+                    </a>
                 </div>
-
-                <div class="col-6 col-md-3 col-lg-2 stats-col">
-                    <div class="card shadow-sm h-100 border-0 border-start border-4 border-danger hover-lift">
-                        <div class="card-body p-3">
-                            <div class="d-flex align-items-center mb-2">
-                                <div class="icon-circle bg-danger bg-opacity-10 text-danger me-2">
-                                    <i class="fas fa-heart-crack"></i>
-                                </div>
-                                <span class="text-uppercase x-small fw-bold text-muted">Losses</span>
-                            </div>
-                            <div class="h3 mb-0 fw-bold">{{ number_format($taskStats['loss']) }}</div>
+                <!-- Losses -->
+                <div class="col-6 col-md-3 col-lg-2">
+                    <a href="{{ request()->fullUrlWithQuery(['is_loss' => '1', 'status' => '', 'delivery_filter' => '', 'department_id' => '']) }}" class="dash-stat-card-compact">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="dsc-icon bg-danger-subtle text-danger"><i class="fas fa-heart-crack"></i></div>
+                            <span class="dsc-sub">Loss</span>
                         </div>
-                    </div>
+                        <div class="dsc-val text-danger">{{ number_format($taskStats['loss']) }}</div>
+                        <div class="dsc-lbl">Losses</div>
+                    </a>
                 </div>
-
-                <div class="col-6 col-md-3 col-lg-2 stats-col">
-                    <div class="card shadow-sm h-100 border-0 border-start border-4 border-dark hover-lift" style="border-left-color: #1e293b !important;">
-                        <div class="card-body p-3">
-                            <div class="d-flex align-items-center mb-2">
-                                <div class="icon-circle bg-dark bg-opacity-10 text-dark me-2">
-                                    <i class="fas fa-times-circle"></i>
-                                </div>
-                                <span class="text-uppercase x-small fw-bold text-muted">Cancelled</span>
-                            </div>
-                            <div class="h3 mb-0 fw-bold">{{ number_format($taskStats['cancelled']) }}</div>
+                <!-- Cancelled -->
+                <div class="col-6 col-md-3 col-lg-2">
+                    <a href="{{ request()->fullUrlWithQuery(['status' => 'cancelled', 'delivery_filter' => '', 'is_loss' => '', 'department_id' => '']) }}" class="dash-stat-card-compact">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="dsc-icon bg-secondary-subtle text-secondary"><i class="fas fa-times-circle"></i></div>
+                            <span class="dsc-sub">Void</span>
                         </div>
-                    </div>
+                        <div class="dsc-val text-secondary">{{ number_format($taskStats['cancelled']) }}</div>
+                        <div class="dsc-lbl">Cancelled</div>
+                    </a>
                 </div>
+                <!-- Department Stats -->
+                @if(isset($departments) && count($departments) > 0)
+                    @foreach($departments as $dept)
+                        @php
+                            $deptCount = $taskStats['departments'][$dept->id] ?? 0;
+                            $deptIcons = ['shirt'=>'fa-tshirt','embroidery'=>'fa-ring','sublimation'=>'fa-fill-drip','screen'=>'fa-palette','tailor'=>'fa-scissors','label'=>'fa-tags','printing'=>'fa-print'];
+                            $deptColors = ['shirt'=>'#4f46e5','embroidery'=>'#0ea5e9','sublimation'=>'#ec4899','screen'=>'#10b981','tailor'=>'#f59e0b','label'=>'#8b5cf6','printing'=>'#f43f5e'];
+                            $slug = strtolower($dept->name);
+                            $matchedIcon = 'fa-folder';
+                            foreach ($deptIcons as $key => $icon) { if (strpos($slug, $key) !== false) { $matchedIcon = $icon; break; } }
+                            $matchedColor = '#475569';
+                            foreach ($deptColors as $key => $color) { if (strpos($slug, $key) !== false) { $matchedColor = $color; break; } }
+                        @endphp
+                        <div class="col-6 col-md-3 col-lg-2">
+                            <a href="{{ request()->fullUrlWithQuery(['department_id' => $dept->id, 'status' => '', 'delivery_filter' => '', 'is_loss' => '']) }}" class="dash-stat-card-compact">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="dsc-icon text-white" style="background:{{ $matchedColor }};"><i class="fas {{ $matchedIcon }}"></i></div>
+                                    <span class="dsc-sub">Dept</span>
+                                </div>
+                                <div class="dsc-val" style="color:{{ $matchedColor }};">{{ number_format($deptCount) }}</div>
+                                <div class="dsc-lbl" title="{{ $dept->name }}">{{ Str::limit($dept->name, 14) }}</div>
+                            </a>
+                        </div>
+                    @endforeach
+                @endif
             </div>
             @endif
 
@@ -428,6 +531,17 @@
             <!-- Mobile Card Layout -->
             <div id="mobileCardsWrapper" class="mobile-cards" style="padding: 0.25rem;">
                 @php
+                    $qStatusMeta = [
+                        'pending'         => ['label'=>'Pending',         'icon'=>'fa-hourglass-start', 'color'=>'text-warning'],
+                        'in_progress'     => ['label'=>'In Progress',     'icon'=>'fa-play',            'color'=>'text-primary'],
+                        'in_review'       => ['label'=>'In Review',       'icon'=>'fa-search',          'color'=>'text-success'],
+                        'completed'       => ['label'=>'Completed',       'icon'=>'fa-check',           'color'=>'text-success'],
+                        'confirmed'       => ['label'=>'Confirmed',       'icon'=>'fa-check-double',    'color'=>'text-info'],
+                        'printing'        => ['label'=>'Printing',        'icon'=>'fa-print',           'color'=>'text-warning'],
+                        'printed'         => ['label'=>'Printed',         'icon'=>'fa-check-square',    'color'=>'text-success'],
+                        'super_completed' => ['label'=>'Super Completed', 'icon'=>'fa-check-circle',    'color'=>'text-success'],
+                        'rejected'        => ['label'=>'Rejected',        'icon'=>'fa-times-circle',    'color'=>'text-danger'],
+                    ];
                     $groupedTasks = $tasks->groupBy(function($item) {
                         return ($item->customer_id ?? 'unknown') . '_' . $item->created_at->format('Y-m-d');
                     })->sortByDesc(function($group) {
@@ -439,14 +553,14 @@
                     @php 
                         $firstInGroup = $customerTasks->first(); 
                     @endphp
-                    <div class="px-2 py-2 mb-2 bg-light rounded-pill d-flex justify-content-between align-items-center border" style="font-size: 11px;">
+                    <div class="px-3 py-2 mb-2 bg-light rounded-3 d-flex justify-content-between align-items-center border" style="font-size: 11px;">
                         <div class="d-flex flex-column">
                             <span class="fw-bold text-dark"><i class="fas fa-user me-1"></i>{{ $firstInGroup->customer->name ?? 'N/A' }}</span>
                             <span class="text-primary fw-bold" style="font-size: 10px;"><i class="far fa-calendar-alt me-1"></i>{{ $firstInGroup->created_at->format('M d, Y') }}</span>
                         </div>
                         <div class="d-flex gap-1">
                             @if($customerTasks->count() > 1)
-                            <button type="button" class="btn btn-dark btn-sm rounded-pill py-0 px-2" style="font-size: 9px;" onclick="printDirect('{{ route('admin.design-tasks.print-filtered', ['customer_id' => $firstInGroup->customer_id, 'date' => $firstInGroup->created_at->format('Y-m-d')]) }}')">
+                            <button type="button" class="btn btn-dark btn-sm rounded-2 py-1 px-2.5" style="font-size: 9.5px;" onclick="printDirect('{{ route('admin.design-tasks.print-filtered', ['customer_id' => $firstInGroup->customer_id, 'date' => $firstInGroup->created_at->format('Y-m-d')]) }}')">
                                 <i class="fas fa-print me-1"></i>Print Group
                             </button>
                             @endif
@@ -496,8 +610,24 @@
                                 </div>
                                 <div class="task-stat-item">
                                     <span class="task-stat-label">Deadline</span>
-                                    <span class="task-stat-value {{ $task->deadline && $task->deadline->isPast() && $task->status !== 'completed' ? 'text-danger' : '' }}">
+                                    <span class="task-stat-value {{ $task->deadline && $task->deadline->isPast() && !in_array($task->status, ['completed','super_completed','cancelled','delivered']) && !$task->is_loss ? 'text-danger' : '' }}">
                                         {{ $task->deadline ? $task->deadline->format('M d') : 'None' }}
+                                    </span>
+                                </div>
+                                <div class="task-stat-item">
+                                    <span class="task-stat-label">Delivery</span>
+                                    <span class="task-stat-value">
+                                        @if($task->delivery_status === 'delivered' || $task->status === 'delivered')
+                                            <span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i>Done</span>
+                                        @elseif($task->delivery_status === 'in_transit')
+                                            <span class="text-primary"><i class="fas fa-truck me-1"></i>Transit</span>
+                                        @elseif($task->delivery_status === 'assigned')
+                                            <span class="text-info"><i class="fas fa-user-check me-1"></i>Assigned</span>
+                                        @elseif($task->delivery_status === 'ready_for_pickup')
+                                            <span class="text-warning"><i class="fas fa-box me-1"></i>Ready</span>
+                                        @else
+                                            <span class="text-muted">—</span>
+                                        @endif
                                     </span>
                                 </div>
                                 <div class="task-stat-item">
@@ -509,38 +639,102 @@
                                 </div>
                             </div>
 
-                            <div class="mt-3 pt-3 border-top d-flex justify-content-between align-items-center">
-                                <div class="d-flex gap-2">
-                                    <button type="button" class="btn-action-pill bg-action-gray" title="Print" onclick="printDirect('{{ route('admin.design-tasks.print-invoice', $task) }}')">
-                                        <i class="fas fa-print"></i>
-                                    </button>
-                                    <button type="button" class="btn-action-pill bg-action-blue" title="View" onclick="viewInvoice({{ $task->id }})">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <a href="{{ route('admin.design-tasks.show', $task) }}" class="btn-action-pill bg-action-purple" title="Details">
-                                        <i class="fas fa-list-check"></i>
-                                    </a>
-                                </div>
-                                
-                                <div class="d-flex gap-2">
-                                    @if(in_array($user->role, ['admin', 'super_admin', 'manager', 'receptionist', 'operator', 'accountant']) && $task->delivery_status !== 'delivered')
-                                    <button type="button" onclick="openEditTaskModal({{ $task->id }})" class="btn-action-pill bg-action-gray" title="Edit">
-                                        <i class="fas fa-pen"></i>
-                                    </button>
-                                    @endif
+                            {{-- Mobile hidden status forms --}}
+                            @if(in_array($user->role, ['receptionist', 'accountant', 'admin', 'super_admin']) && $task->status === 'completed')
+                            <form id="status-form-{{ $task->id }}-confirmed-mobile" action="{{ route('admin.design-tasks.update-status', $task) }}" method="POST" class="d-none" data-no-global-handler>
+                                @csrf <input type="hidden" name="status" value="confirmed">
+                            </form>
+                            @endif
+                            @if(in_array($user->role, ['receptionist', 'admin', 'super_admin', 'manager', 'accountant']) && $task->status === 'confirmed')
+                            <form id="status-form-{{ $task->id }}-super-mobile" action="{{ route('admin.design-tasks.update-status', $task) }}" method="POST" class="d-none" data-no-global-handler>
+                                @csrf <input type="hidden" name="status" value="super_completed">
+                            </form>
+                            @endif
 
-                                    @if($task->balance > 0 && in_array($user->role, ['accountant', 'admin', 'super_admin']))
-                                        <button type="button" class="btn-action-pill bg-action-green" onclick="openPaymentModal({{ $task->id }}, {{ $task->balance }}, '{{ addslashes($task->title) }}')" title="Payment">
-                                            <i class="fas fa-wallet"></i>
-                                        </button>
-                                    @endif
+                            <div class="mt-3 pt-3 border-top d-flex justify-content-end gap-2 align-items-center">
+                                {{-- Receptionist: visible Super Complete button when printed --}}
+                                @if($task->status === 'printed' && in_array($user->role, ['receptionist', 'admin', 'super_admin', 'manager', 'accountant']))
+                                <form action="{{ route('admin.design-tasks.update-status', $task) }}" method="POST" data-no-global-handler>
+                                    @csrf <input type="hidden" name="status" value="super_completed">
+                                    <button type="submit" class="btn btn-sm btn-success fw-bold"
+                                        onclick="return confirm('Mark task as complete and notify customer?')"
+                                        style="font-size:12px;">
+                                        <i class="fas fa-check-double me-1"></i>Super Complete
+                                    </button>
+                                </form>
+                                @endif
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 13px; padding: 4px 8px;">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end shadow border-0" style="font-size: 12.5px; min-width: 190px;">
 
-                                    @if(in_array($user->role, ['receptionist', 'accountant', 'admin', 'super_admin']) && $task->status === 'completed')
-                                        <button type="button" class="btn-action-pill bg-action-cyan" title="Confirm" onclick="if(confirm('Confirm?')) { document.getElementById('status-form-{{ $task->id }}-confirmed-mobile').submit(); }">
-                                            <i class="fas fa-check"></i>
-                                        </button>
-                                        <form id="status-form-{{ $task->id }}-confirmed-mobile" action="{{ route('admin.design-tasks.update-status', $task) }}" method="POST" class="d-none">@csrf<input type="hidden" name="status" value="confirmed"></form>
-                                    @endif
+                                        <li><a class="dropdown-item py-2" href="javascript:void(0)" onclick="viewInvoice({{ $task->id }})"><i class="fas fa-eye me-2 text-primary"></i>View Invoice</a></li>
+                                        <li><a class="dropdown-item py-2" href="{{ route('admin.design-tasks.show', $task) }}"><i class="fas fa-list-check me-2" style="color:#7c3aed;"></i>Task Details</a></li>
+                                        <li><a class="dropdown-item py-2" href="javascript:void(0)" onclick="printDirect('{{ route('admin.design-tasks.print-invoice', $task) }}')"><i class="fas fa-print me-2 text-secondary"></i>Print Invoice</a></li>
+
+                                        @if(in_array($user->role, ['admin', 'super_admin', 'manager', 'receptionist', 'operator', 'accountant']) && $task->delivery_status !== 'delivered')
+                                        <li><a class="dropdown-item py-2" href="javascript:void(0)" onclick="openEditTaskModal({{ $task->id }})"><i class="fas fa-edit me-2 text-secondary"></i>Edit Task</a></li>
+                                        @endif
+
+                                        @if($task->balance > 0 && in_array($user->role, ['accountant', 'admin', 'super_admin']))
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        <li><a class="dropdown-item py-2" href="javascript:void(0)" onclick="openPaymentModal({{ $task->id }}, {{ $task->balance }}, '{{ addslashes($task->title) }}')"><i class="fas fa-money-bill-wave me-2 text-success"></i>Add Payment</a></li>
+                                        @endif
+
+                                        {{-- Quick Status Update (Mobile) --}}
+                                        @php
+                                            $mqStatuses = [];
+                                            if ($task->delivery_status !== 'delivered' && $task->status !== 'cancelled') {
+                                                if (in_array($user->role, ['admin', 'super_admin', 'manager'])) {
+                                                    $mqStatuses = ['pending','in_progress','in_review','completed','confirmed','printing','printed','super_completed','rejected'];
+                                                } elseif ($user->role === 'designer') {
+                                                    $mqStatuses = ['in_progress','in_review','completed','rejected'];
+                                                } elseif ($user->role === 'operator') {
+                                                    $mqStatuses = ['in_progress','confirmed','printing','printed'];
+                                                } elseif (in_array($user->role, ['receptionist','accountant'])) {
+                                                    $mqStatuses = ['pending','in_progress','completed','confirmed','printing','printed','super_completed'];
+                                                }
+                                                $mqStatuses = array_filter($mqStatuses, fn($s) => $s !== $task->status);
+                                            }
+                                        @endphp
+                                        @if(count($mqStatuses) > 0)
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        <li><span class="dropdown-header text-uppercase fw-bold" style="font-size: 10px; color:#94a3b8;"><i class="fas fa-exchange-alt me-1"></i>Change Status</span></li>
+                                        @foreach($mqStatuses as $mqKey)
+                                            @php $mqm = $qStatusMeta[$mqKey]; @endphp
+                                            <li><a class="dropdown-item py-2" href="javascript:void(0)"
+                                                onclick="quickStatusUpdate({{ $task->id }}, '{{ $mqKey }}', '{{ $mqm['label'] }}')">
+                                                <i class="fas {{ $mqm['icon'] }} me-2 {{ $mqm['color'] }}"></i>{{ $mqm['label'] }}
+                                            </a></li>
+                                        @endforeach
+                                        @endif
+
+                                        @if($task->status === 'super_completed' && in_array($user->role, ['receptionist', 'operator', 'admin', 'super_admin', 'accountant']))
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        @if($task->delivery_status !== 'delivered' && !$task->delivery_id)
+                                        <li><a class="dropdown-item py-2" href="javascript:void(0)" onclick="openDeliveryModal({{ $task->id }}, '{{ $task->customer->name ?? 'N/A' }}', {{ $task->saler_id ?? 'null' }}, '{{ $task->saler->name ?? '' }}')"><i class="fas fa-truck me-2 text-warning"></i>Assign Delivery</a></li>
+                                        @elseif($task->delivery_id && $task->delivery_status !== 'delivered')
+                                        <li><a class="dropdown-item py-2 text-muted" href="javascript:void(0)" onclick="alert('Already assigned to {{ $task->delivery->name ?? 'a person' }}')"><i class="fas fa-truck me-2"></i>Delivery Assigned</a></li>
+                                        @endif
+                                        @endif
+
+                                        @if($templates->count() > 0 && ($task->customer && $task->customer->phone) && $user->role !== 'saler')
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        <li><span class="dropdown-header text-uppercase fw-bold" style="font-size: 10px;"><i class="fas fa-paper-plane me-1"></i>Send Message</span></li>
+                                        @foreach($templates as $template)
+                                        <li>
+                                            <form action="{{ route('admin.message-templates.send') }}" method="POST" data-no-global-handler class="m-0">
+                                                @csrf
+                                                <input type="hidden" name="template_id" value="{{ $template->id }}">
+                                                <input type="hidden" name="customer_id" value="{{ $task->customer_id }}">
+                                                <button type="submit" class="dropdown-item py-2" data-no-global-handler><i class="fas fa-comment-alt me-2 text-info"></i>{{ $template->title }}</button>
+                                            </form>
+                                        </li>
+                                        @endforeach
+                                        @endif
+
+                                    </ul>
                                 </div>
                             </div>
                         </div>
@@ -563,6 +757,7 @@
                             <th class="ps-4">Customer</th>
                             <th>Task Details</th>
                             <th>Status</th>
+                            <th>Delivery</th>
                             <th>Paid</th>
                             <th>Balance</th>
                             <th class="py-2 py-md-3 px-2 px-md-4 d-none d-md-table-cell text-start" style="font-size: 13px; text-transform: capitalize;">deadline</th>
@@ -626,6 +821,21 @@
                                         {{ $task->status_label }}
                                     </span>
                                 </td>
+                                <td class="py-2 py-md-3 px-2 px-md-4 text-start">
+                                    @if($task->delivery_status === 'delivered' || $task->status === 'delivered')
+                                        <span class="badge rounded-pill bg-success" style="font-size: 10px;"><i class="fas fa-check-circle me-1"></i>Delivered</span>
+                                    @elseif($task->delivery_status === 'in_transit')
+                                        <span class="badge rounded-pill bg-primary" style="font-size: 10px;"><i class="fas fa-truck me-1"></i>In Transit</span>
+                                    @elseif($task->delivery_status === 'assigned')
+                                        <span class="badge rounded-pill bg-info text-dark" style="font-size: 10px;"><i class="fas fa-user-check me-1"></i>Assigned</span>
+                                    @elseif($task->delivery_status === 'ready_for_pickup')
+                                        <span class="badge rounded-pill bg-warning text-dark" style="font-size: 10px;"><i class="fas fa-box me-1"></i>Ready</span>
+                                    @elseif($task->status === 'super_completed')
+                                        <span class="badge rounded-pill bg-secondary" style="font-size: 10px;"><i class="fas fa-clock me-1"></i>Pending</span>
+                                    @else
+                                        <span class="text-muted" style="font-size: 12px;">—</span>
+                                    @endif
+                                </td>
                                 <td class="py-2 py-md-3 px-2 px-md-4 fw-bold text-success text-start">
                                     {{ number_format($task->amount_paid, 0) }}
                                 </td>
@@ -634,10 +844,11 @@
                                 </td>
                                 <td class="py-2 py-md-3 px-2 px-md-4 d-none d-md-table-cell text-start" style="font-size: 0.8rem;">
                                     @if($task->deadline)
-                                        <div class="{{ $task->deadline->isPast() && $task->status !== 'completed' ? 'text-danger fw-bold' : '' }}">
+                                        @php $isOverdue = $task->deadline->isPast() && !in_array($task->status, ['completed','super_completed','cancelled','delivered']) && !$task->is_loss; @endphp
+                                        <div class="{{ $isOverdue ? 'text-danger fw-bold' : '' }}">
                                             <i class="far fa-calendar-alt me-1"></i>{{ $task->deadline->format('M d, Y') }}
                                         </div>
-                                        @if($task->deadline->isPast() && $task->status !== 'completed')
+                                        @if($isOverdue)
                                             <div class="text-danger small fw-bold" style="font-size: 0.65rem;">OVERDUE</div>
                                         @endif
                                     @else
@@ -661,92 +872,157 @@
                                     <small class="badge bg-light text-dark border" style="font-size: 0.65rem;">{{ $task->priority_label }}</small>
                                 </td>
                                 <td class="py-2 py-md-3 px-2 px-md-4 text-start">
-                                    <div class="d-flex justify-content-start gap-1 flex-wrap">
-                                        <!-- Task Management -->
-                                        @if(in_array($user->role, ['admin', 'super_admin', 'manager', 'receptionist', 'operator', 'accountant']) && $task->delivery_status !== 'delivered')
-                                        <button type="button" onclick="openEditTaskModal({{ $task->id }})" class="btn-action-pill bg-action-gray" title="Edit Task">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        @endif
-                                        <button type="button" onclick="viewInvoice({{ $task->id }})" class="btn-action-pill bg-action-blue" title="View Task">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
+                                    {{-- Hidden status forms --}}
+                                    @if(in_array($user->role, ['receptionist', 'accountant', 'admin', 'super_admin']) && $task->status === 'completed')
+                                    <form id="status-form-{{ $task->id }}-confirmed" action="{{ route('admin.design-tasks.update-status', $task) }}" method="POST" class="d-none" data-no-global-handler>
+                                        @csrf <input type="hidden" name="status" value="confirmed">
+                                    </form>
+                                    @endif
+                                    @if(in_array($user->role, ['receptionist', 'admin', 'super_admin', 'manager', 'accountant']) && $task->status === 'confirmed')
+                                    <form id="status-form-{{ $task->id }}-super" action="{{ route('admin.design-tasks.update-status', $task) }}" method="POST" class="d-none" data-no-global-handler>
+                                        @csrf <input type="hidden" name="status" value="super_completed">
+                                    </form>
+                                    @endif
 
-                                        <a href="{{ route('admin.design-tasks.show', $task) }}" class="btn-action-pill bg-action-purple" title="Task Management">
-                                            <i class="fas fa-list-check"></i>
-                                        </a>
-                                        
-                                        <button type="button" class="btn-action-pill bg-action-gray" title="Print Invoice" onclick="printDirect('{{ route('admin.design-tasks.print-invoice', $task) }}')">
-                                            <i class="fas fa-print"></i>
+                                    <div class="d-flex gap-2 align-items-center">
+                                    {{-- Visible Super Complete button for receptionist --}}
+                                    @if($task->status === 'printed' && in_array($user->role, ['receptionist', 'admin', 'super_admin', 'manager', 'accountant']))
+                                    <form action="{{ route('admin.design-tasks.update-status', $task) }}" method="POST" data-no-global-handler>
+                                        @csrf <input type="hidden" name="status" value="super_completed">
+                                        <button type="submit" class="btn btn-sm btn-success fw-bold"
+                                            onclick="return confirm('Mark task as complete and notify customer?')"
+                                            style="font-size:11px;white-space:nowrap;">
+                                            <i class="fas fa-check-double me-1"></i>Super Complete
                                         </button>
-                                        
-                                        @if($task->balance > 0 && in_array($user->role, ['accountant', 'admin', 'super_admin']))
-                                            <button type="button" class="btn-action-pill bg-action-green" onclick="openPaymentModal({{ $task->id }}, {{ $task->balance }}, '{{ addslashes($task->title) }}')" title="Add Payment">
-                                                <i class="fas fa-money-bill-wave"></i>
-                                            </button>
-                                        @endif
-                                        
-                                        <!-- Confirm Task (Receptionist) -->
-                                        @if(in_array($user->role, ['receptionist', 'accountant', 'admin', 'super_admin']) && $task->status === 'completed')
-                                        <button type="button" class="btn-action-pill bg-action-green" title="Confirm Task"
-                                                onclick="if(confirm('Confirm this task as completed?')) { document.getElementById('status-form-{{ $task->id }}-confirmed').submit(); }">
-                                            <i class="fas fa-check"></i>
+                                    </form>
+                                    @endif
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 13px; padding: 4px 8px;">
+                                            <i class="fas fa-ellipsis-v"></i>
                                         </button>
-                                        <form id="status-form-{{ $task->id }}-confirmed" action="{{ route('admin.design-tasks.update-status', $task) }}" method="POST" class="d-none" data-no-global-handler>
-                                            @csrf
-                                            <input type="hidden" name="status" value="confirmed">
-                                        </form>
-                                        @endif
- 
-                                        <!-- Super Complete (Operator/Admin) -->
-                                        @if(($user->role === 'operator' || $user->role === 'admin' || $user->role === 'super_admin') && $task->status === 'confirmed')
-                                        <button type="button" class="btn-action-pill bg-action-green" title="Super Complete Task"
-                                                onclick="if(confirm('Mark this task as super completed and notify customer?')) { document.getElementById('status-form-{{ $task->id }}-super').submit(); }">
-                                            <i class="fas fa-check-double"></i>
-                                        </button>
-                                        <form id="status-form-{{ $task->id }}-super" action="{{ route('admin.design-tasks.update-status', $task) }}" method="POST" class="d-none" data-no-global-handler>
-                                            @csrf
-                                            <input type="hidden" name="status" value="super_completed">
-                                        </form>
-                                        @endif
- 
-                                        <!-- Send for Delivery / Assign Delivery person -->
-                                        @if($task->status === 'super_completed' && in_array($user->role, ['receptionist', 'operator', 'admin', 'super_admin', 'accountant']))
-                                            @if($task->delivery_status !== 'delivered' && !$task->delivery_id)
-                                                <button type="button" class="btn-action-pill bg-action-yellow" title="Assign Delivery" onclick="openDeliveryModal({{ $task->id }}, '{{ $task->customer->name ?? 'N/A' }}', {{ $task->saler_id ?? 'null' }}, '{{ $task->saler->name ?? '' }}')">
-                                                    <i class="fas fa-truck"></i>
-                                                </button>
-                                            @elseif($task->delivery_id && $task->delivery_status !== 'delivered')
-                                                <button type="button" class="btn-action-pill bg-action-gray" style="opacity: 0.5; cursor: not-allowed;" title="Already Assigned" onclick="alert('Delivery already assigned up to {{ $task->delivery->name ?? 'a person' }}'); return false;">
-                                                    <i class="fas fa-truck"></i>
-                                                </button>
+                                        <ul class="dropdown-menu dropdown-menu-end shadow border-0" style="font-size: 12.5px; min-width: 190px;">
+
+                                            {{-- View Invoice --}}
+                                            <li>
+                                                <a class="dropdown-item py-2" href="javascript:void(0)" onclick="viewInvoice({{ $task->id }})">
+                                                    <i class="fas fa-eye me-2 text-primary"></i>View Invoice
+                                                </a>
+                                            </li>
+
+                                            {{-- Task Details --}}
+                                            <li>
+                                                <a class="dropdown-item py-2" href="{{ route('admin.design-tasks.show', $task) }}">
+                                                    <i class="fas fa-list-check me-2" style="color:#7c3aed;"></i>Task Details
+                                                </a>
+                                            </li>
+
+                                            {{-- Edit --}}
+                                            @if(in_array($user->role, ['admin', 'super_admin', 'manager', 'receptionist', 'operator', 'accountant']) && $task->delivery_status !== 'delivered')
+                                            <li>
+                                                <a class="dropdown-item py-2" href="javascript:void(0)" onclick="openEditTaskModal({{ $task->id }})">
+                                                    <i class="fas fa-edit me-2 text-secondary"></i>Edit Task
+                                                </a>
+                                            </li>
                                             @endif
-                                        @endif
- 
-                                        <!-- Send Template Messages (Restricted for Salers) -->
-                                        @if($templates->count() > 0 && ($task->customer && $task->customer->phone) && $user->role !== 'saler')
-                                            <div class="btn-group" role="group">
-                                                <button type="button" class="btn-action-pill bg-action-blue dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Send Message">
-                                                    <i class="fas fa-paper-plane"></i>
-                                                </button>
-                                                <ul class="dropdown-menu dropdown-menu-end shadow-sm border" style="font-size: 0.8rem; min-width: 180px;">
-                                                    <li class="dropdown-header fw-bold text-uppercase" style="font-size: 0.7rem;">Send Template</li>
-                                                    @foreach($templates as $template)
-                                                        <li>
-                                                            <form action="{{ route('admin.message-templates.send') }}" method="POST" data-no-global-handler>
-                                                                @csrf
-                                                                <input type="hidden" name="template_id" value="{{ $template->id }}">
-                                                                <input type="hidden" name="customer_id" value="{{ $task->customer_id }}">
-                                                                <button type="submit" class="dropdown-item py-2" data-no-global-handler>
-                                                                    <i class="fas fa-comment-alt me-2 text-info opacity-50"></i>{{ $template->title }}
-                                                                </button>
-                                                            </form>
-                                                        </li>
-                                                    @endforeach
-                                                </ul>
-                                            </div>
-                                        @endif
+
+                                            {{-- Print --}}
+                                            <li>
+                                                <a class="dropdown-item py-2" href="javascript:void(0)" onclick="printDirect('{{ route('admin.design-tasks.print-invoice', $task) }}')">
+                                                    <i class="fas fa-print me-2 text-secondary"></i>Print Invoice
+                                                </a>
+                                            </li>
+
+                                            {{-- Add Payment --}}
+                                            @if($task->balance > 0 && in_array($user->role, ['accountant', 'admin', 'super_admin']))
+                                            <li><hr class="dropdown-divider my-1"></li>
+                                            <li>
+                                                <a class="dropdown-item py-2" href="javascript:void(0)" onclick="openPaymentModal({{ $task->id }}, {{ $task->balance }}, '{{ addslashes($task->title) }}')">
+                                                    <i class="fas fa-money-bill-wave me-2 text-success"></i>Add Payment
+                                                </a>
+                                            </li>
+                                            @endif
+
+                                            {{-- Quick Status Update --}}
+                                            @php
+                                                $qStatuses = [];
+                                                if ($task->delivery_status !== 'delivered' && $task->status !== 'cancelled') {
+                                                    if (in_array($user->role, ['admin', 'super_admin', 'manager'])) {
+                                                        $qStatuses = ['pending','in_progress','in_review','completed','confirmed','printing','printed','super_completed','rejected'];
+                                                    } elseif ($user->role === 'designer') {
+                                                        $qStatuses = ['in_progress','in_review','completed','rejected'];
+                                                    } elseif ($user->role === 'operator') {
+                                                        $qStatuses = ['in_progress','confirmed','printing','printed'];
+                                                    } elseif (in_array($user->role, ['receptionist','accountant'])) {
+                                                        $qStatuses = ['pending','in_progress','completed','confirmed','printing','printed','super_completed'];
+                                                    }
+                                                    $qStatuses = array_filter($qStatuses, fn($s) => $s !== $task->status);
+                                                }
+                                            @endphp
+                                            @if(count($qStatuses) > 0)
+                                            <li><hr class="dropdown-divider my-1"></li>
+                                            <li><span class="dropdown-header text-uppercase fw-bold" style="font-size: 10px; color:#94a3b8;"><i class="fas fa-exchange-alt me-1"></i>Change Status</span></li>
+                                            @foreach($qStatuses as $qKey)
+                                                @php $qm = $qStatusMeta[$qKey]; @endphp
+                                                <li>
+                                                    <a class="dropdown-item py-2" href="javascript:void(0)"
+                                                        onclick="quickStatusUpdate({{ $task->id }}, '{{ $qKey }}', '{{ $qm['label'] }}')">
+                                                        <i class="fas {{ $qm['icon'] }} me-2 {{ $qm['color'] }}"></i>{{ $qm['label'] }}
+                                                    </a>
+                                                </li>
+                                            @endforeach
+                                            @endif
+
+                                            {{-- Assign Delivery --}}
+                                            @if($task->status === 'super_completed' && in_array($user->role, ['receptionist', 'operator', 'admin', 'super_admin', 'accountant']))
+                                            <li><hr class="dropdown-divider my-1"></li>
+                                            @if($task->delivery_status !== 'delivered' && !$task->delivery_id)
+                                            <li>
+                                                <a class="dropdown-item py-2" href="javascript:void(0)" onclick="openDeliveryModal({{ $task->id }}, '{{ $task->customer->name ?? 'N/A' }}', {{ $task->saler_id ?? 'null' }}, '{{ $task->saler->name ?? '' }}')">
+                                                    <i class="fas fa-truck me-2 text-warning"></i>Assign Delivery
+                                                </a>
+                                            </li>
+                                            @elseif($task->delivery_id && $task->delivery_status !== 'delivered')
+                                            <li>
+                                                <a class="dropdown-item py-2 text-muted" href="javascript:void(0)" onclick="alert('Delivery already assigned to {{ $task->delivery->name ?? 'a person' }}')">
+                                                    <i class="fas fa-truck me-2"></i>Delivery Assigned
+                                                </a>
+                                            </li>
+                                            @endif
+                                            @endif
+
+                                            {{-- Send Template Messages --}}
+                                            @if($templates->count() > 0 && ($task->customer && $task->customer->phone) && $user->role !== 'saler')
+                                            <li><hr class="dropdown-divider my-1"></li>
+                                            <li><span class="dropdown-header text-uppercase fw-bold" style="font-size: 10px;"><i class="fas fa-paper-plane me-1"></i>Send Message</span></li>
+                                            @foreach($templates as $template)
+                                            <li>
+                                                <form action="{{ route('admin.message-templates.send') }}" method="POST" data-no-global-handler class="m-0">
+                                                    @csrf
+                                                    <input type="hidden" name="template_id" value="{{ $template->id }}">
+                                                    <input type="hidden" name="customer_id" value="{{ $task->customer_id }}">
+                                                    <button type="submit" class="dropdown-item py-2" data-no-global-handler>
+                                                        <i class="fas fa-comment-alt me-2 text-info"></i>{{ $template->title }}
+                                                    </button>
+                                                </form>
+                                            </li>
+                                            @endforeach
+                                            @endif
+                                            @if(in_array($user->role, ['admin', 'super_admin', 'manager', 'receptionist', 'accountant']))
+                                            <li><hr class="dropdown-divider my-1"></li>
+                                            <li>
+                                                <form method="POST" action="{{ route('admin.design-tasks.destroy', $task) }}" onsubmit="return confirm('Move task &quot;{{ addslashes($task->title) }}&quot; to Trash Bin?')">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="dropdown-item py-2 text-danger bg-transparent border-0 w-100 text-start">
+                                                        <i class="fas fa-trash-alt me-2 text-danger"></i>Move to Trash Bin
+                                                    </button>
+                                                </form>
+                                            </li>
+                                            @endif
+
+                                        </ul>
                                     </div>
+                                    </div>{{-- /d-flex wrapper --}}
                                 </td>
                             </tr>
                             @endforeach
@@ -813,6 +1089,15 @@
                             <option value="Bank Transfer">Bank Transfer</option>
                             <option value="Card">Card</option>
                         </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="paymentDate" class="form-label fw-bold text-dark" style="font-size: 12px;">Payment Date <span class="text-danger">*</span></label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white" style="font-size: 12px;"><i class="fas fa-calendar-alt"></i></span>
+                            <input type="date" class="form-control" id="paymentDate" name="payment_date" value="{{ date('Y-m-d') }}" required style="font-size: 12px;">
+                        </div>
+                        <div class="form-text" style="font-size: 11px;">Select date when debt was paid</div>
                     </div>
                     
                     <div class="mb-3">
@@ -948,6 +1233,30 @@
                             <input type="number" name="rate" id="edit_rate" class="form-control form-control-sm" step="0.01" min="0" required>
                         </div>
 
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-dark x-small text-uppercase mb-1" style="font-size: 11px; letter-spacing: 0.5px;"><i class="fas fa-truck me-1 text-info"></i>Delivery Cost (TZS)</label>
+                            <input type="number" name="delivery_cost" id="modal_delivery_cost" class="form-control form-control-sm" step="0.01" min="0" placeholder="0.00">
+                        </div>
+
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-dark x-small text-uppercase mb-1" style="font-size: 11px; letter-spacing: 0.5px;"><i class="fas fa-percent me-1 text-success"></i>Delivery Discount (TZS)</label>
+                            <input type="number" name="delivery_discount" id="modal_delivery_discount" class="form-control form-control-sm" step="0.01" min="0" placeholder="0.00">
+                        </div>
+
+                        <div class="col-12">
+                            <div class="p-2 rounded-3 border d-flex align-items-center justify-content-between" style="background:#f0fdf4;">
+                                <div>
+                                    <span class="fw-semibold" style="font-size:12px;"><i class="fas fa-file-invoice me-1 text-warning"></i>VAT (18%)</span>
+                                    <span class="text-muted ms-2" style="font-size:11px;">Enable if a VAT receipt is required</span>
+                                </div>
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" role="switch"
+                                           id="modal_requires_receipt" name="requires_receipt" value="1"
+                                           style="width:2.2rem;height:1.1rem;cursor:pointer;">
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="col-12">
                             <label class="form-label fw-bold text-dark x-small text-uppercase mb-1" style="font-size: 11px; letter-spacing: 0.5px;">Public Description</label>
                             <textarea name="description" id="edit_description" class="form-control form-control-sm" rows="3" placeholder="Task description..."></textarea>
@@ -968,7 +1277,7 @@
                 </div>
                 <div class="modal-footer bg-white border-top py-3">
                     <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-sm btn-dark px-4 shadow-sm" id="updateTaskBtn" data-no-global-handler>
+                    <button type="submit" class="btn btn-sm btn-danger px-4 shadow-sm" id="updateTaskBtn" data-no-global-handler>
                         <i class="fas fa-save me-1"></i> Update Task
                     </button>
                 </div>
@@ -1075,6 +1384,34 @@
 
 @push('scripts')
 <script>
+// Quick status update — submits a dynamic form to avoid per-row form bloat
+function quickStatusUpdate(taskId, status, label) {
+    Swal.fire({
+        title: 'Change Status?',
+        text: 'Set task status to "' + (label || status) + '"?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#0d6efd',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, update',
+        cancelButtonText: 'Cancel',
+    }).then(result => {
+        if (!result.isConfirmed) return;
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/admin/design-tasks/' + taskId + '/status';
+        form.style.display = 'none';
+        const csrf = document.createElement('input');
+        csrf.type = 'hidden'; csrf.name = '_token';
+        csrf.value = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+        const statusInput = document.createElement('input');
+        statusInput.type = 'hidden'; statusInput.name = 'status'; statusInput.value = status;
+        form.appendChild(csrf); form.appendChild(statusInput);
+        document.body.appendChild(form);
+        form.submit();
+    });
+}
+
 // Mobile View Persistence
 function switchView(view) {
     const table = document.getElementById('desktopTableWrapper');
@@ -1172,6 +1509,9 @@ function openEditTaskModal(id) {
             document.getElementById('edit_operator_id').value = data.operator_id || '';
             document.getElementById('edit_qty').value = data.qty;
             document.getElementById('edit_rate').value = data.rate;
+            document.getElementById('modal_delivery_cost').value = data.delivery_cost || 0;
+            document.getElementById('modal_delivery_discount').value = data.delivery_discount || 0;
+            document.getElementById('modal_requires_receipt').checked = !!data.requires_receipt;
             document.getElementById('edit_description').value = data.description || '';
             document.getElementById('edit_designer_instructions').value = data.designer_instructions || '';
             
@@ -2379,5 +2719,48 @@ function generateInstructionsHTMLForPrint(tasksData) {
 }
 </script>
 @endif
+@endpush
+
+@push('scripts')
+<script>
+// Fix dropdown clipping inside table-responsive and task-card (overflow containers)
+(function () {
+    function positionDropdown(toggleEl, menuEl) {
+        const rect = toggleEl.getBoundingClientRect();
+        menuEl.style.setProperty('position', 'fixed', 'important');
+        menuEl.style.setProperty('z-index', '9999', 'important');
+        menuEl.style.setProperty('top', (rect.bottom + 4) + 'px', 'important');
+        menuEl.style.setProperty('left', 'auto', 'important');
+        menuEl.style.setProperty('right', (window.innerWidth - rect.right) + 'px', 'important');
+        menuEl.style.setProperty('transform', 'none', 'important');
+    }
+
+    function resetDropdown(menuEl) {
+        ['position','z-index','top','right','left','transform'].forEach(p => menuEl.style.removeProperty(p));
+    }
+
+    document.addEventListener('show.bs.dropdown', function (e) {
+        const toggle = e.target;
+        if (!toggle.closest('.table-responsive, .task-card')) return;
+        const menu = toggle.closest('.dropdown')?.querySelector('.dropdown-menu');
+        if (menu) positionDropdown(toggle, menu);
+    });
+
+    document.addEventListener('hidden.bs.dropdown', function (e) {
+        const menu = e.target.closest('.dropdown')?.querySelector('.dropdown-menu');
+        if (menu) resetDropdown(menu);
+    });
+
+    // Re-position on scroll/resize while dropdown is open
+    ['scroll', 'resize'].forEach(evt => {
+        window.addEventListener(evt, function () {
+            document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
+                const toggle = menu.closest('.dropdown')?.querySelector('[data-bs-toggle="dropdown"]');
+                if (toggle && toggle.closest('.table-responsive, .task-card')) positionDropdown(toggle, menu);
+            });
+        }, { passive: true });
+    });
+})();
+</script>
 @endpush
 @endsection

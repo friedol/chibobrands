@@ -16,9 +16,14 @@ use App\Models\MessageTemplate;
 use App\Notifications\NewRegistrationPending;
 use App\Notifications\AccountVerified;
 use App\Notifications\RegistrationPendingCustomer;
+use App\Exports\CustomerExport;
+use Maatwebsite\Excel\Facades\Excel;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use App\Mail\CustomerVerifiedMail;
+use App\Models\Region;
+use App\Models\District;
 
 class CustomerController extends Controller
 {
@@ -27,7 +32,8 @@ class CustomerController extends Controller
      */
     public function showRegistrationForm(): View
     {
-        return view('customer.auth.register');
+        $regions = \App\Models\Region::orderBy('region_name')->get();
+        return view('customer.auth.register', compact('regions'));
     }
 
     /**
@@ -50,6 +56,8 @@ class CustomerController extends Controller
                 'company_name' => 'nullable|string|max:255',
                 'business_type' => 'nullable|string|max:255',
                 'address' => 'nullable|string|max:500',
+                'region_id' => 'required|exists:regions,id',
+                'district_id' => 'required|exists:districts,id',
                 'is_wholesale' => 'nullable|boolean',
                 'terms' => 'required|accepted',
             ]);
@@ -72,6 +80,8 @@ class CustomerController extends Controller
                 'company_name' => $request->company_name,
                 'business_type' => $request->business_type,
                 'address' => $request->address,
+                'region_id' => $request->region_id,
+                'district_id' => $request->district_id,
                 'is_wholesale' => $request->has('is_wholesale') ? true : false,
                 'verified' => false, // New customers start as unverified
                 'is_active' => true,
@@ -366,7 +376,11 @@ class CustomerController extends Controller
     public function profile(): View
     {
         $customer = Auth::guard('customer')->user();
-        return view('customer.profile', compact('customer'));
+        $regions = \App\Models\Region::orderBy('region_name')->get();
+        $districts = $customer->region_id
+            ? \App\Models\District::where('region_id', $customer->region_id)->orderBy('district_name')->get()
+            : collect([]);
+        return view('customer.profile', compact('customer', 'regions', 'districts'));
     }
 
     /**
@@ -383,10 +397,12 @@ class CustomerController extends Controller
             'company_name' => 'nullable|string|max:255',
             'business_type' => 'nullable|string|max:255',
             'address' => 'nullable|string|max:500',
+            'region_id' => 'required|exists:regions,id',
+            'district_id' => 'required|exists:districts,id',
         ]);
 
         $customer->update($request->only([
-            'name', 'email', 'phone', 'company_name', 'business_type', 'address'
+            'name', 'email', 'phone', 'company_name', 'business_type', 'address', 'region_id', 'district_id'
         ]));
 
         return redirect()->route('customer.profile')
@@ -452,17 +468,36 @@ class CustomerController extends Controller
         $user = Auth::user();
         $query = Customer::query();
 
-        // 1. Role-aware filtering for salers
-        $query->forSaler($user);
+        // 1. Only non-salespeople can see all customers
+        // Salespeople can see all customers in the list (for reference), but stats only show their own
+        if ($user->role === 'saler') {
+            // Don't filter query here - let salespeople see all customers
+            // But calculate stats based on their customers only
+        }
 
-        // Stats calculation (respecting the base filter)
+        // Stats calculation - for salespeople show only their customer stats
         $statsBaseQuery = clone $query;
+        if ($user->role === 'saler') {
+            $statsBaseQuery->forSaler($user);
+        }
+        
+        $newCustomerIds = (clone $statsBaseQuery)->where('is_repeated', false)->pluck('id');
+        $repCustomerIds = (clone $statsBaseQuery)->where('is_repeated', true)->pluck('id');
+        
         $stats = [
-            'total' => (clone $statsBaseQuery)->count(),
-            'new_this_week' => (clone $statsBaseQuery)->where('created_at', '>=', now()->subDays(7))->count(),
-            'verified' => (clone $statsBaseQuery)->where('verified', true)->count(),
-            'wholesale' => (clone $statsBaseQuery)->where('is_wholesale', true)->count(),
-            'pending' => (clone $statsBaseQuery)->where('verified', false)->count(),
+            'total'          => (clone $statsBaseQuery)->count(),
+            'new_this_week'  => (clone $statsBaseQuery)->where('created_at', '>=', now()->startOfWeek())->count(),
+            'verified'       => (clone $statsBaseQuery)->where('verified', true)->count(),
+            'wholesale'      => (clone $statsBaseQuery)->where('is_wholesale', true)->count(),
+            'pending'        => (clone $statsBaseQuery)->where('verified', false)->count(),
+            'new_customers'  => (clone $statsBaseQuery)->where('is_repeated', false)->count(),
+            'repeated_customers' => (clone $statsBaseQuery)->where('is_repeated', true)->count(),
+            'new_this_week_new'      => (clone $statsBaseQuery)->where('is_repeated', false)->where('created_at', '>=', now()->startOfWeek())->count(),
+            'repeated_this_week'     => (clone $statsBaseQuery)->where('is_repeated', true)->where('updated_at', '>=', now()->startOfWeek())->count(),
+            'new_customers_wholesale' => (clone $statsBaseQuery)->where('is_repeated', false)->where('is_wholesale', true)->count(),
+            'new_customers_retail'    => (clone $statsBaseQuery)->where('is_repeated', false)->where('is_wholesale', false)->count(),
+            'new_customer_revenue'    => \App\Models\Payment::activeFinance()->whereIn('customer_id', $newCustomerIds)->sum('amount'),
+            'repeated_customer_revenue' => \App\Models\Payment::activeFinance()->whereIn('customer_id', $repCustomerIds)->sum('amount'),
         ];
         $stats['verified_percent'] = $stats['total'] > 0 ? round(($stats['verified'] / $stats['total']) * 100) : 0;
 
@@ -477,7 +512,7 @@ class CustomerController extends Controller
             });
         }
 
-        // 3. Filter by status
+        // 3. Filter by status / customer type
         if ($request->filled('status')) {
             switch ($request->status) {
                 case 'verified':
@@ -492,14 +527,442 @@ class CustomerController extends Controller
                 case 'active':
                     $query->where('verified', true);
                     break;
+                case 'new':
+                    $query->where('is_repeated', false);
+                    break;
+                case 'repeated':
+                    $query->where('is_repeated', true);
+                    break;
             }
+        }
+
+        // 4. Period filter (today / week / month / year)
+        [$periodFrom, $periodTo, $periodLabel] = $this->resolvePeriod($request);
+        if ($periodFrom && $periodTo) {
+            $query->whereBetween('created_at', [$periodFrom, $periodTo]);
+        }
+
+        // 5. Salesperson filter — matches however that relationship is actually
+        // recorded (added_by, assigned design tasks, or legacy order notes),
+        // same logic the "My Customers" toggle uses for the logged-in saler.
+        if ($request->filled('saler_id') && $request->saler_id !== 'all') {
+            $filterSaler = User::find($request->saler_id);
+            $query->broughtBySaler($request->saler_id, $filterSaler?->phone);
+        }
+
+        // 6. "My Customers" toggle for salers and senior salers
+        if ($request->boolean('own_only') && in_array($user->role, ['saler', 'senior_saler'])) {
+            $query->forSaler($user);
         }
 
         $customers = $query->orderBy('created_at', 'desc')->paginate(20)->withQueryString();
         $templates = \App\Models\MessageTemplate::active()->get();
         $salers = User::where('role', 'saler')->orderBy('name')->get();
+        $duplicateGroups = \App\Services\CustomerJourneyService::findDuplicateCustomers();
+        $duplicateCount = $duplicateGroups->count();
 
-        return view('admin.customers.index', compact('customers', 'templates', 'stats', 'salers'));
+        return view('admin.customers.index', compact('customers', 'templates', 'stats', 'salers', 'periodLabel', 'duplicateCount'));
+    }
+
+    /**
+     * Display customer distribution map on its own page for admin.
+     */
+    public function adminMap(Request $request): View
+    {
+        $user = Auth::user();
+        $query = Customer::query()->with([
+            'region:id,region_name',
+            'district:id,district_name,region_id',
+            'addedBy:id,name',
+        ]);
+
+        // 1. Role-aware filtering for salers
+        $query->forSaler($user);
+
+        // 2. Search functionality
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%")
+                  ->orWhere('company_name', 'like', "%{$search}%");
+            });
+        }
+
+        // 3. Filter by status / customer type
+        if ($request->filled('status')) {
+            switch ($request->status) {
+                case 'verified':
+                    $query->where('verified', true);
+                    break;
+                case 'unverified':
+                    $query->where('verified', false);
+                    break;
+                case 'wholesale':
+                    $query->where('is_wholesale', true);
+                    break;
+                case 'active':
+                    $query->where('verified', true);
+                    break;
+                case 'new':
+                    $query->where('is_repeated', false);
+                    break;
+                case 'repeated':
+                    $query->where('is_repeated', true);
+                    break;
+            }
+        }
+
+        if ($request->filled('region_id') && $request->region_id !== 'all') {
+            $query->where('region_id', $request->region_id);
+        }
+
+        if ($request->filled('district_id') && $request->district_id !== 'all') {
+            $query->where('district_id', $request->district_id);
+        }
+
+        // 4. Period filter (today / week / month / year)
+        [$periodFrom, $periodTo, $periodLabel] = $this->resolvePeriod($request);
+        if ($periodFrom && $periodTo) {
+            $query->whereBetween('created_at', [$periodFrom, $periodTo]);
+        }
+
+        // 5. Salesperson filter — matches however that relationship is actually
+        // recorded (added_by, assigned design tasks, or legacy order notes),
+        // same logic the "My Customers" toggle uses for the logged-in saler.
+        if ($request->filled('saler_id') && $request->saler_id !== 'all') {
+            $filterSaler = User::find($request->saler_id);
+            $query->broughtBySaler($request->saler_id, $filterSaler?->phone);
+        }
+
+        $geoColumnsAvailable = Schema::hasColumn('customers', 'latitude') && Schema::hasColumn('customers', 'longitude');
+
+        // Calculate Customer Distribution for the Map (respecting filters)
+        $regionCountQuery = clone $query;
+        $customerCountsByRegion = $regionCountQuery->whereNotNull('region_id')
+            ->select('region_id', \DB::raw('count(*) as count'))
+            ->groupBy('region_id')
+            ->pluck('count', 'region_id')
+            ->toArray();
+
+        $regionsWithCoords = \App\Models\Region::whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->get(['id', 'region_name', 'latitude', 'longitude']);
+
+        $regionDistribution = $regionsWithCoords->map(function($region) use ($customerCountsByRegion) {
+            return [
+                'name' => $region->region_name,
+                'latitude' => (float) $region->latitude,
+                'longitude' => (float) $region->longitude,
+                'count' => $customerCountsByRegion[$region->id] ?? 0
+            ];
+        })->filter(function($item) {
+            return $item['count'] > 0;
+        })->values()->toArray();
+
+        $customerPoints = [];
+        if ($geoColumnsAvailable) {
+            $customerPoints = (clone $query)
+                ->whereNotNull('latitude')
+                ->whereNotNull('longitude')
+                ->latest('customers.updated_at')
+                ->get([
+                    'id',
+                    'name',
+                    'company_name',
+                    'phone',
+                    'region_id',
+                    'district_id',
+                    'latitude',
+                    'longitude',
+                    'address',
+                    'customer_source',
+                    'verified',
+                    'is_wholesale',
+                    'added_by',
+                    'created_at',
+                ])
+                ->map(function ($customer) {
+                    return [
+                        'id' => $customer->id,
+                        'name' => $customer->name,
+                        'company_name' => $customer->company_name,
+                        'phone' => $customer->phone,
+                        'region' => $customer->region?->region_name,
+                        'district' => $customer->district?->district_name,
+                        'latitude' => (float) $customer->latitude,
+                        'longitude' => (float) $customer->longitude,
+                        'address' => $customer->address,
+                        'customer_source' => $customer->customer_source,
+                        'verified' => (bool) $customer->verified,
+                        'is_wholesale' => (bool) $customer->is_wholesale,
+                        'added_by' => $customer->addedBy?->name,
+                        'created_at' => optional($customer->created_at)?->format('d M Y'),
+                    ];
+                })
+                ->values()
+                ->toArray();
+        }
+
+        // Fallback pins by region center when customer lat/lng is not available.
+        if (empty($customerPoints)) {
+            $regionPins = collect($regionDistribution)->map(function ($region) {
+                return [
+                    'id' => 'region-' . $region['name'],
+                    'name' => $region['name'],
+                    'company_name' => null,
+                    'phone' => null,
+                    'region' => $region['name'],
+                    'district' => null,
+                    'latitude' => (float) $region['latitude'],
+                    'longitude' => (float) $region['longitude'],
+                    'address' => null,
+                    'customer_source' => null,
+                    'verified' => false,
+                    'is_wholesale' => false,
+                    'added_by' => null,
+                    'created_at' => null,
+                    'count' => (int) $region['count'],
+                ];
+            })->values()->toArray();
+
+            $customerPoints = $regionPins;
+        }
+
+        $regions = 
+            \App\Models\Region::orderBy('region_name')->get(['id', 'region_name']);
+
+        $districts = $request->filled('region_id') && $request->region_id !== 'all'
+            ? \App\Models\District::where('region_id', $request->region_id)->orderBy('district_name')->get(['id', 'district_name', 'region_id'])
+            : collect();
+
+        $customersNeedingLocationQuery = (clone $query)
+            ->where(function ($q) {
+                $q->whereNull('region_id');
+            });
+
+        if ($geoColumnsAvailable) {
+            $customersNeedingLocationQuery->orWhere(function ($q) {
+                $q->whereNull('latitude')->orWhereNull('longitude');
+            });
+
+            $customersNeedingLocation = $customersNeedingLocationQuery
+                ->latest('customers.updated_at')
+                ->take(10)
+                ->get(['id', 'name', 'company_name', 'region_id', 'district_id', 'latitude', 'longitude']);
+        } else {
+            $customersNeedingLocation = $customersNeedingLocationQuery
+                ->latest('customers.updated_at')
+                ->take(10)
+                ->get(['id', 'name', 'company_name', 'region_id', 'district_id']);
+        }
+
+        $mapCenter = !empty($customerPoints)
+            ? [$customerPoints[0]['latitude'], $customerPoints[0]['longitude']]
+            : [-6.3690, 34.8888];
+
+        $salers = User::where('role', 'saler')->orderBy('name')->get();
+
+        return view('admin.customers.map', compact('regionDistribution', 'customerPoints', 'regions', 'districts', 'customersNeedingLocation', 'mapCenter', 'salers', 'periodLabel'));
+    }
+
+    public function storeMapRegion(Request $request): RedirectResponse
+    {
+        if (!Auth::user()->hasPermission('manage_customers') && Auth::user()->role !== 'accountant') {
+            return redirect()->back()->with('error', 'Unauthorized action.');
+        }
+
+        $validated = $request->validate([
+            'region_name' => 'required|string|max:120|unique:regions,region_name',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
+        ]);
+
+        $baseCode = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $validated['region_name']), 0, 3));
+        $baseCode = $baseCode !== '' ? $baseCode : 'REG';
+        $regionCode = $baseCode;
+        $suffix = 1;
+
+        while (Region::where('region_code', $regionCode)->exists()) {
+            $regionCode = $baseCode . str_pad((string) $suffix, 2, '0', STR_PAD_LEFT);
+            $suffix++;
+        }
+
+        Region::create([
+            'region_name' => $validated['region_name'],
+            'region_code' => $regionCode,
+            'latitude' => $validated['latitude'] ?? null,
+            'longitude' => $validated['longitude'] ?? null,
+        ]);
+
+        return redirect()->route('admin.customers.map')->with('success', 'Region added successfully.');
+    }
+
+    public function storeMapDistrict(Request $request): RedirectResponse
+    {
+        if (!Auth::user()->hasPermission('manage_customers') && Auth::user()->role !== 'accountant') {
+            return redirect()->back()->with('error', 'Unauthorized action.');
+        }
+
+        $validated = $request->validate([
+            'region_id' => 'required|exists:regions,id',
+            'district_name' => 'required|string|max:120',
+        ]);
+
+        $exists = District::where('region_id', $validated['region_id'])
+            ->whereRaw('LOWER(district_name) = ?', [mb_strtolower($validated['district_name'])])
+            ->exists();
+
+        if ($exists) {
+            return redirect()->route('admin.customers.map')->with('error', 'District already exists for the selected region.');
+        }
+
+        District::create([
+            'region_id' => $validated['region_id'],
+            'district_name' => $validated['district_name'],
+        ]);
+
+        return redirect()->route('admin.customers.map')->with('success', 'District added successfully.');
+    }
+
+    public function exportExcel(Request $request)
+    {
+        if (Auth::user()->role === 'saler') {
+            abort(403, 'Sellers are not permitted to export customer information.');
+        }
+
+        try {
+            ini_set('memory_limit', '-1');
+            set_time_limit(300);
+
+            $query = $this->buildExportQuery($request)
+                ->select([
+                    'id',
+                    'name',
+                    'phone',
+                    'email',
+                    'is_repeated',
+                    'is_wholesale',
+                    'verified',
+                    'purchase_count',
+                    'first_purchase_date',
+                    'created_at',
+                ]);
+
+            $period = $request->get('period', 'all');
+            $filename = 'customers-' . $period . '-' . now()->format('Y-m-d') . '.xlsx';
+
+            return Excel::download(new CustomerExport($query, 'Customers'), $filename);
+        } catch (\Throwable $e) {
+            Log::error('Customer Excel export failed', [
+                'message' => $e->getMessage(),
+                'user_id' => Auth::id(),
+                'filters' => $request->all(),
+            ]);
+
+            return redirect()->back()->with('error', 'Excel export failed. Please try again or reduce filters.');
+        }
+    }
+
+    public function exportPdf(Request $request)
+    {
+        if (Auth::user()->role === 'saler') {
+            abort(403, 'Sellers are not permitted to print or export customer information.');
+        }
+
+        try {
+            ini_set('memory_limit', '512M');
+            set_time_limit(120);
+
+            $query = $this->buildExportQuery($request)
+                ->select([
+                    'id',
+                    'name',
+                    'phone',
+                    'email',
+                    'is_repeated',
+                    'is_wholesale',
+                    'verified',
+                    'purchase_count',
+                    'created_at',
+                ]);
+
+            $customers = $query->get();
+            [$from, $to, $label] = $this->resolvePeriod($request);
+
+            // Fast browser preview page (users can Print -> Save as PDF).
+            return view('admin.customers.export-pdf', compact('customers', 'label', 'from', 'to'));
+        } catch (\Throwable $e) {
+            Log::error('Customer PDF export failed', [
+                'message' => $e->getMessage(),
+                'user_id' => Auth::id(),
+                'filters' => $request->all(),
+            ]);
+
+            return redirect()->back()->with('error', 'PDF export failed. Please try again or reduce filters.');
+        }
+    }
+
+    private function buildExportQuery(Request $request)
+    {
+        $user  = Auth::user();
+        $query = Customer::query()->forSaler($user);
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%")
+                  ->orWhere('company_name', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('status') && $request->status !== 'all') {
+            switch ($request->status) {
+                case 'verified':
+                    $query->where('verified', true);
+                    break;
+                case 'unverified':
+                    $query->where('verified', false);
+                    break;
+                case 'wholesale':
+                    $query->where('is_wholesale', true);
+                    break;
+                case 'active':
+                    $query->where('verified', true);
+                    break;
+                case 'new':
+                    $query->where('is_repeated', false);
+                    break;
+                case 'repeated':
+                    $query->where('is_repeated', true);
+                    break;
+            }
+        }
+
+        [$from, $to] = $this->resolvePeriod($request);
+        if ($from && $to) {
+            $query->whereBetween('created_at', [$from, $to]);
+        }
+
+        if ($request->filled('saler_id') && $request->saler_id !== 'all') {
+            $query->where('added_by', $request->saler_id);
+        }
+
+        return $query->orderBy('created_at', 'desc');
+    }
+
+    private function resolvePeriod(Request $request): array
+    {
+        return match ($request->get('period', 'all')) {
+            'today'   => [now()->startOfDay(),   now()->endOfDay(),   'Today'],
+            'week'    => [now()->startOfWeek(),  now()->endOfWeek(),  'This Week'],
+            'month'   => [now()->startOfMonth(), now()->endOfMonth(), 'This Month'],
+            'year'    => [now()->startOfYear(),  now()->endOfYear(),  'This Year'],
+            default   => [null, null, 'All Time'],
+        };
     }
 
     /**
@@ -511,7 +974,8 @@ class CustomerController extends Controller
             abort(403, 'Unauthorized action.');
         }
         $salers = User::where('role', 'saler')->orderBy('name')->get();
-        return view('admin.customers.create', compact('salers'));
+        $regions = \App\Models\Region::orderBy('region_name')->get();
+        return view('admin.customers.create', compact('salers', 'regions'));
     }
 
     /**
@@ -537,6 +1001,8 @@ class CustomerController extends Controller
             'company_name' => 'nullable|string|max:255',
             'business_type' => 'nullable|string|max:255',
             'address' => 'nullable|string|max:500',
+            'region_id' => 'nullable|exists:regions,id',
+            'district_id' => 'nullable|exists:districts,id',
             'password' => 'nullable|string|min:8|confirmed',
             'added_by' => 'nullable|exists:users,id',
         ]);
@@ -546,8 +1012,12 @@ class CustomerController extends Controller
             $whatsappNumber = ($request->whatsapp_country_code ?? '+255') . ' ' . ltrim($request->whatsapp_number, '+0-9 ');
         }
 
-        // Determine added_by: if provided (admin), use it; otherwise use auth user (saler)
+        // Determine ownership attributes
         $addedBy = $request->filled('added_by') ? $request->added_by : auth()->id();
+        $registeredBy = auth()->id();
+        $accountOwner = $request->filled('account_owner_id') ? $request->account_owner_id : $addedBy;
+        $branchId = $request->filled('branch_id') ? $request->branch_id : auth()->user()->department_id;
+        $source = $request->filled('customer_source') ? $request->customer_source : $request->input('source');
 
         $customer = Customer::create([
             'name' => $request->name,
@@ -557,11 +1027,17 @@ class CustomerController extends Controller
             'whatsapp_number' => $whatsappNumber,
             'company_name' => $request->company_name,
             'business_type' => $request->business_type,
+            'customer_source' => $source,
             'address' => $request->address,
+            'region_id' => $request->region_id,
+            'district_id' => $request->district_id,
             'is_wholesale' => $request->has('is_wholesale'),
-            'verified' => $request->has('verified'), // Salers form might default this to false, check modal
-            'is_active' => $request->has('is_active') || $request->is_active === 'on', // Handle 'on' or boolean
+            'verified' => $request->has('verified'),
+            'is_active' => $request->has('is_active') || $request->is_active === 'on',
             'added_by' => $addedBy,
+            'registered_by_id' => $registeredBy,
+            'account_owner_id' => $accountOwner,
+            'branch_id' => $branchId,
         ]);
 
         // If no is_active field is present (e.g. from saler form?), default to true?
@@ -569,6 +1045,9 @@ class CustomerController extends Controller
         // Checking modal: all fields are visible, but checkboxes might be missed
         // If saler modal doesn't include is_active, it defaults false.
         // Let's force active if variable missing? No, modal has it.
+
+        // Auto-link any matching leads by phone number
+        \App\Services\CustomerJourneyService::linkLeadsToCustomer($customer);
 
         return redirect()->route('admin.customers.index')
             ->with('success', 'Customer ' . $customer->name . ' created successfully!');
@@ -603,7 +1082,9 @@ class CustomerController extends Controller
                     })->first();
 
         // Fetch Base Data (All Time)
-        $allOrders = $user ? Order::where('user_id', $user->id)->with('items')->latest()->get() : collect([]);
+        $allOrders = $user
+            ? Order::where('user_id', $user->id)->with(['items', 'saler', 'user', 'department', 'customerBusiness'])->latest()->get()
+            : collect([]);
         $allTasks = DesignTask::where('customer_id', $customer->id)->latest()->get();
 
         // Calculate Lifetime Grand Total (using the stored analytics for consistency)
@@ -676,11 +1157,44 @@ class CustomerController extends Controller
         }
 
         $templates = MessageTemplate::active()->get();
+
+        // Customer Journey & Timeline Data
+        $leads = \App\Models\Lead::where('customer_id', $customer->id)
+            ->orWhere(function($q) use ($customer) {
+                if ($customer->phone) $q->where('phone', \App\Services\PhoneNormalizationService::normalize($customer->phone));
+            })
+            ->with(['followUps.user', 'seller'])
+            ->latest()
+            ->get();
+
+        $customerFollowUps = \App\Models\CustomerFollowUp::where('customer_id', $customer->id)
+            ->with('user')
+            ->latest()
+            ->get();
+
+        $businesses = $customer->businesses()->with(['region', 'district'])->get();
+        $orders = $allOrders;
+        $debtPayments = \App\Models\Payment::where('customer_id', $customer->id)
+            ->where('is_debt', true)
+            ->with(['order.department', 'order.customerBusiness', 'designTask.department', 'designTask.customerBusiness', 'customerBusiness', 'seller', 'reconciledByUser'])
+            ->latest()
+            ->get();
+        $smsRecipients = \App\Models\SmsCampaignRecipient::where('customer_id', $customer->id)
+            ->orWhere('phone_number', $customer->phone)
+            ->with('campaign.sender')
+            ->latest()
+            ->get();
+        $payments = \App\Models\Payment::where('customer_id', $customer->id)
+            ->with(['order.department', 'order.customerBusiness', 'designTask.department', 'designTask.customerBusiness', 'customerBusiness', 'seller', 'reconciledByUser'])
+            ->latest()
+            ->get();
+        $regions = \App\Models\Region::orderBy('region_name')->get();
+
         return view('admin.customers.show', compact(
-            'customer', 'templates', 'period', 'orders', 'designTasks', 
-            'totalOrders', 'totalTasks', 'totalOrderValue', 'totalTaskValue',
-            'periodTotal', 'lifetimeTotal', 'averageOrderValue',
-            'months', 'orderData', 'taskData'
+            'customer', 'orders', 'designTasks', 'lifetimeTotal', 'totalOrders', 'totalTasks',
+            'totalOrderValue', 'totalTaskValue', 'periodTotal', 'averageOrderValue',
+            'months', 'orderData', 'taskData', 'templates', 'period',
+            'leads', 'customerFollowUps', 'businesses', 'smsRecipients', 'payments', 'debtPayments', 'regions'
         ));
     }
 
@@ -689,11 +1203,23 @@ class CustomerController extends Controller
      */
     public function edit(Customer $customer): View
     {
-        if (!Auth::user()->hasPermission('manage_customers') && !in_array(Auth::user()->role, ['accountant', 'receptionist'])) {
-            abort(403, 'Unauthorized action.');
+        $user = Auth::user();
+        
+        // Allow edit if user has manage_customers permission or is admin/super_admin/manager/accountant/receptionist
+        // For salespeople, allow editing only if they added the customer or are the account owner
+        if ($user->role === 'saler') {
+            if ($customer->added_by !== $user->id && $customer->account_owner_id !== $user->id) {
+                abort(403, 'You can only edit customers you added or are assigned to.');
+            }
+        } elseif (!$user->hasPermission('manage_customers') && !in_array($user->role, ['accountant', 'receptionist', 'admin', 'super_admin', 'manager'])) {
+            abort(403, 'You do not have permission to edit customers.');
         }
         $salers = User::where('role', 'saler')->orderBy('name')->get();
-        return view('admin.customers.edit', compact('customer', 'salers'));
+        $regions = \App\Models\Region::orderBy('region_name')->get();
+        $districts = $customer->region_id
+            ? \App\Models\District::where('region_id', $customer->region_id)->orderBy('district_name')->get()
+            : collect([]);
+        return view('admin.customers.edit', compact('customer', 'salers', 'regions', 'districts'));
     }
 
     /**
@@ -701,8 +1227,16 @@ class CustomerController extends Controller
      */
     public function update(Request $request, Customer $customer): RedirectResponse
     {
-        if (!Auth::user()->hasPermission('manage_customers') && !in_array(Auth::user()->role, ['accountant', 'receptionist'])) {
-            return redirect()->back()->with('error', 'Unauthorized action.');
+        $user = Auth::user();
+        
+        // Allow update if user has manage_customers permission or is admin/super_admin/manager/accountant/receptionist
+        // For salespeople, allow editing only if they added the customer or are the account owner
+        if ($user->role === 'saler') {
+            if ($customer->added_by !== $user->id && $customer->account_owner_id !== $user->id) {
+                return redirect()->back()->with('error', 'You can only edit customers you added or are assigned to.');
+            }
+        } elseif (!$user->hasPermission('manage_customers') && !in_array($user->role, ['accountant', 'receptionist', 'admin', 'super_admin', 'manager'])) {
+            return redirect()->back()->with('error', 'You do not have permission to edit customers.');
         }
 
         // Pre-calculate formatted phone
@@ -719,27 +1253,46 @@ class CustomerController extends Controller
             'company_name' => 'nullable|string|max:255',
             'business_type' => 'nullable|string|max:255',
             'address' => 'nullable|string|max:500',
+            'region_id' => 'nullable|exists:regions,id',
+            'district_id' => 'nullable|exists:districts,id',
             'password' => 'nullable|string|min:8|confirmed',
             'added_by' => 'nullable|exists:users,id',
+            'account_owner_id' => 'nullable|exists:users,id',
+            'branch_id' => 'nullable|exists:departments,id',
+            'customer_source' => 'nullable|string|max:255',
         ]);
 
-    $whatsappNumber = null;
-    if ($request->filled('whatsapp_number')) {
-        $whatsappNumber = ($request->whatsapp_country_code ?? '+255') . ' ' . ltrim($request->whatsapp_number, '+0-9 ');
-    }
+        $whatsappNumber = null;
+        if ($request->filled('whatsapp_number')) {
+            $whatsappNumber = ($request->whatsapp_country_code ?? '+255') . ' ' . ltrim($request->whatsapp_number, '+0-9 ');
+        }
 
-    $customerData = [
-        'name' => $request->name,
-        'email' => $request->email,
-        'phone' => $phone,
-        'whatsapp_number' => $whatsappNumber,
-        'company_name' => $request->company_name,
-        'business_type' => $request->business_type,
-        'address' => $request->address,
-        'is_wholesale' => $request->has('is_wholesale'),
-        'verified' => $request->has('verified'),
-        'is_active' => $request->has('is_active'),
-    ];
+        $customerData = [
+            'name' => $request->name,
+            'email' => $request->email,
+            'phone' => $phone,
+            'whatsapp_number' => $whatsappNumber,
+            'company_name' => $request->company_name,
+            'business_type' => $request->business_type,
+            'address' => $request->address,
+            'region_id' => $request->region_id,
+            'district_id' => $request->district_id,
+            'is_wholesale' => $request->has('is_wholesale'),
+            'verified' => $request->has('verified'),
+            'is_active' => $request->has('is_active'),
+        ];
+
+        if ($request->filled('customer_source')) {
+            $customerData['customer_source'] = $request->customer_source;
+        }
+
+        if ($request->filled('account_owner_id')) {
+            $customerData['account_owner_id'] = $request->account_owner_id;
+        }
+
+        if ($request->filled('branch_id')) {
+            $customerData['branch_id'] = $request->branch_id;
+        }
 
         if ($request->has('added_by')) {
             $customerData['added_by'] = $request->added_by;
@@ -753,6 +1306,61 @@ class CustomerController extends Controller
 
         return redirect()->route('admin.customers.index')
             ->with('success', 'Customer updated successfully!');
+    }
+
+    /**
+     * Transfer customer ownership (Managers and Admins only).
+     */
+    public function transferOwnershipPage(Customer $customer): RedirectResponse
+    {
+        return redirect()
+            ->route('admin.customers.show', $customer)
+            ->with('error', 'Transfer ownership must be submitted from the Transfer form.');
+    }
+
+    /**
+     * Transfer customer ownership (Managers and Admins only).
+     */
+    public function transferOwnership(Request $request, Customer $customer): RedirectResponse
+    {
+        $user = Auth::user();
+
+        if (!in_array($user->role, ['admin', 'super_admin', 'manager']) && !$user->hasPermission('manage_customers')) {
+            return redirect()->back()->with('error', 'Unauthorized action. Only Managers and Administrators can transfer customer ownership.');
+        }
+
+        $request->validate([
+            'account_owner_id' => 'required|exists:users,id',
+            'transfer_reason'  => 'nullable|string|max:500',
+        ]);
+
+        $oldOwnerName = $customer->accountOwner ? $customer->accountOwner->name : 'Unassigned';
+        $newOwnerUser = User::findOrFail($request->account_owner_id);
+
+        $customer->update([
+            'account_owner_id' => $newOwnerUser->id,
+        ]);
+
+        // Audit log recording
+        if (class_exists('\App\Models\AuditLog')) {
+            $transferDescription = "Transferred customer #{$customer->id} ({$customer->name}) from '{$oldOwnerName}' to '{$newOwnerUser->name}'. Reason: " . ($request->transfer_reason ?? 'Administrative transfer');
+
+            \App\Models\AuditLog::create([
+                'user_id' => $user->id,
+                'action'  => 'Transfer Ownership',
+                'model_type' => \App\Models\Customer::class,
+                'model_id' => $customer->id,
+                'description' => $transferDescription,
+                'new_values' => [
+                    'account_owner_id' => $newOwnerUser->id,
+                    'account_owner_name' => $newOwnerUser->name,
+                    'transfer_reason' => $request->transfer_reason,
+                ],
+                'ip_address' => $request->ip(),
+            ]);
+        }
+
+        return redirect()->back()->with('success', "Customer ownership successfully transferred to {$newOwnerUser->name}!");
     }
 
     /**
@@ -857,8 +1465,16 @@ class CustomerController extends Controller
      */
     public function destroy(Customer $customer): RedirectResponse
     {
-        if (!Auth::user()->hasPermission('manage_customers') && Auth::user()->role !== 'accountant') {
-            return redirect()->back()->with('error', 'Unauthorized action.');
+        $user = Auth::user();
+        
+        // Allow deletion if user has manage_customers permission or is admin/super_admin/manager/accountant
+        // For salespeople, allow deletion only if they added the customer or are the account owner
+        if ($user->role === 'saler') {
+            if ($customer->added_by !== $user->id && $customer->account_owner_id !== $user->id) {
+                return redirect()->back()->with('error', 'You can only delete customers you added or are assigned to.');
+            }
+        } elseif (!$user->hasPermission('manage_customers') && !in_array($user->role, ['admin', 'super_admin', 'manager', 'accountant'])) {
+            return redirect()->back()->with('error', 'You do not have permission to delete customers.');
         }
         // Check if customer has orders via valid User relationship
         // Since orders are attached to Users, we need to check if there's a User
@@ -892,4 +1508,98 @@ class CustomerController extends Controller
             ->with('success', 'Customer deleted successfully!');
     }
 
+    /**
+     * Get districts for a region (AJAX).
+     */
+    public function getDistrictsForRegion($regionId)
+    {
+        $districts = \App\Models\District::where('region_id', $regionId)
+            ->orderBy('district_name')
+            ->get(['id', 'district_name']);
+        return response()->json($districts);
+    }
+
+    /**
+     * List duplicate customers detected by phone format.
+     */
+    public function duplicates()
+    {
+        if (!in_array(auth()->user()->role, ['admin', 'super_admin', 'manager'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $duplicateGroups = \App\Services\CustomerJourneyService::findDuplicateCustomers();
+        return view('admin.customers.duplicates', compact('duplicateGroups'));
+    }
+
+    /**
+     * Merge Customer B into Customer A.
+     */
+    public function merge(Request $request)
+    {
+        if (!in_array(auth()->user()->role, ['admin', 'super_admin', 'manager'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $request->validate([
+            'target_customer_id' => 'required|exists:customers,id',
+            'source_customer_id' => 'required|exists:customers,id|different:target_customer_id',
+        ]);
+
+        $target = Customer::findOrFail($request->target_customer_id);
+        $source = Customer::findOrFail($request->source_customer_id);
+
+        \App\Services\CustomerJourneyService::mergeCustomers($target, $source, auth()->id());
+
+        return redirect()->route('admin.customers.duplicates')
+            ->with('success', "Successfully merged customer record '{$source->name}' into primary customer '{$target->name}'.");
+    }
+
+    /**
+     * Add a business profile to a customer.
+     */
+    public function storeBusiness(Request $request, Customer $customer)
+    {
+        $country = $request->input('country', 'Tanzania');
+
+        $rules = [
+            'business_name' => 'required|string|max:255',
+            'business_type' => 'nullable|string|max:255',
+            'phone'         => 'nullable|string|max:20',
+            'email'         => 'nullable|email|max:255',
+            'country'       => 'required|string|max:100',
+            'address'       => 'nullable|string|max:500',
+            'is_primary'    => 'nullable|boolean',
+        ];
+
+        if (strtolower(trim($country)) === 'tanzania') {
+            $rules['region_id'] = 'required|exists:regions,id';
+            $rules['district_id'] = 'required|exists:districts,id';
+        } else {
+            $rules['region_id'] = 'nullable|exists:regions,id';
+            $rules['district_id'] = 'nullable|exists:districts,id';
+        }
+
+        $validated = $request->validate($rules);
+
+        $shouldBePrimary = $request->boolean('is_primary') || !$customer->businesses()->exists();
+        $validated['is_primary'] = $shouldBePrimary;
+
+        if ($shouldBePrimary) {
+            $customer->businesses()->update(['is_primary' => false]);
+        }
+
+        $customer->businesses()->create($validated);
+
+        return redirect()->back()->with('success', 'Business profile added successfully.');
+    }
+
+    /**
+     * Remove a business profile.
+     */
+    public function destroyBusiness(\App\Models\CustomerBusiness $business)
+    {
+        $business->delete();
+        return redirect()->back()->with('success', 'Business profile removed.');
+    }
 }

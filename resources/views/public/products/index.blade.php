@@ -34,62 +34,116 @@
 
 
 
-<!-- Filters & Products Section -->
+<!-- Products Hero Section -->
+<div class="products-page-hero">
+    <div class="bubbles-container">
+        <div class="pph-bubble pph-bubble-1"></div>
+        <div class="pph-bubble pph-bubble-2"></div>
+        <div class="pph-bubble pph-bubble-3"></div>
+        <div class="pph-bubble pph-bubble-4"></div>
+        <div class="pph-bubble pph-bubble-5"></div>
+        <div class="pph-bubble pph-bubble-6"></div>
+    </div>
+    <div class="container" style="position:relative;z-index:10;">
+        <div class="text-center">
+            <span class="pph-badge">
+                {{ $channel === 'wholesale' ? 'Wholesale Catalogue' : 'Product Gallery' }}
+            </span>
+            <h1 class="pph-title">
+                {{ $channel === 'wholesale' ? 'Wholesale Products' : 'All Products' }}
+            </h1>
+            <p class="pph-subtitle">
+                {{ $channel === 'wholesale'
+                    ? 'Premium branding & printing supplies at competitive bulk prices.'
+                    : 'Discover high-quality products curated for excellence and reliability.' }}
+            </p>
+        </div>
+    </div>
+</div>
+
+@push('styles')
+<style>
+    .products-page-hero {
+        background: linear-gradient(135deg, #c0392b 0%, #dc3545 60%, #e74c3c 100%);
+        padding: 52px 0 44px;
+        position: relative;
+        overflow: hidden;
+    }
+    .bubbles-container {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0; left: 0;
+        overflow: hidden;
+        z-index: 1;
+        pointer-events: none;
+    }
+    .pph-bubble {
+        position: absolute;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.25), rgba(255,255,255,0.04));
+        box-shadow: inset 0 0 30px rgba(255,255,255,0.15), 0 0 50px rgba(255,255,255,0.05);
+        animation: pph-float 20s infinite ease-in-out;
+        backdrop-filter: blur(2px);
+    }
+    .pph-bubble::before {
+        content: '';
+        position: absolute;
+        top: 10%; left: 10%;
+        width: 40%; height: 40%;
+        border-radius: 50%;
+        background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.35), transparent);
+    }
+    .pph-bubble-1 { width: 180px; height: 180px; left: 8%;  top: 10%;    animation-delay: 0s;  animation-duration: 25s; }
+    .pph-bubble-2 { width: 120px; height: 120px; right: 12%; top: 30%;   animation-delay: 3s;  animation-duration: 20s; }
+    .pph-bubble-3 { width: 220px; height: 220px; left: 45%; top: 50%;    animation-delay: 6s;  animation-duration: 30s; }
+    .pph-bubble-4 { width: 150px; height: 150px; right: 28%; top: 5%;    animation-delay: 2s;  animation-duration: 22s; }
+    .pph-bubble-5 { width: 100px; height: 100px; left: 28%;  bottom: 5%; animation-delay: 4s;  animation-duration: 18s; }
+    .pph-bubble-6 { width: 200px; height: 200px; right: 5%;  bottom: 10%;animation-delay: 5s;  animation-duration: 28s; }
+    @keyframes pph-float {
+        0%,100% { transform: translate(0,0) scale(1) rotate(0deg); }
+        25%      { transform: translate(25px,-25px) scale(1.08) rotate(90deg); }
+        50%      { transform: translate(-15px,18px) scale(0.93) rotate(180deg); }
+        75%      { transform: translate(35px,8px) scale(1.04) rotate(270deg); }
+    }
+    .pph-badge {
+        display: inline-block;
+        background: rgba(255,255,255,0.18);
+        border: 1.5px solid rgba(255,255,255,0.35);
+        color: #fff;
+        padding: 7px 22px;
+        border-radius: 50px;
+        font-size: 13px;
+        font-style: italic;
+        font-family: Georgia, 'Times New Roman', serif;
+        letter-spacing: 0.3px;
+        margin-bottom: 16px;
+        backdrop-filter: blur(6px);
+    }
+    .pph-title {
+        font-size: clamp(1.8rem, 4vw, 2.6rem);
+        font-weight: 800;
+        color: #fff;
+        line-height: 1.2;
+        margin-bottom: 12px;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    .pph-subtitle {
+        font-size: clamp(0.85rem, 1.5vw, 1rem);
+        color: rgba(255,255,255,0.85);
+        max-width: 480px;
+        margin: 0 auto;
+        line-height: 1.6;
+    }
+    @media (max-width: 768px) {
+        .products-page-hero { padding: 36px 0 30px; }
+        .pph-bubble-3, .pph-bubble-6 { display: none; }
+    }
+</style>
+@endpush
+
+<!-- Products Section -->
 <div class="container">
-    <div class="products-header mb-4" data-aos="fade-up">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-            <div>
-                <h2 class="section-title mb-1">{{ $channel === 'wholesale' ? 'Wholesale Products' : 'Our Products' }}
-                </h2>
-
-            </div>
-            <div class="d-flex gap-2">
-                <a href="{{ $channel === 'wholesale' ? url('/b2b/categories') : route('categories.index') }}"
-                    class="btn btn-outline-danger">
-                    <i class="fas fa-th-large me-2"></i>Categories
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body py-3">
-                    <form method="GET" action="{{ request()->url() }}" class="row g-3 align-items-center">
-                        <!-- Preserve existing filters -->
-                        @if (request('category'))
-                        <input type="hidden" name="category" value="{{ request('category') }}">
-                        @endif
-                        @if (request('min_price'))
-                        <input type="hidden" name="min_price" value="{{ request('min_price') }}">
-                        @endif
-                        @if (request('max_price'))
-                        <input type="hidden" name="max_price" value="{{ request('max_price') }}">
-                        @endif
-
-                        <div class="col-12">
-                            <div class="d-flex gap-2 align-items-end">
-
-
-                                <div class="flex-grow-1"></div>
-
-                                <div class="flex-shrink-0">
-                                    @if (request('category') || request('min_price') || request('max_price') ||
-                                    (request('per_page') && request('per_page') != '24'))
-                                    <a href="{{ request()->url() }}" class="btn btn-outline-secondary"
-                                        title="Clear filters">
-                                        <i class="fas fa-times"></i>
-                                    </a>
-                                    @endif
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
 
 
     @push('styles')

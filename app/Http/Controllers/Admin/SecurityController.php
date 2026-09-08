@@ -25,7 +25,7 @@ class SecurityController extends Controller
         }
 
         // Get all users for the dropdown (excluding customers)
-        $users = User::whereIn('role', ['super_admin', 'admin', 'manager', 'saler', 'receptionist', 'designer', 'operator'])
+        $users = User::whereIn('role', ['super_admin', 'admin', 'manager', 'saler', 'receptionist', 'designer', 'operator', 'accountant', 'marketing_manager', 'hr_officer', 'delivery', 'gatekeeper'])
             ->orderBy('name')
             ->get();
 

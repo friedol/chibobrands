@@ -12,7 +12,11 @@ use App\Services\AuditLogService;
 
 class LeadController extends Controller
 {
-    public function index(Request $request)
+    /**
+     * Shared filtered query used by index(), print(), exportPdf() and exportExcel()
+     * so every report format is built from the exact same data.
+     */
+    private function buildLeadsQuery(Request $request)
     {
         $query = Lead::with(['seller', 'followUps.user']);
 
@@ -27,9 +31,10 @@ class LeadController extends Controller
             });
         }
 
-        // Status filter
-        if ($request->filled('status') && $request->status !== 'all') {
-            $query->where('status', $request->status);
+        // Status filter — default to pending only; 'all' shows every status
+        $status = $request->get('status', 'pending');
+        if ($status !== 'all') {
+            $query->where('status', $status);
         }
 
         // Interest Level filter
@@ -52,7 +57,12 @@ class LeadController extends Controller
             $query->where('assigned_seller_id', $request->saler_id);
         }
 
-        $leads = $query->latest()->paginate(25)->withQueryString();
+        return $query;
+    }
+
+    public function index(Request $request)
+    {
+        $leads = $this->buildLeadsQuery($request)->latest()->paginate(25)->withQueryString();
         $sellers = User::whereIn('role', ['saler', 'admin', 'super_admin'])->get();
         $templates = \App\Models\MessageTemplate::where('is_active', true)->get();
 
@@ -70,8 +80,10 @@ class LeadController extends Controller
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
             'product_requested' => 'nullable|string|max:255',
-            'source' => 'nullable|string|max:255',
-            'follow_up_date' => 'nullable|date',
+            'source'             => 'nullable|string|max:255',
+            'campaign_id'        => 'nullable|exists:campaigns,id',
+            'program_id'         => 'nullable|exists:sales_programs,id',
+            'follow_up_date'     => 'nullable|date',
             'assigned_seller_id' => 'nullable|exists:users,id',
         ]);
 
@@ -141,21 +153,34 @@ class LeadController extends Controller
         }
 
         $validated = $request->validate([
-            'status' => 'required|in:pending,converted,not_interested',
-            'interest_level' => 'nullable|string',
-            'customer_response' => 'nullable|string',
-            'follow_up_notes' => 'nullable|string',
+            'customer_name'       => 'nullable|string|max:200',
+            'phone'               => 'nullable|string|max:30',
+            'status'              => 'required|in:pending,converted,not_interested',
+            'interest_level'      => 'nullable|string',
+            'customer_response'   => 'nullable|string',
+            'follow_up_notes'     => 'nullable|string',
             'next_follow_up_date' => 'nullable|date',
-            'assigned_seller_id' => 'nullable|exists:users,id',
+            'assigned_seller_id'  => 'nullable|exists:users,id',
+            'promised_order_date' => 'nullable|date',
+            'promised_amount'     => 'nullable|numeric|min:0',
         ]);
 
         $oldValues = $lead->toArray();
-        $lead->update([
-            'status' => $validated['status'],
-            'interest_level' => $validated['interest_level'],
-            'customer_response' => $validated['customer_response'],
-            'follow_up_date' => $validated['next_follow_up_date'] ?? $lead->follow_up_date,
-        ]);
+        $updateData = [
+            'status'              => $validated['status'],
+            'interest_level'      => $validated['interest_level'],
+            'customer_response'   => $validated['customer_response'],
+            'follow_up_date'      => $validated['next_follow_up_date'] ?? $lead->follow_up_date,
+            'promised_order_date' => $validated['promised_order_date'] ?? $lead->promised_order_date,
+            'promised_amount'     => $validated['promised_amount'] ?? $lead->promised_amount,
+        ];
+        if (!empty($validated['customer_name'])) {
+            $updateData['customer_name'] = $validated['customer_name'];
+        }
+        if (!empty($validated['phone'])) {
+            $updateData['phone'] = $validated['phone'];
+        }
+        $lead->update($updateData);
         AuditLogService::updated($lead, $oldValues, "Updated lead: {$lead->customer_name} → status: {$validated['status']}");
 
         if (array_key_exists('assigned_seller_id', $validated)) {
@@ -307,99 +332,53 @@ class LeadController extends Controller
 
     public function print(Request $request)
     {
-        $query = Lead::with(['seller', 'followUps.user']);
-
-        // Search filter
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('customer_name', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('product_requested', 'like', "%{$search}%");
-            });
-        }
-
-        // Status filter
-        if ($request->filled('status') && $request->status !== 'all') {
-            $query->where('status', $request->status);
-        }
-
-        // Interest Level filter
-        if ($request->filled('interest_level') && $request->interest_level !== 'all') {
-            $query->where('interest_level', $request->interest_level);
-        }
-
-        // Date range filter
-        if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
-        }
-        if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
-        }
-
-        // Role-based access and Salesperson filter
-        if (auth()->user()->role === 'saler') {
-            $query->where('assigned_seller_id', auth()->id());
-        } elseif ($request->filled('saler_id') && $request->saler_id !== 'all') {
-            $query->where('assigned_seller_id', $request->saler_id);
-        }
-
-        $leads = $query->latest()->get();
+        $leads = $this->buildLeadsQuery($request)->latest()->get();
 
         return view('admin.leads.print-leads', compact('leads'));
     }
 
-    // ── Follow-Up Data Center ───────────────────────────────────────────────
-
-    public function followUpCenter(Request $request)
+    /**
+     * PDF export of the leads report — same filtered data as index()/print().
+     */
+    public function exportPdf(Request $request)
     {
-        $user  = auth()->user();
-        $query = Lead::with(['seller', 'followUps' => fn($q) => $q->latest()->limit(3)])
-            ->where('status', 'pending');
+        $leads = $this->buildLeadsQuery($request)->latest()->get();
 
-        if ($user->role === 'saler') {
-            $query->where('assigned_seller_id', $user->id);
-        } elseif ($request->filled('saler_id')) {
-            $query->where('assigned_seller_id', $request->saler_id);
-        }
+        $title    = 'Leads Report';
+        $dateFrom = $request->date_from;
+        $dateTo   = $request->date_to;
 
-        if ($request->filled('priority')) {
-            $query->where('priority', $request->priority);
-        }
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.reports.exports.leads', compact('leads', 'title', 'dateFrom', 'dateTo'))
+            ->setPaper('a4', 'landscape');
 
-        if ($request->filled('lead_type')) {
-            $query->where('lead_type', $request->lead_type);
-        }
+        return $pdf->download('leads-report-' . now()->format('Y-m-d') . '.pdf');
+    }
 
-        if ($request->filled('follow_up_status')) {
-            match($request->follow_up_status) {
-                'overdue'  => $query->overdue(),
-                'today'    => $query->dueToday(),
-                'upcoming' => $query->upcoming(),
-                default    => null,
-            };
-        }
+    /**
+     * Excel export of the leads report — same filtered data as index()/print().
+     */
+    public function exportExcel(Request $request)
+    {
+        $leads = $this->buildLeadsQuery($request)->latest()->get();
 
-        $leads   = $query->orderByRaw("FIELD(priority,'urgent','high','normal','low')")
-                         ->orderBy('follow_up_date')
-                         ->paginate(20)
-                         ->withQueryString();
+        $headings = ['Date', 'Customer', 'Phone', 'Email', 'Product Requested', 'Source', 'Interest Level', 'Status', 'Assigned Seller'];
 
-        $sellers = User::whereIn('role', ['saler', 'admin', 'super_admin'])->get();
+        $rows = $leads->map(fn ($lead) => [
+            $lead->created_at?->format('Y-m-d'),
+            $lead->customer_name,
+            $lead->phone,
+            $lead->email,
+            $lead->product_requested,
+            $lead->source,
+            $lead->interest_level,
+            $lead->status,
+            $lead->seller->name ?? 'Unassigned',
+        ])->toArray();
 
-        // Summary counts for cards
-        $baseQuery = Lead::where('status', 'pending');
-        if ($user->role === 'saler') $baseQuery->where('assigned_seller_id', $user->id);
-
-        $counts = [
-            'total'    => (clone $baseQuery)->count(),
-            'urgent'   => (clone $baseQuery)->whereIn('priority', ['urgent', 'high'])->count(),
-            'promised' => (clone $baseQuery)->whereNotNull('promised_order_date')->count(),
-            'overdue'  => (clone $baseQuery)->overdue()->count(),
-        ];
-
-        return view('admin.leads.follow-up-center', compact('leads', 'sellers', 'counts'));
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\SimpleArrayExport($rows, $headings, 'Leads'),
+            'leads-report-' . now()->format('Y-m-d') . '.xlsx'
+        );
     }
 
     public function updateFollowUp(Request $request, Lead $lead)

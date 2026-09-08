@@ -81,6 +81,21 @@
         .bg-warning { background-color: #ffc107; color: #000; }
         .bg-danger { background-color: #dc3545; }
         .bg-info { background-color: #0dcaf0; }
+        .bg-secondary { background-color: #6c757d; }
+        .bg-dark { background-color: #212529; }
+
+        /* Design task status badges — mirrors admin.design-tasks.reports-print so PDF matches Print */
+        .badge-pending         { background: #fef3c7; color: #92400e; }
+        .badge-in_progress     { background: #dbeafe; color: #1e40af; }
+        .badge-in_review       { background: #e0e7ff; color: #3730a3; }
+        .badge-printing        { background: #e0f2fe; color: #0369a1; }
+        .badge-printed         { background: #d1fae5; color: #065f46; }
+        .badge-completed       { background: #d1fae5; color: #065f46; }
+        .badge-confirmed       { background: #d1fae5; color: #065f46; }
+        .badge-super_completed { background: #d1fae5; color: #065f46; }
+        .badge-delivered       { background: #bbf7d0; color: #14532d; }
+        .badge-rejected        { background: #fee2e2; color: #991b1b; }
+        .badge-cancelled       { background: #f3f4f6; color: #6b7280; }
         
         .stats-grid {
             margin-bottom: 30px;
@@ -116,9 +131,7 @@
 </head>
 <body>
     <div class="header">
-        @if(file_exists(public_path('images/logo.webp')))
-            <img src="data:image/webp;base64,{{ base64_encode(file_get_contents(public_path('images/logo.webp'))) }}" class="logo">
-        @endif
+        @include('partials.logo-print')
         <div class="company-name">CHIBOBRAND CO. LTD</div>
         <div class="report-title">{{ $title }}</div>
         <div class="report-info">
@@ -131,9 +144,26 @@
 
     @yield('report_content')
 
+    <div style="margin-top: 40px; width: 100%; page-break-inside: avoid;">
+        <table style="width: 100%; border: none;">
+            <tr>
+                <td style="width: 45%; border: none; text-align: center;">
+                    <div style="border-bottom: 1.5px solid #333; margin-bottom: 5px; height: 35px;"></div>
+                    <strong>Prepared By</strong><br>
+                    <span style="font-size: 10px; color: #666;">Sales / Operations Representative</span>
+                </td>
+                <td style="width: 10%; border: none;"></td>
+                <td style="width: 45%; border: none; text-align: center;">
+                    <div style="border-bottom: 1.5px solid #333; margin-bottom: 5px; height: 35px;"></div>
+                    <strong>Approved By</strong><br>
+                    <span style="font-size: 10px; color: #666;">Manager / Stamp</span>
+                </td>
+            </tr>
+        </table>
+    </div>
+
     <div class="footer">
-        &copy; {{ date('Y') }} CHIBOBRAND CO. LTD. All rights reserved.<br>
-        Developed by <a href="https://fridoltech.org" style="color: #999; text-decoration: none;">Fridoltech</a>
+        &copy; {{ date('Y') }} CHIBOBRAND CO. LTD. All rights reserved.
     </div>
 </body>
 </html>

@@ -143,8 +143,8 @@
                         <span class="text-uppercase x-small fw-bold text-muted" data-i18n="metric_out">Outgoing</span>
                     </div>
                     <div class="h3 mb-0 fw-bold text-warning">{{ number_format($stats['total_out']) }}</div>
-                    <a href="{{ route('gatekeeper.movements.create', ['type' => 'out']) }}" class="btn btn-sm btn-warning text-dark w-100 rounded-pill fw-bold x-small shadow-sm mt-2">
-                        <i class="fas fa-minus me-1"></i> <span data-i18n="btn_out">RECORD OUT</span>
+                    <a href="{{ route('gatekeeper.deliver') }}" class="btn btn-sm btn-warning text-dark w-100 rounded-pill fw-bold x-small shadow-sm mt-2">
+                        <i class="fas fa-box-open me-1"></i> <span>MARK DELIVERY</span>
                     </a>
                 </div>
             </div>

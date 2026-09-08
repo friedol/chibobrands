@@ -8,6 +8,7 @@ use App\Models\DesignTask;
 use App\Models\SalesTarget;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class SalerDashboardController extends Controller
 {
@@ -143,10 +144,9 @@ class SalerDashboardController extends Controller
         }
 
         // Category sales data (from order items)
-        $categoryQuery = \DB::table('order_items')
+        $categoryQuery = DB::table('order_items')
             ->join('orders', 'order_items.order_id', '=', 'orders.id')
-            ->join('products', 'order_items.product_id', '=', 'products.id')
-            ->leftJoin('categories', 'products.category_id', '=', 'categories.id')
+            ->leftJoin('enhanced_products', 'order_items.product_id', '=', 'enhanced_products.id')
             ->where(function($query) use ($saler) {
                 $query->where('orders.saler_id', $saler->id)
                       ->orWhereNull('orders.saler_id');
@@ -158,8 +158,8 @@ class SalerDashboardController extends Controller
             $categoryQuery->whereBetween('orders.created_at', [$dateRange[0], $dateRange[1]]);
         }
 
-        $categoryData = $categoryQuery->select(\DB::raw('COALESCE(categories.name, "Uncategorized") as category'), \DB::raw('SUM(order_items.quantity) as total_sold'))
-            ->groupBy('categories.id', 'categories.name')
+        $categoryData = $categoryQuery->select(DB::raw('COALESCE(enhanced_products.category, "Uncategorized") as category'), DB::raw('SUM(order_items.quantity) as total_sold'))
+            ->groupBy('enhanced_products.category')
             ->orderByDesc('total_sold')
             ->limit(5)
             ->get();

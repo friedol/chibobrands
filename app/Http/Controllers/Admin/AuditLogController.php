@@ -97,7 +97,7 @@ class AuditLogController extends Controller
         // Get users for filter (only for admins/accountants)
         $users = [];
         if (in_array($user->role, ['super_admin', 'admin', 'manager', 'accountant'])) {
-            $usersQuery = \App\Models\User::whereIn('role', ['admin', 'super_admin', 'manager', 'saler', 'receptionist', 'designer', 'operator', 'accountant', 'delivery', 'gatekeeper']);
+            $usersQuery = \App\Models\User::whereIn('role', ['admin', 'super_admin', 'manager', 'saler', 'receptionist', 'designer', 'operator', 'accountant', 'delivery', 'gatekeeper', 'marketing_manager', 'hr_officer']);
             
             if ($user->role === 'accountant') {
                 $usersQuery->whereNotIn('role', ['super_admin', 'admin', 'manager', 'accountant']);

@@ -15,26 +15,28 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 
 class POSController extends Controller
-{
-    /**
+{ 
+     /**
      * Display the POS terminal.
      */
     public function index(Request $request)
     {
-        if (Auth::user()->role === 'accountant') {
-            abort(403, 'Accountants are not allowed to access the POS terminal.');
+        if (!Auth::user()->hasPermission('manage_pos')) {
+            abort(403, 'You do not have permission to access the POS terminal.');
         }
-
         // Only fetch users with 'saler' role for the salesperson dropdown
         $salers = User::where('role', 'saler')->orderBy('name')->get();
         $departments = \App\Models\Department::all();
+        $designers = User::where('role', 'designer')->where('verified', true)->get();
+        $operators = User::where('role', 'operator')->where('verified', true)->get();
+        $taskTypes = \App\Models\DesignTaskType::orderBy('name')->get();
         $currentUser = Auth::user();
+        $regions = \App\Models\Region::orderBy('region_name')->get();
 
         $isProforma = $request->get('type') === 'proforma';
         
-        return view('admin.pos.index', compact('salers', 'departments', 'currentUser', 'isProforma'));
+        return view('admin.pos.index', compact('salers', 'departments', 'currentUser', 'isProforma', 'designers', 'operators', 'taskTypes', 'regions'));
     }
-
     /**
      * Search for products with variants and price tiers.
      */
@@ -57,10 +59,11 @@ class POSController extends Controller
                         'barcode' => 'SVC-' . str_pad($service->id, 4, '0', STR_PAD_LEFT),
                         'retail_price' => (float) $service->price,
                         'wholesale_price' => (float) $service->price,
-                        'image' => asset('images/service-placeholder.webp'),
+                        'image' => $service->image_path ? asset('storage/' . $service->image_path) : asset('images/service-placeholder.webp'),
                         'track_stock' => false,
                         'stock' => 9999,
                         'is_service' => true,
+                        'department_id' => $service->department_id,
                         'variants' => [],
                         'price_tiers' => [],
                         'description' => $service->description
@@ -117,7 +120,6 @@ class POSController extends Controller
 
         return response()->json($products);
     }
-
     /**
      * Search for customers.
      */
@@ -137,7 +139,6 @@ class POSController extends Controller
 
         return response()->json($customers);
     }
-
     /**
      * Store a new customer from POS.
      */
@@ -148,6 +149,12 @@ class POSController extends Controller
             'phone' => 'required|string|max:20|unique:customers,phone',
             'email' => 'nullable|email|max:255|unique:customers,email',
             'address' => 'nullable|string|max:255',
+            'region_id' => 'nullable|exists:regions,id',
+            'district_id' => 'nullable|exists:districts,id',
+            'whatsapp_number' => 'nullable|string|max:20',
+            'company_name' => 'nullable|string|max:255',
+            'business_type' => 'nullable|string|max:255',
+            'customer_source' => 'nullable|string|max:255',
             'is_wholesale' => 'boolean',
         ]);
 
@@ -157,10 +164,23 @@ class POSController extends Controller
                 'phone' => $request->phone,
                 'email' => $request->email,
                 'address' => $request->address,
+                'region_id' => $request->region_id,
+                'district_id' => $request->district_id,
+                'whatsapp_number' => $request->whatsapp_number,
+                'company_name' => $request->company_name,
+                'business_type' => $request->business_type,
+                'customer_source' => $request->customer_source,
                 'is_wholesale' => $request->is_wholesale ?: false,
                 'is_active' => true,
                 'verified' => true,
+                'registered_by_id' => auth()->id(),
+                'account_owner_id' => auth()->id(),
+                'branch_id' => auth()->user()->department_id,
+                'added_by' => auth()->id(),
             ]);
+
+            // Auto-link matching leads
+            \App\Services\CustomerJourneyService::linkLeadsToCustomer($customer);
 
             return response()->json([
                 'success' => true,
@@ -174,7 +194,6 @@ class POSController extends Controller
             ], 500);
         }
     }
-
     /**
      * Update customer info from POS.
      */
@@ -185,6 +204,12 @@ class POSController extends Controller
             'phone' => 'required|string|max:20|unique:customers,phone,' . $customer->id,
             'email' => 'nullable|email|max:255|unique:customers,email,' . $customer->id,
             'address' => 'nullable|string|max:255',
+            'region_id' => 'nullable|exists:regions,id',
+            'district_id' => 'nullable|exists:districts,id',
+            'whatsapp_number' => 'nullable|string|max:20',
+            'company_name' => 'nullable|string|max:255',
+            'business_type' => 'nullable|string|max:255',
+            'customer_source' => 'nullable|string|max:255',
             'is_wholesale' => 'boolean',
         ]);
 
@@ -194,6 +219,12 @@ class POSController extends Controller
                 'phone' => $request->phone,
                 'email' => $request->email,
                 'address' => $request->address,
+                'region_id' => $request->region_id,
+                'district_id' => $request->district_id,
+                'whatsapp_number' => $request->whatsapp_number,
+                'company_name' => $request->company_name,
+                'business_type' => $request->business_type,
+                'customer_source' => $request->customer_source ?? $customer->customer_source,
                 'is_wholesale' => $request->is_wholesale ?: false,
             ]);
 
@@ -230,10 +261,10 @@ class POSController extends Controller
      */
     public function storeOrder(Request $request)
     {
-        if (Auth::user()->role === 'accountant') {
+        if (!Auth::user()->hasPermission('manage_pos')) {
             return response()->json([
                 'success' => false,
-                'message' => 'Accountants are not allowed to use the POS terminal.',
+                'message' => 'You do not have permission to use the POS terminal.',
             ], 403);
         }
 
@@ -242,6 +273,12 @@ class POSController extends Controller
             'customer_name' => 'required_without:customer_id|string|max:255',
             'customer_phone' => 'required_without:customer_id|string|max:20',
             'customer_address' => 'nullable|string|max:255',
+            'customer_email' => 'nullable|email',
+            'whatsapp_number' => 'nullable|string|max:20',
+            'company_name' => 'nullable|string|max:255',
+            'business_type' => 'nullable|string|max:255',
+            'region_id' => 'nullable|exists:regions,id',
+            'district_id' => 'nullable|exists:districts,id',
             'items' => 'required|array|min:1',
             'items.*.id' => 'nullable',
             'items.*.name' => 'nullable|string|max:255',
@@ -249,6 +286,7 @@ class POSController extends Controller
             'items.*.price' => 'required|numeric|min:0',
             'items.*.variants' => 'nullable|array',
             'payment_method' => 'required|string',
+            'payment_splits' => 'nullable|array',
             'notes' => 'nullable|string',
             'is_wholesale' => 'boolean',
             'total_amount' => 'required|numeric|min:0',
@@ -258,6 +296,9 @@ class POSController extends Controller
             'saler_id' => 'nullable|exists:users,id',
             'department_id' => 'required|exists:departments,id',
             'order_type' => 'nullable|string|in:proforma,sales_invoice',
+            'discount' => 'nullable|numeric|min:0',
+            'delivery_fee' => 'nullable|numeric|min:0',
+            'shipping_cost' => 'nullable|numeric|min:0',
         ]);
 
         Log::info('POS Order Attempt', $request->all());
@@ -265,6 +306,7 @@ class POSController extends Controller
         try {
             return DB::transaction(function() use ($request) {
                 $user = null;
+                $customer = null;
                 $orderType = $request->order_type ?? 'sales_invoice';
                 
                 if ($request->customer_id) {
@@ -281,159 +323,365 @@ class POSController extends Controller
                         ]);
                     }
                 } else {
-                    $email = ($request->customer_phone ?: 'pos_' . time()) . '@chibobrand.com';
+                    $email = $request->customer_email ?: (($request->customer_phone ?: 'pos_' . time()) . '@chibobrand.com');
+                    
+                    $customer = Customer::where('phone', $request->customer_phone)->first() ?: Customer::create([
+                        'name' => $request->customer_name,
+                        'email' => $request->customer_email,
+                        'phone' => $request->customer_phone,
+                        'address' => $request->customer_address,
+                        'region_id' => $request->region_id,
+                        'district_id' => $request->district_id,
+                        'company_name' => $request->company_name,
+                        'business_type' => $request->business_type,
+                        'whatsapp_number' => $request->whatsapp_number,
+                        'is_wholesale' => $request->is_wholesale ?: false,
+                        'is_active' => true,
+                        'verified' => true,
+                    ]);
+
                     $user = User::where('email', $email)->first() ?: User::create([
                         'name' => $request->customer_name,
                         'email' => $email,
                         'phone' => $request->customer_phone,
+                        'address' => $request->customer_address,
+                        'company_name' => $request->company_name,
+                        'business_type' => $request->business_type,
+                        'whatsapp_number' => $request->whatsapp_number,
                         'password' => bcrypt('password'),
                         'role' => $request->is_wholesale ? 'wholesale_customer' : 'retail_customer',
                     ]);
                 }
 
-                $orderCode = Order::generateOrderCode();
+                $orderType = $request->order_type ?? 'sales_invoice';
+                $totalOrderAmount = floatval($request->total_amount);
+                $totalOrderPaid = ($orderType == 'proforma') ? 0 : floatval($request->amount_paid ?? 0);
                 
-                // Calculate payment status and balance
-            $orderType = $request->order_type ?? 'sales_invoice';
-            $totalAmount = $request->total_amount;
-            $amountPaid = ($orderType == 'proforma') ? 0 : ($request->amount_paid ?? 0);
-            
-            if ($orderType == 'sales_invoice' && !$request->has('amount_paid')) {
-                $amountPaid = $totalAmount; // Default to full payment for sales invoice if not specified
-            }
+                if ($orderType == 'sales_invoice' && !$request->has('amount_paid')) {
+                    $totalOrderPaid = $totalOrderAmount; // Default to full payment for sales invoice if not specified
+                }
 
-            $balance = ($orderType == 'proforma') ? 0 : ($totalAmount - $amountPaid);
-            
-            // Determine payment status
-            if ($orderType == 'proforma') {
-                $paymentStatus = 'pending';
-                $approvalStatus = 'requested';
-            } elseif ($balance <= 0) {
-                $paymentStatus = 'paid';
-                $balance = 0;
-                $approvalStatus = 'approved';
-            } elseif ($amountPaid > 0) {
-                $paymentStatus = 'partial';
-                $approvalStatus = 'approved';
-            } else {
-                $paymentStatus = 'pending';
-                $approvalStatus = 'approved';
-            }
-            
-            $order = Order::create([
-                'user_id' => $user->id,
-                'order_code' => $orderCode,
-                'subtotal' => $totalAmount - ($request->vat_amount ?? 0),
-                'total_amount' => $totalAmount,
-                'vat_amount' => $request->vat_amount ?? 0,
-                'amount_paid' => $amountPaid,
-                'balance' => $balance,
-                'payment_status' => $paymentStatus,
-                'approval_status' => $approvalStatus,
-                'saler_id' => $request->saler_id,
-                'department_id' => $request->department_id,
-                'type' => $orderType,
-                'notes' => ($orderType == 'proforma' ? "PROFORMA | " : "POS Order | ") . ($request->notes ?: "No notes"),
-            ]);
+                // 1. Separate regular product items and design task items
+                // Proforma invoices do NOT create DesignTasks — they are price quotes only.
+                // All design task items in proforma mode are treated as plain order items.
+                $productItems = [];
+                $designTaskItems = [];
+                $productsSubtotal = 0;
 
-            // Record Payment in Finance module (Only for sales invoices)
-            if ($orderType == 'sales_invoice' && $amountPaid > 0) {
-                \App\Models\Payment::create([
-                    'order_id' => $order->id,
-                    'customer_id' => $user->id,
-                    'amount' => $amountPaid,
-                    'payment_method' => $request->payment_method,
-                    'date' => now(),
-                    'seller_id' => auth()->id(),
-                    'department_id' => $request->department_id,
-                ]);
-            }
+                foreach ($request->items as $itemData) {
+                    if (!empty($itemData['is_design_task']) && $orderType !== 'proforma') {
+                        $designTaskItems[] = $itemData;
+                    } else {
+                        $productItems[] = $itemData;
+                        $productsSubtotal += floatval($itemData['price']) * intval($itemData['quantity']);
+                    }
+                }
 
-            foreach ($request->items as $itemData) {
-                $rawId = $itemData['id'] ?? null;
-                $finalProductId = null;
-                $productObj = null;
+                $productsVat = 0;
+                if ($request->has_vat) {
+                    $productsVat = $productsSubtotal * 0.18;
+                }
+                $productsTotal = $productsSubtotal + $productsVat;
 
-                // Check if the ID is a service string (e.g. 'service_123')
-                $isService = $rawId && is_string($rawId) && str_starts_with($rawId, 'service_');
+                // 2. Create Design Tasks first (skipped entirely for proforma orders)
+                $tasksCreated = [];
+                $totalTasksPaid = 0;
 
-                if ($rawId && !$isService) {
-                    $productObj = EnhancedProduct::find($rawId);
-                    if ($productObj) {
-                        // Check if this ID allows insertion (Foreign Key Check against 'products' table)
-                        if (DB::table('products')->where('id', $productObj->id)->exists()) {
-                            $finalProductId = $productObj->id;
+                // Track split proportions if split payment
+                $splitProportions = [];
+                if ($totalOrderPaid > 0 && $request->has('payment_splits') && is_array($request->payment_splits)) {
+                    foreach ($request->payment_splits as $method => $amount) {
+                        $amount = floatval($amount);
+                        if ($amount > 0) {
+                            $splitProportions[$method] = $amount / $totalOrderPaid;
                         }
                     }
                 }
 
-                // Fallback to a Generic Service Product if no valid ID found.
-                if (!$finalProductId) {
-                    $genericProduct = DB::table('products')->where('name', 'POS Service / Custom Item')->first();
+                // Sequential (waterfall) payment distribution — same as DesignTaskController::store()
+                // Fill each task fully before moving the remainder to the next task.
+                $remainingTaskPaid = $totalOrderPaid;
+
+                // Order-level delivery and discount go entirely to the first task to avoid decimal distribution
+                $orderLevelDelivery  = floatval($request->delivery_fee ?? 0);
+                $orderLevelDiscount  = floatval($request->discount ?? 0);
+                $isFirstTask         = true;
+
+                foreach ($designTaskItems as $itemData) {
+                    $details = $itemData['task_details'] ?? [];
+                    $deliveryCost     = $isFirstTask ? $orderLevelDelivery : 0;
+                    $deliveryDiscount = $isFirstTask ? $orderLevelDiscount : 0;
+                    $isFirstTask      = false;
+
+                    $basePrice = floatval($itemData['price']) * intval($itemData['quantity']);
+                    $requiresReceipt = $request->has_vat ? true : false;
+                    $taskPriceWithVat = $requiresReceipt
+                        ? ($basePrice * 1.18) + $deliveryCost - $deliveryDiscount
+                        : $basePrice + $deliveryCost - $deliveryDiscount;
+
+                    // Pay as much as possible from the remaining pool, never exceeding this task's price
+                    $apportionedTaskPaid    = min($remainingTaskPaid, $taskPriceWithVat);
+                    $remainingTaskPaid     -= $apportionedTaskPaid;
+                    $apportionedTaskBalance = $taskPriceWithVat - $apportionedTaskPaid;
+
+                    $totalTasksPaid += $apportionedTaskPaid;
+
+                    // Create Design Task
+                    $task = \App\Models\DesignTask::create([
+                        'title' => $itemData['name'],
+                        'task_code' => \App\Models\DesignTask::generateTaskCode(),
+                        'description' => $details['description'] ?? null,
+                        'designer_instructions' => $details['instructions'] ?? null,
+                        'customer_id' => $customer ? $customer->id : null,
+                        'receptionist_id' => Auth::id(),
+                        'designer_id' => $details['designer_id'] ?: null,
+                        'operator_id' => $details['operator_id'] ?: null,
+                        'saler_id' => $details['saler_id'] ?: null,
+                        'department_id' => $details['department_id'] ?: $request->department_id,
+                        'priority' => $details['priority'] ?? 3,
+                        'deadline' => $details['deadline'] ?? null,
+                        'price' => $basePrice,
+                        'qty' => $itemData['quantity'],
+                        'rate' => $itemData['price'],
+                        'amount_paid' => $apportionedTaskPaid,
+                        'balance' => $apportionedTaskBalance,
+                        'requires_receipt' => $requiresReceipt,
+                        'design_task_type_id' => $details['task_type_id'] ?: null,
+                        'delivery_cost' => $deliveryCost,
+                        'delivery_discount' => $deliveryDiscount,
+                        'status' => \App\Models\DesignTask::STATUS_PENDING,
+                    ]);
                     
-                    if (!$genericProduct) {
-                        // Need a category ID first
-                        $catId = DB::table('categories')->value('id');
-                        if (!$catId) {
-                            $catId = DB::table('categories')->insertGetId([
-                                'name' => 'General', 
-                                'slug' => 'general', 
-                                'created_at' => now(), 
-                                'updated_at' => now()
+                    $tasksCreated[] = $task;
+
+                    // Record Payment in Finance module for the design task
+                    if ($orderType == 'sales_invoice' && $apportionedTaskPaid > 0) {
+                        if (!empty($splitProportions)) {
+                            foreach ($splitProportions as $method => $proportion) {
+                                \App\Models\Payment::create([
+                                    'design_task_id' => $task->id,
+                                    'customer_id' => $customer ? $customer->id : null,
+                                    'amount' => $apportionedTaskPaid * $proportion,
+                                    'payment_method' => $method,
+                                    'date' => now(),
+                                    'seller_id' => auth()->id(),
+                                    'department_id' => $task->department_id,
+                                ]);
+                            }
+                        } else {
+                            \App\Models\Payment::create([
+                                'design_task_id' => $task->id,
+                                'customer_id' => $customer ? $customer->id : null,
+                                'amount' => $apportionedTaskPaid,
+                                'payment_method' => $request->payment_method,
+                                'date' => now(),
+                                'seller_id' => auth()->id(),
+                                'department_id' => $task->department_id,
                             ]);
                         }
-                        
-                        $finalProductId = DB::table('products')->insertGetId([
-                            'category_id' => $catId, 
-                            'name' => 'POS Service / Custom Item',
-                            'description' => 'Placeholder for POS services and custom items',
-                            'base_price' => 0,
-                            'wholesale_price' => 0,
-                            'stock' => 999999,
-                            'status' => 'active',
-                            'created_at' => now(),
-                            'updated_at' => now()
-                        ]);
-                    } else {
-                        $finalProductId = $genericProduct->id;
+                    }
+
+                    // Audit logs and notifications exactly like DesignTaskController
+                    try {
+                        $task->load('customer');
+                        if ($task->customer) {
+                            \App\Services\AuditLogService::created($task, 'Created design task: ' . $task->title . ' for customer: ' . $task->customer->name . ' via POS');
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning('Failed to log audit for design task creation from POS: ' . $e->getMessage());
+                    }
+
+                    // Notify operators and admins about the new task
+                    $staffToNotify = \App\Models\User::whereIn('role', ['operator', 'admin', 'super_admin', 'accountant'])->get();
+                    foreach ($staffToNotify as $staff) {
+                        try {
+                            $staff->notify(new \App\Notifications\NewTaskCreatedNotification($task, Auth::user()));
+                        } catch (\Exception $e) {
+                            Log::error('Failed to send NewTaskCreatedNotification from POS: ' . $e->getMessage());
+                        }
+                    }
+
+                    // If a designer was assigned during creation, notify them too
+                    if ($task->designer_id) {
+                        $designer = \App\Models\User::find($task->designer_id);
+                        if ($designer) {
+                            try {
+                                $designer->notify(new \App\Notifications\TaskAssignedNotification($task));
+                            } catch (\Exception $e) {
+                                Log::error('Failed to send TaskAssignedNotification from POS: ' . $e->getMessage());
+                            }
+                        }
                     }
                 }
-                
-                OrderItem::create([
-                    'order_id' => $order->id,
-                    'product_id' => $finalProductId,
-                    'quantity' => $itemData['quantity'],
-                    'unit_price' => $itemData['price'],
-                    'subtotal' => $itemData['price'] * $itemData['quantity'],
-                    'product_name' => $productObj ? $productObj->name : $itemData['name'],
-                    'product_barcode' => $productObj ? $productObj->barcode : ($isService ? $rawId : 'CUSTOM'),
-                    'channel' => $request->is_wholesale ? 'wholesale' : 'retail',
-                    'variants' => $itemData['variants'] ?? null,
-                ]);
 
-                // ONLY DECREMENT STOCK FOR SALES INVOICES
-                if ($orderType == 'sales_invoice' && $productObj && $productObj->track_stock) {
-                    $productObj->decrement('stock_quantity', $itemData['quantity']);
+                // 3. Process products order (only if there are products in the cart)
+                $order = null;
+                if (!empty($productItems)) {
+                    $orderCode = Order::generateOrderCode();
+                    $orderPaid = max(0, $totalOrderPaid - $totalTasksPaid);
+                    $orderBalance = max(0, $productsTotal - $orderPaid);
+
+                    // Determine payment status
+                    if ($orderType == 'proforma') {
+                        $paymentStatus = 'pending';
+                        $approvalStatus = 'requested';
+                    } elseif ($orderBalance <= 0) {
+                        $paymentStatus = 'paid';
+                        $orderBalance = 0;
+                        $approvalStatus = 'approved';
+                    } elseif ($orderPaid > 0) {
+                        $paymentStatus = 'partial';
+                        $approvalStatus = 'approved';
+                    } else {
+                        $paymentStatus = 'pending';
+                        $approvalStatus = 'approved';
+                    }
+
+                    $order = Order::create([
+                        'user_id' => $user->id,
+                        'order_code' => $orderCode,
+                        'subtotal' => $productsSubtotal,
+                        'discount' => floatval($request->discount ?? 0),
+                        'shipping_cost' => floatval($request->delivery_fee ?? $request->shipping_cost ?? 0),
+                        'total_amount' => $productsTotal - floatval($request->discount ?? 0) + floatval($request->delivery_fee ?? $request->shipping_cost ?? 0),
+                        'vat_amount' => $productsVat,
+                        'amount_paid' => $orderPaid,
+                        'balance' => $orderBalance,
+                        'payment_status' => $paymentStatus,
+                        'approval_status' => $approvalStatus,
+                        'saler_id' => $request->saler_id,
+                        'department_id' => $request->department_id,
+                        'type' => $orderType,
+                        'notes' => ($orderType == 'proforma' ? "PROFORMA | " : "POS Order | ") . ($request->notes ?: "No notes"),
+                    ]);
+
+                    // Record Payment in Finance module for the order
+                    if ($orderType == 'sales_invoice' && $orderPaid > 0) {
+                        if (!empty($splitProportions)) {
+                            foreach ($splitProportions as $method => $amountProportion) {
+                                \App\Models\Payment::create([
+                                    'order_id' => $order->id,
+                                    'customer_id' => $customer ? $customer->id : null,
+                                    'amount' => $orderPaid * $amountProportion,
+                                    'payment_method' => $method,
+                                    'date' => now(),
+                                    'seller_id' => auth()->id(),
+                                    'department_id' => $request->department_id,
+                                ]);
+                            }
+                        } else {
+                            \App\Models\Payment::create([
+                                'order_id' => $order->id,
+                                'customer_id' => $customer ? $customer->id : null,
+                                'amount' => $orderPaid,
+                                'payment_method' => $request->payment_method,
+                                'date' => now(),
+                                'seller_id' => auth()->id(),
+                                'department_id' => $request->department_id,
+                            ]);
+                        }
+                    }
+
+                    // Create OrderItem records and decrement stock
+                    foreach ($productItems as $itemData) {
+                        $rawId = $itemData['id'] ?? null;
+                        $finalProductId = null;
+                        $productObj = null;
+                        $isService = $rawId && is_string($rawId) && str_starts_with($rawId, 'service_');
+
+                        if ($rawId && !$isService) {
+                            $productObj = EnhancedProduct::find($rawId);
+                            if ($productObj) {
+                                if (DB::table('products')->where('id', $productObj->id)->exists()) {
+                                    $finalProductId = $productObj->id;
+                                }
+                            }
+                        }
+
+                        if (!$finalProductId) {
+                            $genericProduct = DB::table('products')->where('name', 'POS Service / Custom Item')->first();
+                            
+                            if (!$genericProduct) {
+                                $catId = DB::table('categories')->value('id') ?: DB::table('categories')->insertGetId(['name' => 'General', 'slug' => 'general', 'created_at' => now(), 'updated_at' => now()]);
+                                $finalProductId = DB::table('products')->insertGetId([
+                                    'category_id' => $catId, 
+                                    'name' => 'POS Service / Custom Item',
+                                    'description' => 'Placeholder for POS services and custom items',
+                                    'base_price' => 0,
+                                    'wholesale_price' => 0,
+                                    'stock' => 999999,
+                                    'status' => 'active',
+                                    'created_at' => now(),
+                                    'updated_at' => now()
+                                ]);
+                            } else {
+                                $finalProductId = $genericProduct->id;
+                            }
+                        }
+
+                        OrderItem::create([
+                            'order_id' => $order->id,
+                            'product_id' => $finalProductId,
+                            'quantity' => $itemData['quantity'],
+                            'unit_price' => $itemData['price'],
+                            'subtotal' => $itemData['price'] * $itemData['quantity'],
+                            'product_name' => $productObj ? $productObj->name : $itemData['name'],
+                            'product_barcode' => $productObj ? $productObj->barcode : ($isService ? $rawId : 'CUSTOM'),
+                            'channel' => $request->is_wholesale ? 'wholesale' : 'retail',
+                            'variants' => $itemData['variants'] ?? null,
+                        ]);
+
+                        // ONLY DECREMENT STOCK FOR SALES INVOICES
+                        if ($orderType == 'sales_invoice' && $productObj && $productObj->track_stock) {
+                            $productObj->decrement('stock_quantity', $itemData['quantity']);
+                        }
+                    }
+
+                    Log::info('POS Order Success', ['order_code' => $order->order_code]);
+
+                    // Send SMS Receipt to Customer for the order
+                    try {
+                        if ($order->user && $order->user->phone) {
+                            $smsService = app(\App\Services\SmsApiService::class);
+                            $smsService->sendOrderReceipt($order);
+                        }
+                    } catch (\Exception $e) {
+                        Log::error('Failed to send order receipt SMS from POS', ['error' => $e->getMessage()]);
+                    }
                 }
-            }
 
-                Log::info('POS Order Success', ['order_code' => $order->order_code]);
-
-                // Send SMS Receipt to Customer
+                // Send Batch Task Receipt SMS if design tasks were created
                 try {
-                    if ($order->user && $order->user->phone) {
+                    if (!empty($tasksCreated)) {
                         $smsService = app(\App\Services\SmsApiService::class);
-                        $smsService->sendOrderReceipt($order);
+                        $smsService->sendBatchTaskReceipt($tasksCreated);
                     }
                 } catch (\Exception $e) {
-                    Log::error('Failed to send order receipt SMS from POS', ['error' => $e->getMessage()]);
+                    Log::error('Failed to send batch task receipt SMS from POS', ['error' => $e->getMessage()]);
                 }
 
+                // Auto-convert any pending leads for this customer
+                if ($customer) {
+                    try {
+                        \App\Services\CustomerJourneyService::convertLeadsByCustomer($customer);
+                    } catch (\Exception $e) {
+                        Log::error('Failed to auto-convert leads on POS checkout', ['error' => $e->getMessage()]);
+                    }
+                }
+
+                $orderCode = $order
+                    ? $order->order_code
+                    : (!empty($tasksCreated) ? $tasksCreated[0]->task_code : null);
+
                 return response()->json([
-                    'success' => true,
-                    'order_id' => $order->id,
-                    'order_code' => $order->order_code,
-                    'message' => 'Order created successfully!',
+                    'success'       => true,
+                    'order_id'      => $order ? $order->id : null,
+                    'order_code'    => $orderCode,
+                    'is_proforma'   => $orderType === 'proforma',
+                    'proforma_url'  => ($orderType === 'proforma' && $order)
+                        ? route('admin.finance.invoices.proforma', ['order_code' => $order->order_code])
+                        : null,
+                    'message'       => $order ? 'Order created successfully!' : 'Design task(s) created successfully!',
                 ]);
             });
         } catch (\Exception $e) {

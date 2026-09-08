@@ -18,6 +18,7 @@ class User extends Authenticatable
         'password',
         'role',
         'department_id',
+        'department_ids',
         'verified',
         'is_active',
         'profile_image',
@@ -25,12 +26,41 @@ class User extends Authenticatable
         'monthly_salary',
     ];
 
+    public function setPhoneAttribute($value)
+    {
+        $this->attributes['phone'] = \App\Services\PhoneNormalizationService::normalize($value);
+    }
+
     /**
      * Get the department that the user belongs to.
      */
     public function department(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    /**
+     * Get all departments that the user is assigned to.
+     */
+    public function departments()
+    {
+        $ids = $this->department_ids ?? [];
+        if ($this->department_id && !in_array($this->department_id, $ids)) {
+            $ids[] = $this->department_id;
+        }
+        return Department::whereIn('id', $ids)->get();
+    }
+
+    /**
+     * Check if user is assigned to a specific department.
+     */
+    public function isInDepartment($departmentId): bool
+    {
+        if ($this->department_id == $departmentId) {
+            return true;
+        }
+        $ids = $this->department_ids ?? [];
+        return in_array($departmentId, $ids);
     }
 
     protected $hidden = [
@@ -42,6 +72,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'verified' => 'boolean',
         'is_active' => 'boolean',
+        'department_ids' => 'array',
     ];
 
     /**
@@ -186,15 +217,17 @@ class User extends Authenticatable
 
         // Fallback default permissions if cache is missing or role not found in cache
         $defaultPermissions = [
-            'admin' => ['manage_users', 'manage_roles', 'manage_settings', 'manage_system', 'view_audit_logs', 'manage_products', 'manage_orders', 'manage_customers', 'manage_leads', 'manage_design_tasks', 'manage_finance', 'manage_inventory', 'manage_reports', 'view_contact_messages'],
-            'manager' => ['manage_users', 'manage_settings', 'view_audit_logs', 'manage_products', 'manage_orders', 'manage_customers', 'manage_leads', 'manage_design_tasks', 'manage_finance', 'manage_inventory', 'manage_reports', 'view_contact_messages'],
-            'receptionist' => ['manage_orders', 'manage_customers', 'manage_leads', 'manage_design_tasks', 'view_contact_messages', 'manage_pos'],
-            'operator' => ['manage_orders', 'manage_customers', 'manage_leads', 'manage_design_tasks', 'manage_products', 'view_contact_messages', 'manage_pos'],
-            'saler' => ['manage_orders', 'manage_customers', 'manage_leads', 'manage_products', 'manage_performance', 'view_contact_messages', 'manage_design_tasks'],
-            'designer' => ['manage_design_tasks', 'view_contact_messages'],
-            'delivery' => ['manage_delivery'],
-            'gatekeeper' => ['manage_inventory'],
-            'accountant' => ['manage_finance', 'manage_leads', 'manage_orders', 'manage_design_tasks', 'manage_users', 'manage_reports', 'view_audit_logs', 'manage_performance'], // Accountants often need to view orders too
+            'admin'             => ['manage_users', 'manage_roles', 'manage_settings', 'view_audit_logs', 'manage_departments', 'manage_products', 'manage_inventory', 'manage_orders', 'manage_pos', 'manage_customers', 'manage_leads', 'manage_design_tasks', 'manage_finance', 'manage_reports', 'manage_hero_slides', 'view_contact_messages', 'manage_performance', 'manage_hr', 'manage_marketing', 'manage_delivery', 'manage_gatekeeper', 'reset_passwords'],
+            'manager'           => ['manage_settings', 'view_audit_logs', 'manage_departments', 'manage_products', 'manage_inventory', 'manage_orders', 'manage_pos', 'manage_customers', 'manage_leads', 'manage_design_tasks', 'manage_finance', 'manage_reports', 'manage_hero_slides', 'view_contact_messages', 'manage_performance', 'manage_hr', 'manage_marketing'],
+            'receptionist'      => ['manage_orders', 'manage_pos', 'manage_customers', 'manage_leads', 'manage_design_tasks', 'view_contact_messages'],
+            'operator'          => ['manage_orders', 'manage_pos', 'manage_customers', 'manage_leads', 'manage_design_tasks', 'view_contact_messages'],
+            'saler'             => ['manage_orders', 'manage_pos', 'manage_customers', 'manage_leads', 'manage_performance'],
+            'designer'          => ['manage_design_tasks', 'view_contact_messages'],
+            'delivery'          => ['manage_delivery', 'manage_gatekeeper'],
+            'gatekeeper'        => ['manage_inventory', 'manage_gatekeeper'],
+            'accountant'        => ['manage_finance', 'manage_orders', 'manage_customers', 'manage_leads', 'manage_reports', 'view_audit_logs', 'manage_departments', 'manage_performance', 'manage_hr', 'manage_gatekeeper', 'view_contact_messages'],
+            'marketing_manager' => ['manage_products', 'manage_customers', 'manage_leads', 'manage_reports', 'manage_hero_slides', 'view_contact_messages', 'manage_performance', 'manage_marketing'],
+            'hr_officer'        => ['manage_users', 'manage_reports', 'view_audit_logs', 'manage_departments', 'manage_performance', 'manage_hr'],
         ];
 
         if (isset($defaultPermissions[$this->role])) {

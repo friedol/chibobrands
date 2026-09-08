@@ -49,7 +49,7 @@
             text-transform: uppercase;
             margin: 0;
             text-align: right;
-            color: #444;
+            color: #dc2626;
         }
 
         /* Meta Information */
@@ -85,7 +85,7 @@
             font-weight: 800;
             text-transform: uppercase;
             font-size: 7.5pt;
-            color: #444;
+            color: #dc2626;
         }
 
         .table-pro td {
@@ -189,22 +189,20 @@
 </head>
 <body>
 
-    <div class="no-print p-3 bg-danger text-white d-flex justify-content-between align-items-center mb-4">
-        <div class="ms-2">
-            <h6 class="mb-0 fw-bold"><i class="fas fa-print me-2"></i> FINANCIAL AUDIT REPORT PREVIEW</h6>
-        </div>
-        <div class="me-2">
-            <button class="btn btn-light fw-bold px-4 text-danger" onclick="window.print()">PRINT NOW</button>
-            <button class="btn btn-outline-light ms-2" onclick="window.close()">CLOSE</button>
+    <div class="no-print py-1 px-3 bg-danger text-white d-flex justify-content-between align-items-center mb-3">
+        <small class="fw-semibold"><i class="fas fa-print me-1"></i> FINANCIAL AUDIT REPORT PREVIEW</small>
+        <div class="d-flex gap-1">
+            <button class="btn btn-light btn-sm fw-bold px-3 text-danger" onclick="window.print()">Print</button>
+            <button class="btn btn-outline-light btn-sm px-2" onclick="window.close()">Close</button>
         </div>
     </div>
 
     <div class="log-wrapper">
         <!-- Header -->
         <div class="report-header">
-            <div class="row align-items-end">
+            <div class="row align-items-start">
                 <div class="col-7">
-                    <img src="{{ asset('images/logo.webp') }}" alt="BRAND LOGO" class="brand-logo" onerror="this.style.display='none'">
+                    @include('partials.logo-print')
                     <h1 class="company-name">CHIBOBRAND CO. LTD.</h1>
                 </div>
                 <div class="col-5 text-end">
@@ -216,25 +214,47 @@
 
         <!-- Meta -->
         @php
-            $totalIssues = $unbalancedOrders->count() + $unbalancedTasks->count() + $missingOrderPayments->count() + $mismatchedOrders->count() + $completedWithBalance->count();
+            $totalIssues = $unbalancedOrders->count() + $unbalancedTasks->count()
+                         + $missingOrderPayments->count() + $mismatchedOrders->count()
+                         + $completedWithBalance->count();
+            $missingExposure = $missingOrderPayments->sum('total_amount') + $completedWithBalance->sum('balance');
+            $discrepExposure = $unbalancedOrders->sum(fn($o) => abs($o->total_amount - ($o->amount_paid + $o->balance)))
+                             + $unbalancedTasks->sum(function($t) {
+                                   $tot = $t->requires_receipt ? $t->price * 1.18 : $t->price;
+                                   return abs($tot - ($t->amount_paid + $t->balance));
+                               });
         @endphp
 
         <div class="meta-container">
             <div>
-                <span class="section-label">Audit Status</span>
+                <span class="section-label">Audit Scope</span>
                 <div class="fw-bold">
-                    @if($totalIssues > 0)
-                        <span style="color: #dc3545;">{{ $totalIssues }} ANOMALIES DETECTED</span>
+                    @isset($dateFrom)
+                        {{ \Carbon\Carbon::parse($dateFrom)->format('d M Y') }} — {{ \Carbon\Carbon::parse($dateTo)->format('d M Y') }}
                     @else
-                        <span style="color: #198754;">SYSTEM BALANCED</span>
-                    @endif
+                        All Records
+                    @endisset
+                </div>
+                <div class="mt-1">
+                    <span class="section-label">Audit Status</span>
+                    <div class="fw-bold">
+                        @if($totalIssues > 0)
+                            <span style="color:#dc3545;">{{ $totalIssues }} ANOMALIES DETECTED</span>
+                        @else
+                            <span style="color:#198754;">SYSTEM BALANCED</span>
+                        @endif
+                    </div>
                 </div>
             </div>
             <div class="text-end">
-                <span class="section-label">Report Date</span>
-                <div class="small fw-bold">
-                    {{ now()->format('d M Y') }}
+                <span class="section-label">Report Generated</span>
+                <div class="small fw-bold">{{ now()->format('d M Y, H:i') }}</div>
+                @if($totalIssues > 0)
+                <div class="mt-1">
+                    <span class="section-label">Total Exposure</span>
+                    <div class="fw-bold" style="color:#dc3545;">TZS {{ number_format($missingExposure + $discrepExposure) }}</div>
                 </div>
+                @endif
             </div>
         </div>
 
@@ -289,7 +309,7 @@
         <!-- 2. Missing Payments -->
         @if($missingOrderPayments->count() > 0 || $completedWithBalance->count() > 0)
         <div class="section-header warning">
-            <i class="fas fa-clock me-2"></i> MISSING PAYMENTS FLAG ({{ $missingOrderPayments->count() + $completedWithBalance->count() }})
+            <i class="fas fa-clock me-2"></i> MISSING / OUTSTANDING PAYMENTS ({{ $missingOrderPayments->count() + $completedWithBalance->count() }})
         </div>
         <table class="table-pro">
             <thead>

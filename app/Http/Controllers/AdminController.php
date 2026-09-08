@@ -9,8 +9,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use App\Models\User;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Customer;
 use App\Models\Notification;
@@ -20,10 +22,14 @@ use App\Models\Payment;
 use App\Models\Lead;
 use App\Models\SalesTarget;
 use App\Notifications\AdminUserCreated;
+use App\Support\Concerns\ResolvesSalesTargets;
 use Carbon\Carbon;
 
 class AdminController extends Controller
 {
+    use ResolvesSalesTargets;
+
+
     /**
      * Display the admin dashboard.
      */
@@ -47,7 +53,7 @@ class AdminController extends Controller
         }
 
         // Handle delivery dashboard
-        if ($user->role === 'delivery') {
+        if ($user->role === 'delivery' || ($request->get('view') === 'delivery' && in_array($user->role, ['admin', 'super_admin']))) {
             return $this->deliveryDashboard($request);
         }
 
@@ -60,8 +66,18 @@ class AdminController extends Controller
         if ($user->role === 'accountant') {
             return redirect()->route('admin.finance.dashboard');
         }
+
+        // Handle HR Officer dashboard
+        if ($user->role === 'hr_officer') {
+            return redirect()->route('admin.hr.index');
+        }
+
+        // Handle Marketing Manager dashboard
+        if ($user->role === 'marketing_manager') {
+            return redirect()->route('admin.marketing.dashboard');
+        }
         
-        $period = $request->get('period', 'month');
+        $period = $request->get('period', 'today');
         $dateRange = match($period) {
             'today' => [now()->startOfDay(), now()->endOfDay()],
             'yesterday' => [now()->subDay()->startOfDay(), now()->subDay()->endOfDay()],
@@ -168,29 +184,22 @@ class AdminController extends Controller
         // Calculate Top Salers Performance
         $topSalers = User::whereIn('role', ['saler', 'admin', 'manager'])
             ->get()
-            ->map(function($user) use ($applyPeriod) {
+            ->map(function($user) use ($applyPeriod, $dateRange, $period) {
                 $orderSales = $applyPeriod(\App\Models\Order::where('saler_id', $user->id)->where('approval_status', 'approved'))->sum('total_amount') ?? 0;
                 $taskSales = $applyPeriod(DesignTask::where('saler_id', $user->id))->sum('price') ?? 0;
                 $totalSales = $orderSales + $taskSales;
-                
-                // Get most recent target for this user
-                $target = SalesTarget::where('seller_id', $user->id)
-                    ->where(function($q) {
-                        $q->where('end_date', '>=', now())
-                          ->orWhereNull('end_date');
-                    })
-                    ->latest()
-                    ->first();
-                
-                $targetAmount = $target ? $target->target_amount : 0;
+
+                // Target scaled/matched to the selected date range (see ResolvesSalesTargets).
+                [$targetAmount, $targetNote] = $this->resolveTopWidgetTarget($user->id, $dateRange, $period);
                 $achievement = $targetAmount > 0 ? ($totalSales / $targetAmount) * 100 : 0;
-                
+
                 return [
                     'id' => $user->id,
                     'name' => $user->name,
                     'profile_image' => $user->profile_image,
                     'total_sales' => $totalSales,
                     'target_amount' => $targetAmount,
+                    'target_note' => $targetNote,
                     'achievement' => min($achievement, 100), // Cap at 100 for progress bar if needed
                     'raw_achievement' => $achievement
                 ];
@@ -204,32 +213,24 @@ class AdminController extends Controller
                 $q->where('role', 'designer')->orWhere('role', 'operator');
             })
             ->get()
-            ->map(function($user) use ($applyPeriod) {
+            ->map(function($user) use ($applyPeriod, $dateRange, $period) {
                 $completedTasks = $applyPeriod(DesignTask::where('designer_id', $user->id)
                     ->whereIn('status', [DesignTask::STATUS_COMPLETED, DesignTask::STATUS_SUPER_COMPLETED, DesignTask::STATUS_PRINTED]))->count();
-                
+
                 $totalDesignValue = $applyPeriod(DesignTask::where('designer_id', $user->id)
                     ->whereIn('status', [DesignTask::STATUS_COMPLETED, DesignTask::STATUS_SUPER_COMPLETED, DesignTask::STATUS_PRINTED]))->sum('price') ?? 0;
-                
-                // For designers, we might use a target based on task count or value
-                // Reusing SalesTarget as a "Production Target" if available
-                $target = SalesTarget::where('seller_id', $user->id) // Reusing the same table for all staff targets
-                    ->where(function($q) {
-                        $q->where('end_date', '>=', now())
-                          ->orWhereNull('end_date');
-                    })
-                    ->latest()
-                    ->first();
-                
-                $targetAmount = $target ? $target->target_amount : 0;
+
+                // Reusing SalesTarget as a "Production Target" if available, scaled/matched to the selected date range.
+                [$targetAmount, $targetNote] = $this->resolveTopWidgetTarget($user->id, $dateRange, $period);
                 $achievement = $targetAmount > 0 ? ($totalDesignValue / $targetAmount) * 100 : 0;
-                
+
                 return [
                     'id' => $user->id,
                     'name' => $user->name,
                     'completed_tasks' => $completedTasks,
                     'total_value' => $totalDesignValue,
                     'target_amount' => $targetAmount,
+                    'target_note' => $targetNote,
                     'achievement' => min($achievement, 100),
                     'raw_achievement' => $achievement
                 ];
@@ -611,6 +612,28 @@ class AdminController extends Controller
     }
 
     /**
+     * Resolves a staff member's target for the "Top Salers" / "Top Designers" dashboard
+     * widgets, matched/scaled to the dashboard's selected date range (see ResolvesSalesTargets).
+     * Falls back to the most recent still-active target, unscaled, when the range is open-ended
+     * (period = "all", where there is no day count to scale against).
+     */
+    private function resolveTopWidgetTarget(int $userId, array $dateRange, string $period): array
+    {
+        if ($dateRange[0] && $dateRange[1]) {
+            return $this->resolveSalesTarget(
+                SalesTarget::where('seller_id', $userId),
+                $dateRange[0], $dateRange[1], $period
+            );
+        }
+
+        $target = SalesTarget::where('seller_id', $userId)
+            ->where(fn($q) => $q->where('end_date', '>=', now())->orWhereNull('end_date'))
+            ->latest()->first();
+
+        return [$target ? (float) $target->target_amount : 0.0, null];
+    }
+
+    /**
      * Balance due using same definition as Finance Daily Report: sum of current balance for
      * tasks/orders that are either created in the period OR had a payment recorded in the period.
      * This keeps dashboard "Balance Due" consistent with Daily Report "Total Outstanding".
@@ -903,14 +926,14 @@ class AdminController extends Controller
                 ->limit(5)
                 ->get();
             
-            $overdueTasks = $applyPeriod(DesignTask::with(['customer', 'receptionist'])
-                ->where('status', '!=', 'completed')
+            $overdueTasks = $applyPeriod(DesignTask::activeFinance()->with(['customer', 'receptionist'])
+                ->whereNotIn('status', ['completed', 'super_completed', 'delivered', 'cancelled'])
                 ->whereNotNull('deadline')
                 ->where('deadline', '<', now()))
                 ->orderBy('deadline', 'asc')
                 ->limit(5)
                 ->get();
-            
+
             $tasksByStatus = [
                 'pending' => $applyPeriod(DesignTask::query())->count(),
                 'in_progress' => $applyPeriod(DesignTask::where('status', 'in_progress'))->count(),
@@ -993,9 +1016,9 @@ class AdminController extends Controller
                 ->limit(5)
                 ->get();
             
-            $overdueTasks = $applyPeriod(DesignTask::with(['customer', 'receptionist'])
+            $overdueTasks = $applyPeriod(DesignTask::activeFinance()->with(['customer', 'receptionist'])
                 ->where('designer_id', $user->id)
-                ->where('status', '!=', 'completed')
+                ->whereNotIn('status', ['completed', 'super_completed', 'delivered', 'cancelled'])
                 ->whereNotNull('deadline')
                 ->where('deadline', '<', now()))
                 ->orderBy('deadline', 'asc')
@@ -1061,6 +1084,7 @@ class AdminController extends Controller
     {
         $user = Auth::user();
         $period = $request->get('period', 'month');
+        $isAdminView = in_array($user->role, ['admin', 'super_admin']);
 
         $dateRange = match($period) {
             'today' => [now()->startOfDay(), now()->endOfDay()],
@@ -1086,20 +1110,20 @@ class AdminController extends Controller
         };
 
         $stats = [
-            'assigned_tasks' => $applyPeriod(DesignTask::where('delivery_id', $user->id))->count(),
-            'pending_delivery' => $applyPeriod(DesignTask::where('delivery_id', $user->id)->where('delivery_status', 'assigned'))->count(),
-            'delivered' => $applyPeriod(DesignTask::where('delivery_id', $user->id)->where('delivery_status', 'delivered'))->count(),
-            'failed' => $applyPeriod(DesignTask::where('delivery_id', $user->id)->where('delivery_status', 'failed'))->count(),
+            'assigned_tasks' => $applyPeriod(DesignTask::when(!$isAdminView, function($q) use ($user) { $q->where('delivery_id', $user->id); }))->count(),
+            'pending_delivery' => $applyPeriod(DesignTask::when(!$isAdminView, function($q) use ($user) { $q->where('delivery_id', $user->id); })->where('delivery_status', 'assigned'))->count(),
+            'delivered' => $applyPeriod(DesignTask::when(!$isAdminView, function($q) use ($user) { $q->where('delivery_id', $user->id); })->where('delivery_status', 'delivered'))->count(),
+            'failed' => $applyPeriod(DesignTask::when(!$isAdminView, function($q) use ($user) { $q->where('delivery_id', $user->id); })->where('delivery_status', 'failed'))->count(),
         ];
 
         $assignedTasks = DesignTask::with(['customer', 'receptionist'])
-            ->where('delivery_id', $user->id)
+            ->when(!$isAdminView, function($q) use ($user) { $q->where('delivery_id', $user->id); })
             ->where('delivery_status', 'assigned')
             ->latest()
             ->get();
 
         $recentDeliveries = $applyPeriod(DesignTask::with(['customer'])
-            ->where('delivery_id', $user->id)
+            ->when(!$isAdminView, function($q) use ($user) { $q->where('delivery_id', $user->id); })
             ->where('delivery_status', 'delivered'))
             ->latest('delivered_at')
             ->limit(10)
@@ -1115,7 +1139,7 @@ class AdminController extends Controller
             // Hourly breakdown for today
             for ($i = 0; $i <= 23; $i++) {
                 $chartData['labels'][] = sprintf('%02d:00', $i);
-                $chartData['data'][] = DesignTask::where('delivery_id', $user->id)
+                $chartData['data'][] = DesignTask::when(!$isAdminView, function($q) use ($user) { $q->where('delivery_id', $user->id); })
                     ->where('delivery_status', 'delivered')
                     ->whereDate('delivered_at', now()->today())
                     ->whereTime('delivered_at', '>=', sprintf('%02d:00:00', $i))
@@ -1130,7 +1154,7 @@ class AdminController extends Controller
             
             while ($current <= $endDate) {
                 $chartData['labels'][] = $current->format('M Y');
-                $chartData['data'][] = DesignTask::where('delivery_id', $user->id)
+                $chartData['data'][] = DesignTask::when(!$isAdminView, function($q) use ($user) { $q->where('delivery_id', $user->id); })
                     ->where('delivery_status', 'delivered')
                     ->whereYear('delivered_at', $current->year)
                     ->whereMonth('delivered_at', $current->month)
@@ -1142,16 +1166,10 @@ class AdminController extends Controller
             $startDate = $dateRange[0] ?? now()->subDays(6);
             $endDate = $dateRange[1] ?? now();
             
-            // Limit chart points to avoid overcrowding if range is huge (e.g. all time)
-            if ($startDate->diffInDays($endDate) > 31) {
-                 // Weekly grouping for large ranges? For simplicity, stick to daily or restrict range.
-                 // Let's stick to daily iteration for now, assuming month/week usage.
-            }
-
             $current = $startDate->copy();
             while ($current <= $endDate) {
                 $chartData['labels'][] = $current->format('D, M d');
-                $chartData['data'][] = DesignTask::where('delivery_id', $user->id)
+                $chartData['data'][] = DesignTask::when(!$isAdminView, function($q) use ($user) { $q->where('delivery_id', $user->id); })
                     ->where('delivery_status', 'delivered')
                     ->whereDate('delivered_at', $current->format('Y-m-d'))
                     ->count();
@@ -1411,7 +1429,34 @@ class AdminController extends Controller
      */
     public function settings(): View
     {
-        return view('admin.settings');
+        $twoFaEnabled = $this->get2faSetting();
+        return view('admin.settings', compact('twoFaEnabled'));
+    }
+
+    /**
+     * Toggle 2FA requirement system-wide.
+     */
+    public function toggle2fa(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $enabled = (bool) $request->input('enabled', false);
+        $this->set2faSetting($enabled);
+        return response()->json(['success' => true, 'enabled' => $enabled]);
+    }
+
+    private function get2faSetting(): bool
+    {
+        $path = storage_path('app/system_settings.json');
+        if (!file_exists($path)) return true; // default ON
+        $data = json_decode(file_get_contents($path), true);
+        return $data['two_fa_enabled'] ?? true;
+    }
+
+    private function set2faSetting(bool $enabled): void
+    {
+        $path = storage_path('app/system_settings.json');
+        $data = file_exists($path) ? json_decode(file_get_contents($path), true) : [];
+        $data['two_fa_enabled'] = $enabled;
+        file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT));
     }
 
     /**
@@ -1631,12 +1676,30 @@ class AdminController extends Controller
         }
 
         $order = \App\Models\Order::where('order_code', $order_code)->firstOrFail();
-        
+
+        // Delete associated payments first
+        \App\Models\Payment::where('order_id', $order->id)->delete();
+
         // Delete items first
         $order->items()->delete();
         $order->delete();
 
         return redirect()->route('admin.orders.index')->with('success', 'Order deleted successfully.');
+    }
+
+    public function destroyAllOrders(): RedirectResponse
+    {
+        $user = Auth::user();
+        if (!$user || !$user->hasPermission('delete_all_orders')) {
+            abort(403, 'You do not have permission to delete all orders.');
+        }
+
+        $orderIds = \App\Models\Order::pluck('id');
+        \App\Models\Payment::whereIn('order_id', $orderIds)->delete();
+        \App\Models\OrderItem::whereIn('order_id', $orderIds)->delete();
+        \App\Models\Order::whereIn('id', $orderIds)->delete();
+
+        return redirect()->route('admin.orders.index')->with('success', 'All orders have been deleted.');
     }
 
     /**
@@ -1731,7 +1794,7 @@ class AdminController extends Controller
         $notifications = $query->latest()->paginate(20)->withQueryString();
 
         // Get staff for filter
-        $staff = User::whereIn('role', ['admin', 'super_admin', 'operator', 'receptionist', 'manager', 'designer', 'accountant', 'saler', 'delivery', 'gatekeeper'])
+        $staff = User::whereIn('role', ['admin', 'super_admin', 'operator', 'receptionist', 'manager', 'designer', 'accountant', 'saler', 'delivery', 'gatekeeper', 'marketing_manager', 'hr_officer'])
             ->viewableStaff()
             ->orderBy('name')
             ->get();
@@ -1990,14 +2053,19 @@ class AdminController extends Controller
 
         $tasks = $query->get();
 
-        // Summary statistics
+        // Summary statistics — treat all "done" statuses as completed
+        $completedStatuses = ['completed', 'confirmed', 'super_completed', 'printed', 'delivered'];
+        $inProgressStatuses = ['in_progress', 'in_review', 'printing'];
+        $totalCount = $tasks->count();
+        $completedCount = $tasks->filter(fn($t) => in_array($t->status, $completedStatuses))->count();
         $summary = [
-            'total_tasks' => $tasks->count(),
-            'pending' => $tasks->where('status', 'pending')->count(),
-            'in_progress' => $tasks->where('status', 'in_progress')->count(),
-            'in_review' => $tasks->where('status', 'in_review')->count(),
-            'completed' => $tasks->where('status', 'completed')->count(),
-            'rejected' => $tasks->where('status', 'rejected')->count(),
+            'total_tasks'     => $totalCount,
+            'pending'         => $tasks->where('status', 'pending')->count(),
+            'in_progress'     => $tasks->filter(fn($t) => in_array($t->status, $inProgressStatuses))->count(),
+            'in_review'       => $tasks->where('status', 'in_review')->count(),
+            'completed'       => $completedCount,
+            'rejected'        => $tasks->where('status', 'rejected')->count(),
+            'completion_rate' => $totalCount > 0 ? round(($completedCount / $totalCount) * 100, 1) : 0,
         ];
 
         // Tasks by status over time (last 30 days)
@@ -2023,12 +2091,12 @@ class AdminController extends Controller
         // Tasks by designer
         $tasksByDesigner = $tasks->whereNotNull('designer_id')
             ->groupBy('designer_id')
-            ->map(function($designerTasks) {
+            ->map(function($designerTasks) use ($completedStatuses, $inProgressStatuses) {
                 return [
-                    'designer' => $designerTasks->first()->designer,
-                    'total' => $designerTasks->count(),
-                    'completed' => $designerTasks->where('status', 'completed')->count(),
-                    'in_progress' => $designerTasks->where('status', 'in_progress')->count(),
+                    'designer'    => $designerTasks->first()->designer,
+                    'total'       => $designerTasks->count(),
+                    'completed'   => $designerTasks->filter(fn($t) => in_array($t->status, $completedStatuses))->count(),
+                    'in_progress' => $designerTasks->filter(fn($t) => in_array($t->status, $inProgressStatuses))->count(),
                 ];
             })->values();
 
@@ -2197,28 +2265,35 @@ class AdminController extends Controller
 
         $tasks = $query->get();
 
+        // Same "completed"/"in_progress" definitions as designTasksReport(), so the
+        // exported PDF/CSV totals match what's shown on screen for the same filters.
+        $completedStatuses = ['completed', 'confirmed', 'super_completed', 'printed', 'delivered'];
+        $inProgressStatuses = ['in_progress', 'in_review', 'printing'];
+        $totalCount = $tasks->count();
+        $completedCount = $tasks->filter(fn($t) => in_array($t->status, $completedStatuses))->count();
+
         // Summary for export
         $summary = [
-            'total' => $tasks->count(),
+            'total' => $totalCount,
             'pending' => $tasks->where('status', 'pending')->count(),
-            'in_progress' => $tasks->where('status', 'in_progress')->count(),
-            'completed' => $tasks->where('status', 'completed')->count(),
+            'in_progress' => $tasks->filter(fn($t) => in_array($t->status, $inProgressStatuses))->count(),
+            'completed' => $completedCount,
             'rejected' => $tasks->where('status', 'rejected')->count(),
-            'completion_rate' => $tasks->count() > 0 ? round(($tasks->where('status', 'completed')->count() / $tasks->count()) * 100, 1) : 0,
+            'completion_rate' => $totalCount > 0 ? round(($completedCount / $totalCount) * 100, 1) : 0,
         ];
 
         $tasksByDesigner = $tasks->whereNotNull('designer_id')
             ->groupBy('designer_id')
-            ->map(function($designerTasks) {
+            ->map(function($designerTasks) use ($completedStatuses, $inProgressStatuses) {
                 return [
                     'designer' => $designerTasks->first()->designer,
                     'total' => $designerTasks->count(),
-                    'completed' => $designerTasks->where('status', 'completed')->count(),
-                    'in_progress' => $designerTasks->where('status', 'in_progress')->count(),
+                    'completed' => $designerTasks->filter(fn($t) => in_array($t->status, $completedStatuses))->count(),
+                    'in_progress' => $designerTasks->filter(fn($t) => in_array($t->status, $inProgressStatuses))->count(),
                 ];
             })->values();
 
-        $title = $designerId ? ($tasks->first()->designer->name ?? 'Designer') . ' Performance Report' : 'Designer Performance Report';
+        $title = $designerId ? (User::find($designerId)?->name ?? 'Designer') . ' Performance Report' : 'Designer Performance Report';
 
         if ($type === 'pdf') {
             $history = [];
@@ -2232,25 +2307,85 @@ class AdminController extends Controller
                     $history[] = [
                         'month' => $date->format('F Y'),
                         'total' => DesignTask::where('designer_id', $designerId)->whereYear('created_at', $year)->whereMonth('created_at', $month)->count(),
-                        'completed' => DesignTask::where('designer_id', $designerId)->whereYear('created_at', $year)->whereMonth('created_at', $month)->where('status', 'completed')->count(),
+                        'completed' => DesignTask::where('designer_id', $designerId)->whereYear('created_at', $year)->whereMonth('created_at', $month)->whereIn('status', $completedStatuses)->count(),
                     ];
                 }
             }
 
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.reports.exports.designer-performance', compact('tasks', 'tasksByDesigner', 'dateFrom', 'dateTo', 'title', 'summary', 'history'));
-            return $pdf->download('designer-performance-report.pdf');
+
+            $filenameSlug = $designerId
+                ? Str::slug(User::find($designerId)?->name ?? 'designer')
+                : 'all-designers';
+            $filename = "designer-performance-report-{$filenameSlug}-{$dateFrom}-to-{$dateTo}.pdf";
+
+            return $pdf->download($filename);
         } else {
-            // Excel Export
-            return $this->exportToExcel([
-                ['Designer', 'Total Tasks', 'In Progress', 'Completed', 'Completion Rate'],
-                ...$tasksByDesigner->map(fn($d) => [
-                    $d['designer']->name ?? 'N/A',
-                    $d['total'],
-                    $d['in_progress'],
-                    $d['completed'],
-                    ($d['total'] > 0 ? round(($d['completed'] / $d['total']) * 100, 1) : 0) . '%'
-                ])
-            ], 'designer-performance-report.csv');
+            // Multi-sheet XLSX — matches the PDF/print content
+            $summarySheet = [
+                'title'    => 'Summary',
+                'headings' => ['Metric', 'Value'],
+                'rows'     => [
+                    ['Report Period',    "{$dateFrom} to {$dateTo}"],
+                    ['Generated',        now()->format('Y-m-d H:i')],
+                    ['Total Tasks',      $summary['total']],
+                    ['Completed',        $summary['completed']],
+                    ['In Progress',      $summary['in_progress']],
+                    ['Awaiting',         $summary['pending']],
+                    ['Completion Rate',  $summary['completion_rate'] . '%'],
+                ],
+            ];
+
+            $breakdownRows = $tasksByDesigner->map(fn($d) => [
+                $d['designer']->name ?? 'N/A',
+                $d['total'],
+                $d['in_progress'],
+                $d['completed'],
+                ($d['total'] > 0 ? round(($d['completed'] / $d['total']) * 100, 1) : 0) . '%',
+            ])->values()->toArray();
+
+            $breakdownSheet = [
+                'title'    => 'Designer Breakdown',
+                'headings' => ['Designer', 'Total Tasks', 'In Progress', 'Completed', 'Completion Rate'],
+                'rows'     => $breakdownRows,
+            ];
+
+            $sheets = [$summarySheet, $breakdownSheet];
+
+            if (!empty($history)) {
+                $historyRows = array_map(fn($h) => [
+                    $h['month'],
+                    $h['total'],
+                    $h['completed'],
+                    ($h['total'] > 0 ? round(($h['completed'] / $h['total']) * 100, 1) : 0) . '%',
+                ], $history);
+                $sheets[] = [
+                    'title'    => '6-Month History',
+                    'headings' => ['Month', 'Total Tasks', 'Completed', 'Completion Rate'],
+                    'rows'     => $historyRows,
+                ];
+            }
+
+            $taskRows = $tasks->map(fn($t) => [
+                $t->task_code,
+                $t->title,
+                $t->customer->name ?? 'N/A',
+                $t->designer->name ?? 'Unassigned',
+                ucfirst(str_replace('_', ' ', $t->status)),
+                $t->created_at->format('Y-m-d'),
+            ])->toArray();
+
+            $sheets[] = [
+                'title'    => 'Task List',
+                'headings' => ['Task Code', 'Title', 'Customer', 'Designer', 'Status', 'Created'],
+                'rows'     => $taskRows,
+            ];
+
+            $fileSlug = $designerId ? "designer-{$designerId}" : 'all-designers';
+            return \Maatwebsite\Excel\Facades\Excel::download(
+                new \App\Exports\MultiSheetReportExport($sheets),
+                "designer-performance-{$fileSlug}-{$dateFrom}-to-{$dateTo}.xlsx"
+            );
         }
     }
 
@@ -2323,7 +2458,7 @@ class AdminController extends Controller
     {
         $currentUser = Auth::user();
         
-        $query = User::with('department')->whereIn('role', ['admin', 'super_admin', 'manager', 'saler', 'receptionist', 'designer', 'operator', 'delivery', 'gatekeeper', 'accountant'])
+        $query = User::with('department')->whereIn('role', ['admin', 'super_admin', 'manager', 'saler', 'receptionist', 'designer', 'operator', 'delivery', 'gatekeeper', 'accountant', 'marketing_manager', 'hr_officer'])
             ->where('email', '!=', 'softmine.co@gmail.com');
 
         // Apply Hierarchy Logic
@@ -2335,11 +2470,35 @@ class AdminController extends Controller
             $query->where('role', '!=', 'super_admin');
         }
         
-        // Filter by role if specified
-        if ($request->has('role') && $request->role !== '' && $request->role !== null) {
+        // Filter by role
+        if ($request->filled('role')) {
             $query->where('role', $request->role);
         }
-        
+
+        // Filter by department (checks both department_id and department_ids JSON)
+        if ($request->filled('department_id')) {
+            $deptId = (int) $request->department_id;
+            $query->where(function($q) use ($deptId) {
+                $q->where('department_id', $deptId)
+                  ->orWhereJsonContains('department_ids', $deptId);
+            });
+        }
+
+        // Search by name, email, or phone
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%");
+            });
+        }
+
+        // Filter by active status
+        if ($request->filled('status')) {
+            $query->where('is_active', $request->status === 'active');
+        }
+
         $admins = $query->latest()->paginate(15)->withQueryString();
             
         // Get available roles and their descriptions
@@ -2383,6 +2542,14 @@ class AdminController extends Controller
             'accountant' => [
                 'name' => 'Accountant',
                 'description' => 'Full access to financial dashboards, expenses, cash flow, and management of subordinate staff.'
+            ],
+            'marketing_manager' => [
+                'name' => 'Marketing Manager',
+                'description' => 'Manages marketing campaigns, ads, product penetration, and reporting.'
+            ],
+            'hr_officer' => [
+                'name' => 'HR Officer',
+                'description' => 'Manages employee records, attendance, leave requests, and KPI evaluations.'
             ],
         ];
 
@@ -2456,6 +2623,58 @@ class AdminController extends Controller
 
         return view('admin.admins.show', compact('admin', 'salaryHistory'));
     }
+    public function createAdminPage()
+    {
+        $data = $this->adminFormData();
+        return view('admin.admins.create', $data);
+    }
+
+    public function editAdminPage($id)
+    {
+        $admin = User::findOrFail($id);
+        $currentUser = Auth::user();
+
+        if ($currentUser->role === 'accountant' && in_array($admin->role, ['super_admin', 'admin', 'manager', 'accountant'])) {
+            return redirect()->route('admin.admins.index')->with('error', 'You do not have permission to edit this user.');
+        }
+        if ($currentUser->role === 'admin' && $admin->role === 'super_admin') {
+            return redirect()->route('admin.admins.index')->with('error', 'You do not have permission to edit super admins.');
+        }
+
+        $data = $this->adminFormData();
+        $data['admin'] = $admin;
+        return view('admin.admins.edit', $data);
+    }
+
+    private function adminFormData(): array
+    {
+        $roles = [
+            'super_admin' => ['name' => 'Super Admin', 'description' => 'Full access to all features and settings.'],
+            'admin' => ['name' => 'Admin', 'description' => 'Can manage most settings and content.'],
+            'manager' => ['name' => 'Manager', 'description' => 'Can manage products, categories, and view reports.'],
+            'receptionist' => ['name' => 'Receptionist', 'description' => 'Can manage customer interactions and assign tasks.'],
+            'designer' => ['name' => 'Designer', 'description' => 'Can view and update assigned design tasks.'],
+            'saler' => ['name' => 'Sales', 'description' => 'Can manage sales, customers, and orders.'],
+            'operator' => ['name' => 'Operator', 'description' => 'Can act as both designer and receptionist.'],
+            'delivery' => ['name' => 'Delivery', 'description' => 'Can view and update delivery tasks.'],
+            'gatekeeper' => ['name' => 'Gatekeeper', 'description' => 'Can verify items leaving the premises.'],
+            'accountant' => ['name' => 'Accountant', 'description' => 'Full access to financial dashboards and expense management.'],
+            'marketing_manager' => ['name' => 'Marketing Manager', 'description' => 'Manages marketing campaigns, ads, and reporting.'],
+            'hr_officer' => ['name' => 'HR Officer', 'description' => 'Manages employees, attendance, leaves, and KPIs.'],
+        ];
+
+        $roleOptions = [];
+        foreach ($roles as $key => $role) {
+            $roleOptions[$key] = $role['name'];
+        }
+
+        return [
+            'roles' => $roleOptions,
+            'roleDescriptions' => $roles,
+            'departments' => \App\Models\Department::all(),
+        ];
+    }
+
 public function storeAdmin(Request $request)
 {
     \Log::info('========== ADMIN STORE REQUEST ==========');
@@ -2467,8 +2686,10 @@ public function storeAdmin(Request $request)
             'email' => 'required|email|unique:users,email',
             'phone' => 'nullable|string|max:20',
             'password' => 'required|string|min:8|confirmed',
-            'role' => 'required|in:super_admin,admin,manager,receptionist,designer,saler,operator,delivery,gatekeeper,accountant',
+            'role' => 'required|in:super_admin,admin,manager,receptionist,designer,saler,operator,delivery,gatekeeper,accountant,marketing_manager,hr_officer',
             'department_id' => 'nullable|exists:departments,id',
+            'department_ids' => 'nullable|array',
+            'department_ids.*' => 'exists:departments,id',
             'monthly_salary' => 'nullable|numeric|min:0',
             'is_active' => 'sometimes|boolean',
         ]);
@@ -2486,6 +2707,10 @@ public function storeAdmin(Request $request)
             return redirect()->back()->with('error', 'You do not have permission to create super admins.')->withInput();
         }
 
+        // Handle primary vs multiple department assignment
+        $deptIds = $request->input('department_ids') ?? [];
+        $primaryDeptId = $validated['department_id'] ?? (!empty($deptIds) ? $deptIds[0] : null);
+
         // Create the admin user
         // Admin users are always automatically verified when created by another admin
         $admin = User::create([
@@ -2494,7 +2719,8 @@ public function storeAdmin(Request $request)
             'phone' => $validated['phone'] ?? null,
             'password' => Hash::make($plainPassword),
             'role' => $validated['role'],
-            'department_id' => $validated['department_id'] ?? null,
+            'department_id' => $primaryDeptId,
+            'department_ids' => $deptIds,
             'monthly_salary' => $validated['monthly_salary'] ?? 0,
             'is_active' => $request->has('is_active') ? (bool)$validated['is_active'] : true,
             'verified' => true, // Always verified - admin users created by admins don't need verification
@@ -2607,8 +2833,10 @@ public function storeAdmin(Request $request)
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $id,
             'phone' => 'nullable|string|max:20',
-            'role' => 'required|in:admin,super_admin,manager,saler,receptionist,designer,operator,delivery,gatekeeper,accountant',
+            'role' => 'required|in:admin,super_admin,manager,saler,receptionist,designer,operator,delivery,gatekeeper,accountant,marketing_manager,hr_officer',
             'department_id' => 'nullable|exists:departments,id',
+            'department_ids' => 'nullable|array',
+            'department_ids.*' => 'exists:departments,id',
             'monthly_salary' => 'nullable|numeric|min:0',
             'password' => 'nullable|string|min:8|confirmed',
             'is_active' => 'sometimes|boolean',
@@ -2617,11 +2845,16 @@ public function storeAdmin(Request $request)
         // Store old values for audit log
         $oldValues = $admin->only(['name', 'email', 'phone', 'role', 'is_active']);
 
+        // Handle primary vs multiple department assignment
+        $deptIds = $request->input('department_ids') ?? [];
+        $primaryDeptId = $validated['department_id'] ?? (!empty($deptIds) ? $deptIds[0] : null);
+
         $updateData = [
             'name' => $validated['name'],
             'email' => $validated['email'],
             'phone' => $validated['phone'] ?? null,
-            'department_id' => $validated['department_id'] ?? null,
+            'department_id' => $primaryDeptId,
+            'department_ids' => $deptIds,
             'monthly_salary' => $validated['monthly_salary'] ?? 0,
             'is_active' => $request->boolean('is_active'),
         ];

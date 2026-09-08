@@ -4,13 +4,17 @@ namespace App\Http\Controllers\Admin;
 
 use App\Exports\SalesReportExport;
 use App\Http\Controllers\Controller;
+use App\Models\Campaign;
+use App\Models\Customer;
+use App\Models\CustomerSource;
+use App\Models\DesignTask;
 use App\Models\Lead;
 use App\Models\LeadFollowUp;
-use App\Models\Customer;
 use App\Models\Payment;
-use App\Models\DesignTask;
-use App\Models\User;
+use App\Models\SalesProgram;
 use App\Models\SalesTarget;
+use App\Models\User;
+use App\Support\Concerns\ResolvesSalesTargets;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +22,8 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class SalesReportController extends Controller
 {
+    use ResolvesSalesTargets;
+
     // ── Date range resolver ────────────────────────────────────────────────
 
     private function resolveRange(Request $request): array
@@ -59,7 +65,7 @@ class SalesReportController extends Controller
         $data = $this->buildReportData($from, $to, $sellerId);
 
         // Sales targets
-        $target    = $this->getTarget($sellerId, $from);
+        $target    = $this->getTarget($sellerId, $from, $to, $period);
         $allSeller = in_array($user->role, ['admin', 'super_admin', 'accountant']) && !$sellerId;
 
         // Seller ranking (admin only, period-scoped)
@@ -115,27 +121,58 @@ class SalesReportController extends Controller
         $unpaidTasks = (clone $taskQuery)->where('balance', '>', 0)->count();
         $totalBilled = $taskQuery->sum('price');
 
-        // ── Lead source breakdown ─────────────────────────────────────────
-        $sources = ['promo', 'instagram', 'follow_up', 'referral', 'walk_in', 'whatsapp', 'other'];
+        // ── Lead source breakdown (dynamic from CustomerSource) ───────────
+        $allSources  = CustomerSource::active()->pluck('name');
         $sourceStats = [];
 
-        foreach ($sources as $src) {
+        foreach ($allSources as $src) {
             $srcQuery = Lead::where('source', $src)->whereBetween('created_at', [$from, $to]);
             if ($sellerId) $srcQuery->where('assigned_seller_id', $sellerId);
 
-            $total     = $srcQuery->count();
-            $paid      = (clone $srcQuery)->where('status', 'converted')->count();
-            $unpaid    = (clone $srcQuery)->where('status', 'pending')->count();
+            $total   = $srcQuery->count();
+            $paid    = (clone $srcQuery)->where('status', 'converted')->count();
+            $unpaid  = (clone $srcQuery)->where('status', 'pending')->count();
 
-            // Revenue from this source (payments for tasks whose lead source matches)
             $srcRevQuery = Payment::activeFinance()
                 ->whereBetween('date', [$from, $to])
-                ->whereHas('designTask.lead', fn($q) => $q->where('source', $src));
+                ->whereHas('customer.leads', fn($q) => $q->where('source', $src));
             if ($sellerId) $srcRevQuery->where('seller_id', $sellerId);
             $revenue = $srcRevQuery->sum('amount');
 
             if ($total > 0 || $revenue > 0) {
-                $sourceStats[$src] = compact('total', 'paid', 'unpaid', 'revenue');
+                $entry = compact('total', 'paid', 'unpaid', 'revenue');
+
+                // Instagram: campaign sub-breakdown
+                if (strtolower($src) === 'instagram') {
+                    $campaigns = Campaign::select('id', 'title')->orderBy('title')->get();
+                    $campaignBreakdown = [];
+                    foreach ($campaigns as $camp) {
+                        $cq    = Lead::where('source', $src)->where('campaign_id', $camp->id)->whereBetween('created_at', [$from, $to]);
+                        if ($sellerId) $cq->where('assigned_seller_id', $sellerId);
+                        $cTotal = $cq->count();
+                        if ($cTotal > 0) {
+                            $campaignBreakdown[] = ['name' => $camp->title, 'total' => $cTotal];
+                        }
+                    }
+                    $entry['campaigns'] = $campaignBreakdown;
+                }
+
+                // Inside Programs: program sub-breakdown
+                if (strtolower($src) === 'inside programs') {
+                    $programs = SalesProgram::active()->get();
+                    $programBreakdown = [];
+                    foreach ($programs as $prog) {
+                        $pq    = Lead::where('source', $src)->where('program_id', $prog->id)->whereBetween('created_at', [$from, $to]);
+                        if ($sellerId) $pq->where('assigned_seller_id', $sellerId);
+                        $pTotal = $pq->count();
+                        if ($pTotal > 0) {
+                            $programBreakdown[] = ['name' => $prog->name, 'total' => $pTotal];
+                        }
+                    }
+                    $entry['programs'] = $programBreakdown;
+                }
+
+                $sourceStats[$src] = $entry;
             }
         }
 
@@ -145,11 +182,69 @@ class SalesReportController extends Controller
             ->whereHas('designTasks', fn($q) => $q->whereBetween('created_at', [$from, $to]))
             ->count();
 
+        // ── Unified Follow-up Activities & Comments ───────────────────────
+        $activities = collect();
+
+        // 1. Fetch Lead Follow-ups
+        $leadFollowUpsQuery = LeadFollowUp::with(['lead', 'user'])
+            ->whereBetween('created_at', [$from, $to]);
+        if ($sellerId) {
+            $leadFollowUpsQuery->where('user_id', $sellerId);
+        }
+        foreach ($leadFollowUpsQuery->get() as $lfu) {
+            $activities->push([
+                'date' => $lfu->created_at,
+                'type' => 'Lead Follow-Up',
+                'contact_name' => $lfu->lead?->customer_name ?? 'Unknown Lead',
+                'phone' => $lfu->lead?->phone ?? '—',
+                'channel' => '—',
+                'notes' => $lfu->notes,
+                'seller_name' => $lfu->user?->name ?? '—'
+            ]);
+        }
+
+        // 2. Fetch Customer Follow-ups
+        $custFollowUpsQuery = \App\Models\CustomerFollowUp::with(['customer', 'user'])
+            ->whereBetween('created_at', [$from, $to]);
+        if ($sellerId) {
+            $custFollowUpsQuery->where('user_id', $sellerId);
+        }
+        foreach ($custFollowUpsQuery->get() as $cfu) {
+            $activities->push([
+                'date' => $cfu->created_at,
+                'type' => 'Customer Follow-Up',
+                'contact_name' => $cfu->customer?->name ?? 'Unknown Customer',
+                'phone' => $cfu->customer?->phone ?? '—',
+                'channel' => $cfu->action ?? '—',
+                'notes' => $cfu->notes,
+                'seller_name' => $cfu->user?->name ?? '—'
+            ]);
+        }
+
+        $activities = $activities->sortByDesc('date')->values()->all();
+
+        // ── Detailed Registered Leads List ────────────────────────────────
+        $regLeadsQuery = Lead::with('seller')->whereBetween('created_at', [$from, $to]);
+        if ($sellerId) {
+            $regLeadsQuery->where('assigned_seller_id', $sellerId);
+        }
+        $registeredLeadsList = $regLeadsQuery->orderBy('created_at', 'desc')->get();
+
+        // ── Detailed Paid Clients List ───────────────────────────────────
+        $paidClQuery = DesignTask::with(['customer', 'saler'])
+            ->whereBetween('created_at', [$from, $to])
+            ->where('balance', '<=', 0);
+        if ($sellerId) {
+            $paidClQuery->where('saler_id', $sellerId);
+        }
+        $paidClientsList = $paidClQuery->orderBy('created_at', 'desc')->get();
+
         return compact(
             'totalLeads', 'convertedLeads', 'pendingLeads', 'notInterested',
             'followUpsDone', 'totalRevenue', 'newRevenue', 'repRevenue',
             'paidTasks', 'unpaidTasks', 'totalBilled',
-            'sourceStats', 'newCustomerCount', 'repCustomerCount'
+            'sourceStats', 'newCustomerCount', 'repCustomerCount', 'activities',
+            'registeredLeadsList', 'paidClientsList'
         );
     }
 
@@ -190,14 +285,16 @@ class SalesReportController extends Controller
 
     // ── Sales target helper ────────────────────────────────────────────────
 
-    private function getTarget(?int $sellerId, Carbon $from): ?object
+    private function getTarget(?int $sellerId, Carbon $from, Carbon $to, ?string $period = null): ?object
     {
         if (!$sellerId) return null;
 
-        return SalesTarget::where('user_id', $sellerId)
-            ->where('month', $from->month)
-            ->where('year', $from->year)
-            ->first();
+        [$amount, ] = $this->resolveSalesTarget(
+            SalesTarget::where('seller_id', $sellerId),
+            $from, $to, $period
+        );
+
+        return $amount > 0 ? (object) ['target_amount' => $amount] : null;
     }
 
     // ── PDF export ─────────────────────────────────────────────────────────
@@ -214,7 +311,7 @@ class SalesReportController extends Controller
 
         $sellerName = $sellerId ? (User::find($sellerId)?->name ?? 'All Sellers') : 'All Sellers';
         $data       = $this->buildReportData($from, $to, $sellerId);
-        $target     = $this->getTarget($sellerId, $from);
+        $target     = $this->getTarget($sellerId, $from, $to, $period);
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.reports.sales-report-pdf', compact(
             'data', 'period', 'from', 'to', 'sellerName', 'target'
@@ -238,8 +335,8 @@ class SalesReportController extends Controller
 
         $sellerName = $sellerId ? (User::find($sellerId)?->name ?? 'All Sellers') : 'All Sellers';
         $data       = $this->buildReportData($from, $to, $sellerId);
-        $target     = $this->getTarget($sellerId, $from);
-        $ranking    = in_array($user->role, ['admin', 'super_admin']) ? $this->buildSellerRanking($from, $to) : [];
+        $target     = $this->getTarget($sellerId, $from, $to, $period);
+        $ranking    = in_array($user->role, ['admin', 'super_admin', 'accountant']) ? $this->buildSellerRanking($from, $to) : [];
 
         return view('admin.reports.sales-report-print', compact(
             'data', 'period', 'from', 'to', 'sellerName', 'target', 'ranking'

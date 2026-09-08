@@ -8,27 +8,103 @@
 <link rel="stylesheet" href="https://unpkg.com/aos@2.3.1/dist/aos.css">
 @endpush
 
+@push('styles')
+<style>
+    .categories-page-hero {
+        background: linear-gradient(135deg, #c0392b 0%, #dc3545 60%, #e74c3c 100%);
+        padding: 52px 0 44px;
+        position: relative;
+        overflow: hidden;
+    }
+    .categories-page-hero .bubbles-container {
+        position: absolute;
+        width: 100%; height: 100%;
+        top: 0; left: 0;
+        overflow: hidden;
+        z-index: 1;
+        pointer-events: none;
+    }
+    .cat-bubble {
+        position: absolute;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.25), rgba(255,255,255,0.04));
+        box-shadow: inset 0 0 30px rgba(255,255,255,0.15), 0 0 50px rgba(255,255,255,0.05);
+        animation: cat-float 20s infinite ease-in-out;
+        backdrop-filter: blur(2px);
+    }
+    .cat-bubble::before {
+        content: '';
+        position: absolute;
+        top: 10%; left: 10%;
+        width: 40%; height: 40%;
+        border-radius: 50%;
+        background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.35), transparent);
+    }
+    .cat-bubble-1 { width: 180px; height: 180px; left: 8%;   top: 10%;    animation-delay: 0s; animation-duration: 25s; }
+    .cat-bubble-2 { width: 120px; height: 120px; right: 12%; top: 30%;    animation-delay: 3s; animation-duration: 20s; }
+    .cat-bubble-3 { width: 220px; height: 220px; left: 45%;  top: 50%;    animation-delay: 6s; animation-duration: 30s; }
+    .cat-bubble-4 { width: 150px; height: 150px; right: 28%; top: 5%;     animation-delay: 2s; animation-duration: 22s; }
+    .cat-bubble-5 { width: 100px; height: 100px; left: 28%;  bottom: 5%;  animation-delay: 4s; animation-duration: 18s; }
+    .cat-bubble-6 { width: 200px; height: 200px; right: 5%;  bottom: 10%; animation-delay: 5s; animation-duration: 28s; }
+    @keyframes cat-float {
+        0%,100% { transform: translate(0,0) scale(1) rotate(0deg); }
+        25%      { transform: translate(25px,-25px) scale(1.08) rotate(90deg); }
+        50%      { transform: translate(-15px,18px) scale(0.93) rotate(180deg); }
+        75%      { transform: translate(35px,8px) scale(1.04) rotate(270deg); }
+    }
+    .cat-pph-badge {
+        display: inline-block;
+        background: rgba(255,255,255,0.18);
+        border: 1.5px solid rgba(255,255,255,0.35);
+        color: #fff;
+        padding: 7px 22px;
+        border-radius: 50px;
+        font-size: 13px;
+        font-style: italic;
+        font-family: Georgia, 'Times New Roman', serif;
+        letter-spacing: 0.3px;
+        margin-bottom: 16px;
+        backdrop-filter: blur(6px);
+    }
+    .cat-pph-title {
+        font-size: clamp(1.8rem, 4vw, 2.6rem);
+        font-weight: 800;
+        color: #fff;
+        line-height: 1.2;
+        margin-bottom: 12px;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    .cat-pph-subtitle {
+        font-size: clamp(0.85rem, 1.5vw, 1rem);
+        color: rgba(255,255,255,0.85);
+        max-width: 480px;
+        margin: 0 auto;
+        line-height: 1.6;
+    }
+    @media (max-width: 768px) {
+        .categories-page-hero { padding: 36px 0 30px; }
+        .cat-bubble-3, .cat-bubble-6 { display: none; }
+    }
+</style>
+@endpush
+
 @section('content')
 <!-- Hero Section -->
-<section class="categories-hero">
-
-    
-    <div class="hero-content container">
-        <h1 class="hero-title">CATEGORIES</h1>
-        <p class="hero-subtitle">
-            Explore our comprehensive range of printing and branding solutions.
-        </p>
-        
-        <div class="categories-breadcrumb">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="{{ url('/') }}"><i class="fas fa-home me-1"></i>Home</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Categories</li>
-                </ol>
-            </nav>
-        </div>
+<div class="categories-page-hero">
+    <div class="bubbles-container">
+        <div class="cat-bubble cat-bubble-1"></div>
+        <div class="cat-bubble cat-bubble-2"></div>
+        <div class="cat-bubble cat-bubble-3"></div>
+        <div class="cat-bubble cat-bubble-4"></div>
+        <div class="cat-bubble cat-bubble-5"></div>
+        <div class="cat-bubble cat-bubble-6"></div>
     </div>
-</section>
+    <div class="container text-center" style="position:relative;z-index:10;">
+        <span class="cat-pph-badge">Browse Collection</span>
+        <h1 class="cat-pph-title">All Categories</h1>
+        <p class="cat-pph-subtitle">Explore our comprehensive range of printing and branding solutions.</p>
+    </div>
+</div>
 
 <!-- Filter Section -->
 <div class="container">

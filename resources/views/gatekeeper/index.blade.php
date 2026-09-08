@@ -72,18 +72,26 @@
                         <input type="date" name="date_to" class="form-control form-control-sm" value="{{ request('date_to') }}">
                     </div>
 
-                    <div class="col-12 d-md-none mt-2">
-                        <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">APPLY FILTERS</button>
-                        <button type="button" class="btn btn-dark btn-sm w-100 mt-2 fw-bold" onclick="printDirect('{{ route('gatekeeper.movements.print-filtered', request()->all()) }}')">PRINT LOG</button>
-                        <a href="{{ route('gatekeeper.movements.index') }}" class="btn btn-light btn-sm w-100 mt-2">RESET</a>
+                    <div class="col-12 d-md-none mt-2 d-flex gap-2 align-items-stretch">
+                        <button type="submit" class="btn btn-primary btn-sm fw-bold flex-grow-1">APPLY FILTERS</button>
+                        <x-report-export-menu
+                            :print-url="route('gatekeeper.movements.print-filtered', request()->all())"
+                            :pdf-url="route('gatekeeper.movements.pdf', request()->all())"
+                            :excel-url="route('gatekeeper.movements.excel', request()->all())"
+                        />
+                        <a href="{{ route('gatekeeper.movements.index') }}" class="btn btn-light btn-sm">RESET</a>
                     </div>
-                    
-                    <div class="col-md-auto d-none d-md-flex align-items-end ms-auto">
+
+                    <div class="col-md-auto d-none d-md-flex align-items-end ms-auto gap-2">
                         <div class="btn-group shadow-sm">
                             <button type="submit" class="btn btn-primary btn-sm px-3 fw-bold">APPLY</button>
-                            <button type="button" class="btn btn-dark btn-sm px-3 fw-bold" onclick="printDirect('{{ route('gatekeeper.movements.print-filtered', request()->all()) }}')" title="Print current filtered view">PRINT</button>
                             <a href="{{ route('gatekeeper.movements.index') }}" class="btn btn-light btn-sm px-3 fw-bold border">RESET</a>
                         </div>
+                        <x-report-export-menu
+                            :print-url="route('gatekeeper.movements.print-filtered', request()->all())"
+                            :pdf-url="route('gatekeeper.movements.pdf', request()->all())"
+                            :excel-url="route('gatekeeper.movements.excel', request()->all())"
+                        />
                     </div>
                 </form>
             </div>

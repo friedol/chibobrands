@@ -21,11 +21,11 @@
                 </a>
             </div>
 
-            @if($view === 'history')
-            <button type="button" onclick="printDirect('{{ route('admin.finance.cash-flow.print', request()->all()) }}')" class="btn btn-dark btn-sm px-3 fw-bold shadow-sm">
-                <i class="fas fa-print me-1"></i> Print
-            </button>
-            @endif
+            <x-report-export-menu
+                :print-url="route('admin.finance.cash-flow.print', request()->all())"
+                :pdf-url="route('admin.finance.cash-flow.pdf', request()->all())"
+                :excel-url="route('admin.finance.cash-flow.excel', request()->all())"
+            />
 
             <button class="btn btn-outline-primary btn-sm px-3 fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
                 <i class="fas fa-filter me-1"></i> Filter
@@ -165,15 +165,26 @@
                                 <span class="font-monospace x-small text-muted">{{ $entry->entry_type === 'payment' ? ($entry->invoice_reference ?: '-') : 'EXP-'.$entry->id }}</span>
                             </td>
                             <td class="text-end pe-4">
-                                <div class="btn-group shadow-sm">
-                                    @if($entry->entry_type === 'payment')
-                                        <button type="button" onclick="printDirect('{{ route('admin.finance.invoices.receipt', $entry->id) }}')" class="btn btn-sm btn-white border">
-                                            <i class="fas fa-print"></i>
-                                        </button>
-                                    @else
-                                        <button type="button" onclick="printDirect('{{ route('admin.finance.expenses.voucher', $entry->id) }}')" class="btn btn-sm btn-white border">
-                                            <i class="fas fa-receipt"></i>
-                                        </button>
+                                <div class="d-flex justify-content-end align-items-center gap-1">
+                                    <div class="btn-group shadow-sm">
+                                        @if($entry->entry_type === 'payment')
+                                            <button type="button" onclick="printDirect('{{ route('admin.finance.invoices.receipt', $entry->id) }}')" class="btn btn-sm btn-white border" title="Print Receipt">
+                                                <i class="fas fa-print"></i>
+                                            </button>
+                                        @else
+                                            <button type="button" onclick="printDirect('{{ route('admin.finance.expenses.voucher', $entry->id) }}')" class="btn btn-sm btn-white border" title="Print Voucher">
+                                                <i class="fas fa-receipt"></i>
+                                            </button>
+                                        @endif
+                                    </div>
+                                    @if($entry->entry_type === 'payment' && auth()->user()->role === 'super_admin')
+                                        <form action="{{ route('admin.finance.payments.destroy', $entry->id) }}" method="POST" class="d-inline" onsubmit="return confirm('WARNING: Are you absolutely sure you want to permanently delete this payment transaction?\n\nAll linked task/order balances and customer analytics will be permanently reverted.\n\nThis action cannot be undone.');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-white border text-danger shadow-sm px-2" title="Delete Payment" style="padding-top: 0.25rem; padding-bottom: 0.25rem;">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </form>
                                     @endif
                                 </div>
                             </td>

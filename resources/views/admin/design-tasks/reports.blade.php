@@ -5,7 +5,7 @@
 @push('styles')
 <style>
     /* Mobile Responsive - Font Size Reductions (Matching Task Index) */
-    @media (max-width: 768px) {
+    @media screen and (max-width: 768px) {
         .container-fluid {
             padding: 0.5rem;
         }
@@ -57,7 +57,7 @@
         }
     }
     
-    @media (max-width: 575.98px) {
+    @media screen and (max-width: 575.98px) {
         .container-fluid {
             padding: 0.25rem;
         }
@@ -112,18 +112,36 @@
     }
 
     .icon-circle {
-        height: 40px;
-        width: 40px;
+        height: 40px; width: 40px; border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+    }
+
+    .card-metric .h2, .card-metric .h3 { font-size: 1.4rem; margin-bottom: 2px; }
+
+    /* Stat card — same design as design task index */
+    .dash-stat-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
         border-radius: 10px;
+        padding: 9px 11px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        transition: all 0.2s ease;
+        height: 100%;
         display: flex;
-        align-items: center;
-        justify-content: center;
+        flex-direction: column;
+        justify-content: space-between;
+        text-decoration: none;
+        color: inherit;
     }
-    
-    .card-metric .h2, .card-metric .h3 {
-        font-size: 1.4rem;
-        margin-bottom: 2px;
+    .dash-stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); color: inherit; }
+    .dsc-icon {
+        width: 30px; height: 30px; border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.85rem; flex-shrink: 0;
     }
+    .dsc-trend { font-size: 10px; font-weight: 500; color: #94a3b8; white-space: nowrap; }
+    .dsc-value { font-size: 1.05rem; font-weight: 700; line-height: 1.25; margin-top: 4px; }
+    .dsc-label { font-size: 11px; font-weight: 600; color: #64748b; margin-top: 1px; }
 
     .avatar-circle {
         height: 28px;
@@ -140,7 +158,7 @@
     @media print {
         @page { size: A4; margin: 8mm; }
         body { background: white !important; font-size: 10pt !important; margin: 0 !important; padding: 0 !important; color: #000 !important; }
-        .btn, .sidebar, .sidebar-nav, .filter-section, .top-navbar, .mobile-menu-toggle, .btn-group, #filterCollapse, .card-header .btn, .breadcrumb, footer, .d-flex.flex-wrap.gap-2 { display: none !important; }
+        .btn, .sidebar, .sidebar-nav, .filter-section, .top-navbar, .mobile-menu-toggle, .btn-group, .card-header .btn, .breadcrumb, footer { display: none !important; }
         .main-content { margin-left: 0 !important; padding: 0 !important; width: 100% !important; overflow: visible !important; }
         .container-fluid { width: 100% !important; padding: 0 !important; max-width: 100% !important; }
         .card { border: 1px solid #dee2e6 !important; box-shadow: none !important; margin-bottom: 4px !important; break-inside: avoid; }
@@ -198,9 +216,9 @@
 <div class="container-fluid">
     <!-- Print Header -->
     <div class="print-only report-header">
-        <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex justify-content-between align-items-start">
             <div>
-                <img src="{{ asset('images/logo.webp') }}" alt="Logo" style="height: 50px;" onerror="this.style.display='none'">
+                @include('partials.logo-print', ['logoStyle' => 'height:50px;object-fit:contain;'])
                 <h1 class="fw-bold text-dark mt-2">Design Performance Report</h1>
                 <p class="mb-0 text-dark">Period: {{ \Carbon\Carbon::parse($dateFrom)->format('M d, Y') }} - {{ \Carbon\Carbon::parse($dateTo)->format('M d, Y') }}</p>
             </div>
@@ -215,49 +233,38 @@
     <!-- Header (Matching Task Index Style) -->
     <div class="row mb-3 no-print">
         <div class="col-12">
-            <div class="d-flex flex-row justify-content-between align-items-start mb-2 gap-2">
-                <div class="flex-grow-1">
-                    <h2 class="mb-0 fw-bold">Design Task Analytics</h2>
-
-                </div>
-                <div class="d-flex flex-wrap gap-2">
-                    <a href="{{ route('admin.design-tasks.index') }}" class="btn {{ request()->routeIs('admin.design-tasks.index') ? 'btn-primary' : 'btn-outline-primary' }} btn-sm">
-                        <i class="fas fa-list me-1"></i> All Tasks
-                    </a>
-                    <a href="{{ route('admin.design-tasks.paid') }}" class="btn {{ request()->routeIs('admin.design-tasks.paid') ? 'btn-success' : 'btn-outline-success' }} btn-sm">
-                        <i class="fas fa-check-circle me-1"></i> Paid
-                    </a>
-                    <a href="{{ route('admin.design-tasks.pending') }}" class="btn {{ request()->routeIs('admin.design-tasks.pending') ? 'btn-warning' : 'btn-outline-warning' }} btn-sm text-dark">
-                        <i class="fas fa-clock me-1"></i> Pending
-                    </a>
-                    <a href="{{ route('admin.design-tasks.invoices') }}" class="btn {{ request()->routeIs('admin.design-tasks.invoices') ? 'btn-info' : 'btn-outline-info' }} btn-sm text-white">
-                        <i class="fas fa-file-invoice me-1"></i> Invoices
-                    </a>
-                </div>
-            </div>
-            <div class="d-flex justify-content-end gap-1 mb-2">
-                <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
-                    <i class="fas fa-filter"></i>
-                </button>
-                <button class="btn btn-primary btn-sm" onclick="window.print()">
-                    <i class="fas fa-print"></i>
-                </button>
+            <div class="d-flex flex-row justify-content-between align-items-center mb-2 gap-2">
+                <h2 class="mb-0 fw-bold">Design Task Analytics</h2>
+                <x-report-export-menu
+                    :print-url="route('admin.design-tasks.reports.print', request()->all())"
+                    :pdf-url="route('admin.design-tasks.reports.pdf', request()->all())"
+                    :excel-url="route('admin.design-tasks.reports.excel', request()->all())"
+                />
             </div>
         </div>
     </div>
 
     <!-- Filters -->
-    <div class="collapse show mb-4 filter-section" id="filterCollapse">
+    <div class="mb-4 filter-section">
         <div class="card border-0 shadow-sm border-top border-4 border-primary">
             <div class="card-body bg-light p-3">
                 <form action="{{ route('admin.design-tasks.reports') }}" method="GET" class="row g-2">
-                    <div class="col-6 col-md-3">
+                    <div class="col-6 col-md-2">
                         <label class="form-label fw-bold x-small text-uppercase mb-1">From</label>
                         <input type="date" class="form-control form-control-sm" name="date_from" value="{{ $dateFrom }}">
                     </div>
-                    <div class="col-6 col-md-3">
+                    <div class="col-6 col-md-2">
                         <label class="form-label fw-bold x-small text-uppercase mb-1">To</label>
                         <input type="date" class="form-control form-control-sm" name="date_to" value="{{ $dateTo }}">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label fw-bold x-small text-uppercase mb-1">Designer</label>
+                        <select class="form-select form-select-sm" name="designer_id">
+                            <option value="">All Designers</option>
+                            @foreach($designers as $designer)
+                                <option value="{{ $designer->id }}" {{ request('designer_id') == $designer->id ? 'selected' : '' }}>{{ $designer->name }}</option>
+                            @endforeach
+                        </select>
                     </div>
                     <div class="col-6 col-md-2">
                         <label class="form-label fw-bold x-small text-uppercase mb-1">Grouping</label>
@@ -290,206 +297,127 @@
         </div>
     </div>
 
-    <!-- Quick Period Filters -->
-    <div class="row mb-3 no-print">
-        <div class="col-12">
-            <div class="d-flex flex-wrap gap-2">
-                <a href="{{ route('admin.design-tasks.reports', ['filter_period' => 'today']) }}" 
-                   class="btn btn-sm {{ request('filter_period') == 'today' ? 'btn-primary' : 'btn-outline-primary' }}">
-                    <i class="fas fa-clock me-1"></i> Today
-                </a>
-                <a href="{{ route('admin.design-tasks.reports', ['filter_period' => 'week']) }}" 
-                   class="btn btn-sm {{ request('filter_period') == 'week' ? 'btn-primary' : 'btn-outline-primary' }}">
-                    <i class="fas fa-calendar-day me-1"></i> This Week
-                </a>
-                <a href="{{ route('admin.design-tasks.reports', ['filter_period' => 'month']) }}" 
-                   class="btn btn-sm {{ request('filter_period') == 'month' ? 'btn-primary' : 'btn-outline-primary' }}">
-                    <i class="fas fa-calendar-alt me-1"></i> This Month
-                </a>
-                <a href="{{ route('admin.design-tasks.reports', ['filter_period' => 'half_year']) }}" 
-                   class="btn btn-sm {{ request('filter_period') == 'half_year' ? 'btn-primary' : 'btn-outline-primary' }}">
-                    <i class="fas fa-calendar-week me-1"></i> 6 Months
-                </a>
-                <a href="{{ route('admin.design-tasks.reports', ['filter_period' => 'year']) }}" 
-                   class="btn btn-sm {{ request('filter_period') == 'year' ? 'btn-primary' : 'btn-outline-primary' }}">
-                    <i class="fas fa-calendar me-1"></i> This Year
-                </a>
-                <a href="{{ route('admin.design-tasks.reports') }}" 
-                   class="btn btn-sm {{ !request('filter_period') && !request('date_from') ? 'btn-primary' : 'btn-outline-secondary' }}">
-                    <i class="fas fa-infinity me-1"></i> All Time
-                </a>
+    <!-- Main Metrics -->
+    <div class="row g-2 mb-3 metrics-row">
+        <!-- Total Tasks -->
+        <div class="col-6 col-md-2 stats-col">
+            <div class="dash-stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="dsc-icon bg-primary-subtle text-primary"><i class="fas fa-tasks"></i></div>
+                    <span class="dsc-trend">All</span>
+                </div>
+                <div class="dsc-value text-primary">{{ number_format($totalTasks) }}</div>
+                <div class="dsc-label">Total Tasks</div>
             </div>
         </div>
-    </div>
-
-    <!-- Main Metrics - Row 1 (Core Activity) -->
-    <div class="row g-2 mb-2 metrics-row">
+        <!-- Completed -->
         <div class="col-6 col-md-2 stats-col">
-            <div class="card border-0 shadow-sm h-100 card-metric">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center mb-1">
-                        <div class="icon-circle bg-primary bg-opacity-10 text-primary me-2">
-                            <i class="fas fa-layer-group fa-sm"></i>
-                        </div>
-                        <span class="text-uppercase x-small fw-bold text-muted">Total Tasks</span>
-                    </div>
-                    <div class="h2 mb-0 fw-bold text-dark">{{ number_format($totalTasks) }}</div>
+            <div class="dash-stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="dsc-icon bg-success-subtle text-success"><i class="fas fa-check-double"></i></div>
+                    <span class="dsc-trend">Done</span>
                 </div>
+                <div class="dsc-value text-success">{{ number_format($completedTasks) }}</div>
+                <div class="dsc-label">Completed · {{ $totalTasks > 0 ? round(($completedTasks/$totalTasks)*100,1) : 0 }}%</div>
             </div>
         </div>
-
+        <!-- Printing Jobs -->
         <div class="col-6 col-md-2 stats-col">
-            <div class="card border-0 shadow-sm h-100 card-metric">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center mb-1">
-                        <div class="icon-circle bg-success bg-opacity-10 text-success me-2">
-                            <i class="fas fa-check-double fa-sm"></i>
-                        </div>
-                        <span class="text-uppercase x-small fw-bold text-muted">Completed</span>
-                    </div>
-                    <div class="h2 mb-0 fw-bold text-dark">{{ number_format($completedTasks) }}</div>
-                    <div class="x-small text-success fw-bold">{{ $totalTasks > 0 ? round(($completedTasks/$totalTasks)*100, 1) : 0 }}% Finished</div>
+            <div class="dash-stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="dsc-icon text-white" style="background:#f97316;"><i class="fas fa-print"></i></div>
+                    <span class="dsc-trend">Press</span>
                 </div>
+                <div class="dsc-value" style="color:#f97316;">{{ number_format($printingTasks) }}</div>
+                <div class="dsc-label">Printing Jobs</div>
             </div>
         </div>
-
+        <!-- Overdue -->
         <div class="col-6 col-md-2 stats-col">
-            <div class="card border-0 shadow-sm h-100 card-metric">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center mb-1">
-                        <div class="icon-circle bg-info bg-opacity-10 text-info me-2">
-                            <i class="fas fa-wallet fa-sm"></i>
-                        </div>
-                        <span class="text-uppercase x-small fw-bold text-muted">Total Revenue</span>
-                    </div>
-                    <div class="h2 mb-0 fw-bold text-dark">{{ number_format($totalRevenue) }}</div>
-                    <div class="x-small text-muted">Received + Outstanding</div>
+            <div class="dash-stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="dsc-icon bg-danger-subtle text-danger"><i class="fas fa-exclamation-triangle"></i></div>
+                    <span class="dsc-trend">Late</span>
                 </div>
+                <div class="dsc-value text-danger">{{ number_format($overdueTasks) }}</div>
+                <div class="dsc-label">Overdue Tasks</div>
             </div>
         </div>
-
+        <!-- Revisions -->
         <div class="col-6 col-md-2 stats-col">
-            <div class="card border-0 shadow-sm h-100 card-metric">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center mb-1">
-                        <div class="icon-circle bg-warning bg-opacity-10 text-warning me-2">
-                            <i class="fas fa-stopwatch fa-sm"></i>
-                        </div>
-                        <span class="text-uppercase x-small fw-bold text-muted">Avg Time</span>
-                    </div>
-                    <div class="h2 mb-0 fw-bold text-dark">{{ number_format($avgCompletionHours, 1) }}<span class="fs-6 fw-normal">h</span></div>
-                    <div class="x-small text-muted">Per completion</div>
+            <div class="dash-stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="dsc-icon bg-danger-subtle text-danger"><i class="fas fa-undo-alt"></i></div>
+                    <span class="dsc-trend">Fixes</span>
                 </div>
+                <div class="dsc-value text-danger">{{ number_format($revisionCount) }}</div>
+                <div class="dsc-label">Revisions</div>
             </div>
         </div>
-        <!-- Merged Row 2 starts here -->
+        <!-- Avg Time -->
         <div class="col-6 col-md-2 stats-col">
-            <div class="card border-0 shadow-sm h-100 card-metric">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center mb-1">
-                        <div class="icon-circle bg-secondary bg-opacity-10 text-secondary me-2">
-                            <i class="fas fa-print fa-sm"></i>
-                        </div>
-                        <span class="text-uppercase x-small fw-bold text-muted">Printing Job</span>
-                    </div>
-                    <div class="h2 mb-0 fw-bold text-dark">{{ number_format($printingTasks) }}</div>
-                    <div class="x-small text-muted">Ready/In-Print</div>
+            <div class="dash-stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="dsc-icon bg-warning-subtle text-warning"><i class="fas fa-stopwatch"></i></div>
+                    <span class="dsc-trend">Speed</span>
                 </div>
+                <div class="dsc-value text-warning">{{ number_format($avgCompletionHours, 1) }}h</div>
+                <div class="dsc-label">Avg Completion</div>
             </div>
         </div>
-
+        <!-- Total Revenue -->
         <div class="col-6 col-md-2 stats-col">
-            <div class="card border-0 shadow-sm h-100 card-metric">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center mb-1">
-                        <div class="icon-circle bg-danger bg-opacity-10 text-danger me-2">
-                            <i class="fas fa-undo-alt fa-sm"></i>
-                        </div>
-                        <span class="text-uppercase x-small fw-bold text-muted">Revisions</span>
-                    </div>
-                    <div class="h2 mb-0 fw-bold text-dark">{{ number_format($revisionCount) }}</div>
-                    <div class="x-small text-muted">Total requests</div>
+            <div class="dash-stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="dsc-icon bg-info-subtle text-info"><i class="fas fa-wallet"></i></div>
+                    <span class="dsc-trend">Revenue</span>
                 </div>
+                <div class="dsc-value text-info">{{ number_format($totalRevenue) }}</div>
+                <div class="dsc-label">Total Revenue</div>
             </div>
         </div>
-        
+        <!-- Amount Collected -->
         <div class="col-6 col-md-2 stats-col">
-            <div class="card border-0 shadow-sm h-100 card-metric">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center mb-1">
-                        <div class="icon-circle bg-primary bg-opacity-10 text-primary me-2">
-                            <i class="fas fa-receipt fa-sm"></i>
-                        </div>
-                        <span class="text-uppercase x-small fw-bold text-muted">Amount Collected</span>
-                    </div>
-                    <div class="h2 mb-0 fw-bold text-dark">{{ number_format($totalPaid) }}</div>
-                    <div class="x-small text-success fw-bold">Money received</div>
+            <div class="dash-stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="dsc-icon bg-primary-subtle text-primary"><i class="fas fa-receipt"></i></div>
+                    <span class="dsc-trend">Paid</span>
                 </div>
+                <div class="dsc-value text-primary">{{ number_format($totalPaid) }}</div>
+                <div class="dsc-label">Collected</div>
             </div>
         </div>
-
+        <!-- Balance Due -->
         <div class="col-6 col-md-2 stats-col">
-            <div class="card border-0 shadow-sm h-100 card-metric">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center mb-1">
-                        <div class="icon-circle bg-warning bg-opacity-10 text-warning me-2">
-                            <i class="fas fa-hourglass-half fa-sm"></i>
-                        </div>
-                        <span class="text-uppercase x-small fw-bold text-muted">Balance Due</span>
-                    </div>
-                    <div class="h2 mb-0 fw-bold text-dark">{{ number_format($totalBalance) }}</div>
-                    <div class="x-small text-danger fw-bold">Outstanding</div>
+            <div class="dash-stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="dsc-icon bg-warning-subtle text-warning"><i class="fas fa-hourglass-half"></i></div>
+                    <span class="dsc-trend">Debt</span>
                 </div>
+                <div class="dsc-value text-warning">{{ number_format($totalBalance) }}</div>
+                <div class="dsc-label">Balance Due</div>
             </div>
         </div>
-
+        <!-- Priority cards -->
+        @php
+            $priorityCards = [
+                'High'   => ['icon'=>'fas fa-flag','bg'=>'bg-danger-subtle','text'=>'text-danger','sub'=>'Urgent'],
+                'Medium' => ['icon'=>'fas fa-flag','bg'=>'bg-warning-subtle','text'=>'text-warning','sub'=>'Normal'],
+                'Low'    => ['icon'=>'fas fa-flag','bg'=>'bg-success-subtle','text'=>'text-success','sub'=>'Light'],
+            ];
+        @endphp
+        @foreach($priorityCards as $label => $pc)
         <div class="col-6 col-md-2 stats-col">
-            <div class="card border-0 shadow-sm h-100 card-metric">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center mb-1">
-                        <div class="icon-circle bg-danger bg-opacity-10 text-danger me-2">
-                            <i class="fas fa-exclamation-triangle fa-sm"></i>
-                        </div>
-                        <span class="text-uppercase x-small fw-bold text-muted">Overdue</span>
-                    </div>
-                    <div class="h2 mb-0 fw-bold text-danger">{{ number_format($overdueTasks) }}</div>
-                    <div class="x-small text-muted">Missed deadline</div>
+            <div class="dash-stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="dsc-icon {{ $pc['bg'] }} {{ $pc['text'] }}"><i class="{{ $pc['icon'] }}"></i></div>
+                    <span class="dsc-trend">{{ $pc['sub'] }}</span>
                 </div>
-            </div>
-        </div>
-        <!-- Merged Row 3 starts here -->
-        @foreach(['High' => 'danger', 'Medium' => 'warning', 'Low' => 'success'] as $label => $color)
-        <div class="col-6 col-md-2 stats-col">
-            <div class="card border-0 shadow-sm h-100 card-metric">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center mb-1">
-                        <div class="icon-circle bg-{{ $color }} bg-opacity-10 text-{{ $color }} me-2">
-                            <i class="fas fa-flag fa-sm"></i>
-                        </div>
-                        <span class="text-uppercase x-small fw-bold text-muted">{{ $label }} Priority</span>
-                    </div>
-                    <div class="h2 mb-0 fw-bold text-{{ $color }}">{{ number_format($priorityDistribution[$label] ?? 0) }}</div>
-                    <div class="x-small text-muted">Tasks</div>
-                </div>
+                <div class="dsc-value {{ $pc['text'] }}">{{ number_format($priorityDistribution[$label] ?? 0) }}</div>
+                <div class="dsc-label">{{ $label }} Priority</div>
             </div>
         </div>
         @endforeach
-        
-
-         <div class="col-6 col-md-2 stats-col">
-            <div class="card border-0 shadow-sm h-100 card-metric">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center mb-1">
-                        <div class="icon-circle bg-primary bg-opacity-10 text-primary me-2">
-                            <i class="fas fa-percent fa-sm"></i>
-                        </div>
-                        <span class="text-uppercase x-small fw-bold text-muted">Success Rate</span>
-                    </div>
-                    <div class="h2 mb-0 fw-bold text-primary">{{ $totalTasks > 0 ? round(($completedTasks / $totalTasks) * 100, 1) : 0 }}%</div>
-                    <div class="x-small text-muted">Completion rate</div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Charts Row -->
@@ -537,6 +465,7 @@
                                     <th class="ps-3 border-0 x-small">Design Staff</th>
                                     <th class="text-center border-0 x-small">Tasks</th>
                                     <th class="text-end pe-3 border-0 x-small">Revenue</th>
+                                    <th class="text-center border-0 x-small no-print">Print</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -552,6 +481,16 @@
                                     </td>
                                     <td class="text-center small">{{ $designer->task_count }}</td>
                                     <td class="text-end pe-3 small text-success fw-bold">{{ number_format($designer->total_revenue) }}</td>
+                                    <td class="text-center no-print">
+                                        @php
+                                            $printParams = array_merge(request()->except('designer_id'), ['designer_id' => $designer->designer_id]);
+                                        @endphp
+                                        <a href="{{ route('admin.design-tasks.reports.print', $printParams) }}"
+                                           target="_blank"
+                                           class="btn btn-outline-primary btn-xs p-1" title="Print {{ $designer->designer->name ?? 'Designer' }} Report">
+                                            <i class="fas fa-print" style="font-size:0.7rem;"></i>
+                                        </a>
+                                    </td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -818,6 +757,7 @@
     // Professional Print Title
     window.onbeforeprint = () => { document.title = "Designer_Performance_Report_{{ now()->format('Ymd') }}"; };
     window.onafterprint = () => { document.title = "@yield('title')"; };
+
 </script>
 @endpush
 @endsection

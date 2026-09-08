@@ -49,7 +49,7 @@
             text-transform: uppercase;
             margin: 0;
             text-align: right;
-            color: #444;
+            color: #dc2626;
         }
 
         /* Meta Information */
@@ -85,7 +85,7 @@
             font-weight: 800;
             text-transform: uppercase;
             font-size: 7.5pt;
-            color: #444;
+            color: #dc2626;
         }
 
         .table-pro td {
@@ -178,22 +178,20 @@
 </head>
 <body>
 
-    <div class="no-print p-3 bg-primary text-white d-flex justify-content-between align-items-center mb-4">
-        <div class="ms-2">
-            <h6 class="mb-0 fw-bold"><i class="fas fa-print me-2"></i> LEADS LOG PRINT PREVIEW</h6>
-        </div>
-        <div class="me-2">
-            <button class="btn btn-light fw-bold px-4 text-primary" onclick="window.print()">PRINT NOW</button>
-            <button class="btn btn-outline-light ms-2" onclick="window.close()">CLOSE</button>
+    <div class="no-print py-1 px-3 bg-primary text-white d-flex justify-content-between align-items-center mb-3">
+        <small class="fw-semibold"><i class="fas fa-print me-1"></i> LEADS LOG PRINT PREVIEW</small>
+        <div class="d-flex gap-1">
+            <button class="btn btn-light btn-sm fw-bold px-3 text-primary" onclick="window.print()">Print</button>
+            <button class="btn btn-outline-light btn-sm px-2" onclick="window.close()">Close</button>
         </div>
     </div>
 
     <div class="log-wrapper">
         <!-- Header -->
         <div class="report-header">
-            <div class="row align-items-end">
+            <div class="row align-items-start">
                 <div class="col-7">
-                    <img src="{{ asset('images/logo.webp') }}" alt="BRAND LOGO" class="brand-logo" onerror="this.style.display='none'">
+                    @include('partials.logo-print')
                     <h1 class="company-name">CHIBOBRAND CO. LTD.</h1>
                 </div>
                 <div class="col-5 text-end">

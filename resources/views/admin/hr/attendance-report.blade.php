@@ -31,9 +31,13 @@
                 </div>
                 <button type="submit" class="btn btn-primary btn-sm">Go</button>
             </form>
-            <button onclick="window.print()" class="btn btn-dark btn-sm px-3">
-                <i class="fas fa-print me-1"></i>Print
-            </button>
+            <x-report-export-menu
+                :print-url="route('admin.hr.attendance.report.print', ['month' => $month, 'year' => $year])"
+                :pdf-url="route('admin.hr.attendance.report.pdf', ['month' => $month, 'year' => $year])"
+                :excel-url="route('admin.hr.attendance.report.excel', ['month' => $month, 'year' => $year])"
+                print-target="_blank"
+                label="Export"
+            />
         </div>
     </div>
 

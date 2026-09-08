@@ -221,20 +221,18 @@
 </head>
 <body>
 
-    <div class="no-print p-3 bg-primary text-white d-flex justify-content-between align-items-center mb-4">
-        <div class="ms-2">
-            <h6 class="mb-0 "><i class="fas fa-print me-2"></i> PAYMENT RECEIPT PREVIEW</h6>
-        </div>
-        <div class="me-2">
-            <button class="btn btn-light fw-bold px-4" onclick="window.print()">PRINT NOW</button>
-            <button class="btn btn-outline-light ms-2" onclick="window.close() || window.history.back()">CLOSE</button>
+    <div class="no-print py-1 px-3 bg-primary text-white d-flex justify-content-between align-items-center mb-3">
+        <small class="fw-semibold"><i class="fas fa-print me-1"></i> PAYMENT RECEIPT PREVIEW</small>
+        <div class="d-flex gap-1">
+            <button class="btn btn-light btn-sm fw-bold px-3" onclick="window.print()">Print</button>
+            <button class="btn btn-outline-light btn-sm px-2" onclick="window.close() || window.history.back()">Close</button>
         </div>
     </div>
 
     <div class="invoice-wrapper">
         <div class="header-section">
             <div class="company-header-info">
-                <img src="{{ asset('images/logo.png') }}" alt="CHIBO BRANDS" style="height: 60px; margin-bottom: 10px;" onerror="this.src='{{ asset('images/logo.webp') }}'">
+                @include('partials.logo-print')
                 <h1>Chibo Brands Co Ltd</h1>
                 <div>Kinondoni Dar es Salaam 14108</div>
                 <div>Tanzania</div>

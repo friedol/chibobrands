@@ -10,30 +10,40 @@
         if (preloader) {
             preloader.classList.add("fade-out");
             // Remove from layout once faded
-            setTimeout(() => { preloader.style.display = 'none'; }, 200);
+            setTimeout(() => { preloader.style.display = 'none'; }, 100);
         }
     };
 
     if (document.readyState === "complete" || document.readyState === "interactive") {
         hideLoader();
     } else {
+        document.addEventListener("DOMContentLoaded", hideLoader);
         window.addEventListener("load", hideLoader);
     }
     
-    // Safety fallback
-    setTimeout(hideLoader, 500);
+    // Safety fallbacks - super fast reveal
+    setTimeout(hideLoader, 150);
+    setTimeout(hideLoader, 1000);
+
+    // Instant reveal on Back/Forward browser navigation (bfcache)
+    window.addEventListener("pageshow", hideLoader);
+    window.addEventListener("popstate", hideLoader);
 
     document.addEventListener("DOMContentLoaded", function () {
+        hideLoader();
+
         // 2. Navigation Preloader (Only for real navigations)
         document.body.addEventListener('click', (e) => {
             const link = e.target.closest('a');
-            if (!link || link.target === '_blank' || link.href.includes('#') || link.href.startsWith('javascript:')) return;
+            if (!link || link.target === '_blank' || link.href.includes('#') || link.href.startsWith('javascript:') || link.hasAttribute('data-no-preloader')) return;
             
             // Only show if navigating to a different URL
             if (link.href && link.href !== window.location.href.split('#')[0]) {
                 if (preloader) {
                     preloader.style.display = 'flex';
                     preloader.classList.remove("fade-out");
+                    // Auto safety timeout to hide preloader if navigation is delayed or cancelled
+                    setTimeout(hideLoader, 1500);
                 }
             }
         });
@@ -84,6 +94,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 document.addEventListener('DOMContentLoaded', function () {
     const sidebar = document.querySelector('.sidebar');
+    const sidebarNav = document.querySelector('.sidebar-nav') || sidebar;
     const submenuItems = document.querySelectorAll('[data-submenu-toggle]');
     const storageKey = 'admin_sidebar_state';
 
@@ -336,14 +347,18 @@ document.addEventListener('DOMContentLoaded', function () {
         link.addEventListener('click', function () {
             // Keep click stable: hide the tooltip immediately on navigation/click.
             hideTooltip();
-            minimizedSubmenuItems.forEach(it => forceHide(it));
+            if (sidebar && sidebar.classList.contains('minimized')) {
+                minimizedSubmenuItems.forEach(it => forceHide(it));
+            }
         });
     });
 
     // When clicking actual submenu links (inside the popout), close everything for stability.
+    // Guard: only run in minimized mode — in expanded mode this would incorrectly close the open submenu.
     const minimizedSubmenuLinks = document.querySelectorAll('.sidebar .nav-submenu .nav-link');
     minimizedSubmenuLinks.forEach(link => {
         link.addEventListener('click', function () {
+            if (!sidebar || !sidebar.classList.contains('minimized')) return;
             hideTooltip();
             minimizedSubmenuItems.forEach(it => forceHide(it));
         });
@@ -363,9 +378,13 @@ document.addEventListener('DOMContentLoaded', function () {
     // 1. Restore State
     const savedState = JSON.parse(localStorage.getItem(storageKey) || '{"openMenus":[], "scrollTop":0}');
 
+    // Suppress submenu transitions during initial restore so the browser cannot
+    // auto-scroll the sidebar to reveal the newly-visible active link after the animation.
+    if (sidebar) sidebar.classList.add('sidebar-loading');
+
     // Restore Scroll Position
-    if (sidebar && savedState.scrollTop) {
-        sidebar.scrollTop = savedState.scrollTop;
+    if (sidebar && typeof savedState.scrollTop === 'number') {
+        sidebarNav.scrollTop = savedState.scrollTop;
     }
 
     submenuItems.forEach(function (item, index) {
@@ -390,16 +409,32 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
-        // Handle clicks on the main link
+        // Handle clicks on the main link (parent toggle)
         link.addEventListener('click', function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            const prevScrollTop = sidebar ? sidebar.scrollTop : 0;
-            item.classList.toggle('active');
+            // Only prevent default if this is the toggle link itself (not a submenu item)
+            if (e.target.closest('.nav-link') === link) {
+                e.preventDefault();
+                e.stopPropagation();
+                const prevScrollTop = sidebarNav ? sidebarNav.scrollTop : 0;
+                item.classList.toggle('active');
 
-            // When minimized, sync the fixed-position popout state with clicks.
-            // This keeps "click to stay open" working even after hover-leave.
-            delete item.dataset.popoutHover;
+            // Accordion behavior: Close other open menus
+            if (item.classList.contains('active')) {
+                submenuItems.forEach(function (otherItem) {
+                    if (otherItem !== item) {
+                        otherItem.classList.remove('active');
+                        // Also force hide if minimized
+                        if (window.innerWidth > 992 && sidebar && sidebar.classList.contains('minimized')) {
+                            forceHide(otherItem);
+                        }
+                    }
+                });
+            }
+
+                // When minimized, sync the fixed-position popout state with clicks.
+                // This keeps "click to stay open" working even after hover-leave.
+                delete item.dataset.popoutHover;
+            }
             if (window.innerWidth > 992 && sidebar && sidebar.classList.contains('minimized')) {
                 if (item.classList.contains('active')) {
                     showPopout(item, 'click');
@@ -412,7 +447,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // to auto-scroll the sidebar. Preserve position for a stable UX.
             if (sidebar && !sidebar.classList.contains('minimized')) {
                 requestAnimationFrame(() => {
-                    sidebar.scrollTop = prevScrollTop;
+                    sidebarNav.scrollTop = prevScrollTop;
                     saveSidebarState();
                 });
             } else {
@@ -430,6 +465,17 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // All submenus have been opened synchronously (no animation).
+    // Re-lock scroll, then re-enable transitions in the next frame.
+    if (sidebar) {
+        if (typeof savedState.scrollTop === 'number') {
+            sidebarNav.scrollTop = savedState.scrollTop;
+        }
+        requestAnimationFrame(() => {
+            sidebar.classList.remove('sidebar-loading');
+        });
+    }
+
     // 2. Save State Function
     function saveSidebarState() {
         const openMenus = [];
@@ -439,7 +485,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const state = {
             openMenus: openMenus,
-            scrollTop: sidebar ? sidebar.scrollTop : 0
+            scrollTop: sidebarNav ? sidebarNav.scrollTop : 0
         };
 
         localStorage.setItem(storageKey, JSON.stringify(state));
@@ -448,9 +494,16 @@ document.addEventListener('DOMContentLoaded', function () {
     // 3. Save Scroll Position on Scroll
     if (sidebar) {
         let scrollTimeout;
-        sidebar.addEventListener('scroll', () => {
+        sidebarNav.addEventListener('scroll', () => {
             clearTimeout(scrollTimeout);
             scrollTimeout = setTimeout(saveSidebarState, 100);
+        });
+
+        // Instantly save sidebar scroll position when clicking any link inside the sidebar
+        sidebar.addEventListener('click', (e) => {
+            if (e.target.closest('.nav-link')) {
+                saveSidebarState();
+            }
         });
     }
 });
@@ -484,8 +537,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const navLinks = document.querySelectorAll('.sidebar .nav-link:not(.logout-btn)');
     navLinks.forEach(link => {
         link.addEventListener('click', function (e) {
-            // Only trigger for actual navigation links (ignore hashes/toggles)
-            const isToggle = link.getAttribute('href') === '#' || link.hasAttribute('data-bs-toggle');
+            // Only trigger for actual navigation links (ignore hashes/toggles/submenu parents)
+            const isToggle = link.getAttribute('href') === '#'
+                || link.hasAttribute('data-bs-toggle')
+                || link.closest('[data-submenu-toggle]') !== null;
             
             if (window.innerWidth <= 992 && !isToggle) {
                 // If the sidebar is active, toggle it off (hides overlay and restores scroll)
@@ -513,9 +568,9 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 
-// Auto-hide alerts
+// Auto-hide alerts (only for temporary auto-dismiss banners)
 setTimeout(function () {
-    const alerts = document.querySelectorAll('.alert');
+    const alerts = document.querySelectorAll('.alert-auto-dismiss');
     alerts.forEach(alert => {
         if (alert.parentNode) {
             alert.remove();
@@ -527,7 +582,7 @@ setTimeout(function () {
 // Removed global button loading state handler to prevent stuck 'Processing...' state
 
 // Smooth scrolling for anchor links
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+document.querySelectorAll('a[href^="#"]:not([href="#"])').forEach(anchor => {
     anchor.addEventListener('click', function (e) {
         e.preventDefault();
         const target = document.querySelector(this.getAttribute('href'));

@@ -74,6 +74,51 @@
     h4, .h4 { font-size: 14px !important; }
     .text-muted.small { font-size: 12px !important; }
     .avatar-circle { font-size: 13px !important; }
+
+    /* Compact Stat Card Styles */
+    .cust-stat-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 9px 11px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        transition: all 0.2s ease;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .cust-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    .cust-stat-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        flex-shrink: 0;
+    }
+    .cust-stat-val {
+        font-size: 1.05rem;
+        font-weight: 700;
+        line-height: 1.25;
+        margin-top: 4px;
+    }
+    .cust-stat-lbl {
+        font-size: 11px;
+        font-weight: 600;
+        color: #64748b;
+        margin-top: 1px;
+    }
+    .cust-stat-sub {
+        font-size: 10px;
+        font-weight: 500;
+        color: #94a3b8;
+    }
 </style>
 @endpush
 
@@ -84,15 +129,43 @@
         <div>
             <h4 class="fw-bold mb-2 text-dark">Customer Management</h4>
         </div>
-        @if(auth()->user()->hasPermission('manage_customers') || auth()->user()->role === 'accountant')
-        <div>
-            <button type="button" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+        @if(in_array(auth()->user()->role, ['admin', 'super_admin', 'manager']))
+        <div class="d-flex gap-2">
+            <a href="{{ route('admin.customers.duplicates') }}" class="btn btn-outline-warning text-dark d-flex align-items-center gap-2 shadow-sm">
+                <i class="fas fa-object-group text-warning"></i>
+                <span>Merge Duplicates</span>
+            </a>
+            <a href="{{ route('admin.customers.create') }}" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm">
                 <i class="fas fa-plus"></i>
                 <span>Add Customer</span>
-            </button>
+            </a>
+        </div>
+        @elseif(auth()->user()->hasPermission('manage_customers') || auth()->user()->role === 'accountant')
+        <div>
+            <a href="{{ route('admin.customers.create') }}" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm">
+                <i class="fas fa-plus"></i>
+                <span>Add Customer</span>
+            </a>
         </div>
         @endif
     </div>
+
+    @if(($duplicateCount ?? 0) > 0)
+    <div class="dup-warning-banner shadow-sm rounded-3 d-flex align-items-center justify-content-between mb-3 p-3" style="background:#fffbe6; border: 1.5px solid #ffe58f;">
+        <div class="d-flex align-items-center gap-3">
+            <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width:40px;height:40px; background:#ffe58f; color:#d48806;">
+                <i class="fas fa-exclamation-triangle fa-lg"></i>
+            </div>
+            <div>
+                <h6 class="fw-bold mb-0" style="color:#873800;">Duplicate Phone Numbers Detected ({{ $duplicateCount }} Groups Found)</h6>
+                <small style="color:#b76e00;">Customers with variant phone formats (e.g. 0687123456 vs +255687123456) were detected. Consolidate them into single customer profiles.</small>
+            </div>
+        </div>
+        <a href="{{ route('admin.customers.duplicates') }}" class="btn fw-bold rounded-pill px-4 btn-sm flex-shrink-0" style="background:#faad14; color:#fff; border:none;">
+            <i class="fas fa-object-group me-1"></i> Review & Merge Records
+        </a>
+    </div>
+    @endif
 
     @if ($errors->any())
     <div class="row mb-3">
@@ -112,63 +185,211 @@
     </div>
     @endif
 
-    <!-- Stats Cards -->
-    <div class="row g-3 mb-4">
-        <div class="col-6 col-xl-3">
-            <div class="card border-0 shadow-sm h-100 overflow-hidden">
-                <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between mb-3">
-                        <div class="d-flex align-items-center justify-content-center rounded-circle bg-primary-subtle text-primary" style="width: 48px; height: 48px;">
-                            <i class="fas fa-users fa-lg"></i>
-                        </div>
-                        <span class="badge bg-primary-subtle text-primary rounded-pill">+{{ $stats['new_this_week'] }} this week</span>
-                    </div>
-                    <h3 class="mb-1 fw-bold">{{ $stats['total'] }}</h3>
-                    <div class="text-muted small fw-medium">Total Customers</div>
+    <!-- Stats Cards Row 1 -->
+    <div class="row g-2 mb-3">
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="cust-stat-card">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="cust-stat-icon bg-primary-subtle text-primary"><i class="fas fa-users"></i></div>
+                    <span class="cust-stat-sub">+{{ $stats['new_this_week'] }} week</span>
                 </div>
+                <div class="cust-stat-val text-dark">{{ number_format($stats['total']) }}</div>
+                <div class="cust-stat-lbl">Total Customers</div>
             </div>
         </div>
-        <div class="col-6 col-xl-3">
-            <div class="card border-0 shadow-sm h-100 overflow-hidden">
-                <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between mb-3">
-                        <div class="d-flex align-items-center justify-content-center rounded-circle bg-success-subtle text-success" style="width: 48px; height: 48px;">
-                            <i class="fas fa-check-circle fa-lg"></i>
-                        </div>
-                        <div class="small text-muted">{{ $stats['verified_percent'] }}% Verified</div>
+        <div class="col-6 col-md-4 col-xl-2">
+            <a href="{{ route('admin.customers.index', ['status'=>'new']) }}" class="text-decoration-none">
+                <div class="cust-stat-card">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="cust-stat-icon bg-success-subtle text-success"><i class="fas fa-user-plus"></i></div>
+                        <span class="cust-stat-sub">+{{ $stats['new_this_week_new'] }} week</span>
                     </div>
-                    <h3 class="mb-1 fw-bold">{{ $stats['verified'] }}</h3>
-                    <div class="text-muted small fw-medium">Verified Accounts</div>
+                    <div class="cust-stat-val text-success">{{ number_format($stats['new_customers']) }}</div>
+                    <div class="cust-stat-lbl">New Customers</div>
                 </div>
+            </a>
+        </div>
+        <div class="col-6 col-md-4 col-xl-2">
+            <a href="{{ route('admin.customers.index', ['status'=>'repeated']) }}" class="text-decoration-none">
+                <div class="cust-stat-card">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="cust-stat-icon" style="background:#e0e7ff;color:#4f46e5;"><i class="fas fa-redo"></i></div>
+                        <span class="cust-stat-sub">+{{ $stats['repeated_this_week'] }} week</span>
+                    </div>
+                    <div class="cust-stat-val" style="color:#4f46e5;">{{ number_format($stats['repeated_customers']) }}</div>
+                    <div class="cust-stat-lbl">Repeat Customers</div>
+                </div>
+            </a>
+        </div>
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="cust-stat-card">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="cust-stat-icon bg-info-subtle text-info"><i class="fas fa-check-circle"></i></div>
+                    <span class="cust-stat-sub">{{ $stats['verified_percent'] }}%</span>
+                </div>
+                <div class="cust-stat-val text-dark">{{ number_format($stats['verified']) }}</div>
+                <div class="cust-stat-lbl">Verified Accounts</div>
             </div>
         </div>
-        <div class="col-6 col-xl-3">
-            <div class="card border-0 shadow-sm h-100 overflow-hidden">
-                <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between mb-3">
-                        <div class="d-flex align-items-center justify-content-center rounded-circle bg-info-subtle text-info" style="width: 48px; height: 48px;">
-                            <i class="fas fa-briefcase fa-lg"></i>
-                        </div>
-                    </div>
-                    <h3 class="mb-1 fw-bold">{{ $stats['wholesale'] }}</h3>
-                    <div class="text-muted small fw-medium">Wholesale Partners</div>
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="cust-stat-card">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="cust-stat-icon" style="background:#f3e8ff;color:#9333ea;"><i class="fas fa-briefcase"></i></div>
+                    <span class="cust-stat-sub">B2B</span>
                 </div>
+                <div class="cust-stat-val" style="color:#9333ea;">{{ number_format($stats['wholesale']) }}</div>
+                <div class="cust-stat-lbl">Wholesale Partners</div>
             </div>
         </div>
-        <div class="col-6 col-xl-3">
-            <div class="card border-0 shadow-sm h-100 overflow-hidden">
-                <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between mb-3">
-                        <div class="d-flex align-items-center justify-content-center rounded-circle bg-warning-subtle text-warning" style="width: 48px; height: 48px;">
-                            <i class="fas fa-user-clock fa-lg"></i>
-                        </div>
-                    </div>
-                    <h3 class="mb-1 fw-bold">{{ $stats['pending'] }}</h3>
-                    <div class="text-muted small fw-medium">Pending Verification</div>
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="cust-stat-card">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="cust-stat-icon bg-warning-subtle text-warning"><i class="fas fa-user-clock"></i></div>
+                    <span class="cust-stat-sub">Awaiting</span>
                 </div>
+                <div class="cust-stat-val text-warning">{{ number_format($stats['pending']) }}</div>
+                <div class="cust-stat-lbl">Pending Verification</div>
             </div>
         </div>
     </div>
+
+    <!-- Revenue & Segmentation Cards Row 2 -->
+    <div class="row g-2 mb-3">
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="cust-stat-card">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="cust-stat-icon" style="background:#d1fae5;color:#059669;"><i class="fas fa-coins"></i></div>
+                    <span class="cust-stat-sub">New Seg.</span>
+                </div>
+                <div class="cust-stat-val text-success" style="font-size:1.02rem;">TZS {{ number_format($stats['new_customer_revenue'] ?? 0) }}</div>
+                <div class="cust-stat-lbl">New Customer Revenue</div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="cust-stat-card">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="cust-stat-icon" style="background:#e0e7ff;color:#4f46e5;"><i class="fas fa-hand-holding-usd"></i></div>
+                    <span class="cust-stat-sub">Repeat Seg.</span>
+                </div>
+                <div class="cust-stat-val" style="font-size:1.02rem;color:#4f46e5;">TZS {{ number_format($stats['repeated_customer_revenue'] ?? 0) }}</div>
+                <div class="cust-stat-lbl">Repeat Customer Revenue</div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="cust-stat-card">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="cust-stat-icon" style="background:#fef3c7;color:#d97706;"><i class="fas fa-building"></i></div>
+                    <span class="cust-stat-sub">Wholesale</span>
+                </div>
+                <div class="cust-stat-val" style="font-size:1.02rem;color:#d97706;">{{ number_format($stats['new_customers_wholesale'] ?? 0) }}</div>
+                <div class="cust-stat-lbl">New Customers: Wholesale</div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="cust-stat-card">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="cust-stat-icon" style="background:#dbeafe;color:#2563eb;"><i class="fas fa-shopping-bag"></i></div>
+                    <span class="cust-stat-sub">Retail</span>
+                </div>
+                <div class="cust-stat-val" style="font-size:1.02rem;color:#2563eb;">{{ number_format($stats['new_customers_retail'] ?? 0) }}</div>
+                <div class="cust-stat-lbl">New Customers: Retail</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export, Filter & Toolbar -->
+    <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3">
+        {{-- Export actions --}}
+        @if(auth()->user()->role !== 'saler')
+        <div class="d-flex gap-2">
+            <a href="{{ route('admin.customers.export.excel', request()->all()) }}"
+               class="btn btn-sm btn-outline-success rounded-2 fw-bold px-3" data-no-preloader data-no-global-handler>
+                <i class="fas fa-file-excel me-1"></i>Excel
+            </a>
+            <a href="{{ route('admin.customers.export.pdf', request()->all()) }}" target="_blank"
+               class="btn btn-sm btn-outline-danger rounded-2 fw-bold px-3" data-no-preloader data-no-global-handler>
+                <i class="fas fa-file-pdf me-1"></i>PDF
+            </a>
+        </div>
+        @endif
+        
+        {{-- Filter trigger + My Customers toggle --}}
+        <div class="d-flex gap-2">
+            @if(in_array(auth()->user()->role, ['saler', 'senior_saler']))
+                @php $ownOnly = request()->boolean('own_only'); @endphp
+                <a href="{{ route('admin.customers.index', array_merge(request()->except('own_only', 'page'), $ownOnly ? [] : ['own_only' => '1'])) }}"
+                   class="btn btn-sm rounded-2 fw-bold px-3 d-flex align-items-center gap-1 {{ $ownOnly ? 'btn-primary' : 'btn-outline-primary' }}"
+                   title="{{ $ownOnly ? 'Showing My Customers — click to show all' : 'Show only my customers' }}">
+                    <i class="fas fa-user me-1"></i>{{ $ownOnly ? 'My Customers' : 'All Customers' }}
+                </a>
+            @endif
+            <button class="btn btn-sm btn-outline-secondary rounded-2 fw-bold px-3 d-flex align-items-center gap-1"
+                    data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                <i class="fas fa-sliders-h"></i>Filter
+            </button>
+        </div>
+    </div>
+
+    @php
+        $hasFilters = request()->anyFilled(['search', 'status', 'period', 'saler_id', 'own_only']);
+    @endphp
+
+    {{-- ── Advanced Filter Collapse ── --}}
+    <div class="collapse {{ $hasFilters ? 'show' : '' }} mb-4" id="filterCollapse">
+        <div class="card filter-card border-0 shadow-sm" style="border-radius:10px; border:1px solid #e2e8f0; background:#f8fafc;">
+            <div class="card-body p-3">
+                <form action="{{ route('admin.customers.index') }}" method="GET" class="row g-2" data-no-global-handler>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label fw-bold x-small text-uppercase mb-1" style="font-size:10px; color:#64748b;">Search</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                            <input type="text" name="search" class="form-control border-start-0"
+                                   placeholder="Name, phone, email, company…" value="{{ request('search') }}">
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label fw-bold x-small text-uppercase mb-1" style="font-size:10px; color:#64748b;">Status / Segment</label>
+                        <select name="status" class="form-select form-select-sm">
+                            <option value="all">All Stages</option>
+                            <option value="verified"   {{ request('status') == 'verified'   ? 'selected' : '' }}>Verified</option>
+                            <option value="unverified" {{ request('status') == 'unverified' ? 'selected' : '' }}>Unverified</option>
+                            <option value="wholesale"  {{ request('status') == 'wholesale'  ? 'selected' : '' }}>Wholesale Partner</option>
+                            <option value="active"     {{ request('status') == 'active'     ? 'selected' : '' }}>Active Status</option>
+                            <option value="new"        {{ request('status') == 'new'        ? 'selected' : '' }}>New Customer</option>
+                            <option value="repeated"   {{ request('status') == 'repeated'   ? 'selected' : '' }}>Repeat Customer</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label fw-bold x-small text-uppercase mb-1" style="font-size:10px; color:#64748b;">Joined Period</label>
+                        <select name="period" class="form-select form-select-sm">
+                            <option value="all"   {{ request('period') == 'all'   ? 'selected' : '' }}>All Time</option>
+                            <option value="today" {{ request('period') == 'today' ? 'selected' : '' }}>Today</option>
+                            <option value="week"  {{ request('period') == 'week'  ? 'selected' : '' }}>This Week</option>
+                            <option value="month" {{ request('period') == 'month' ? 'selected' : '' }}>This Month</option>
+                            <option value="year"  {{ request('period') == 'year'  ? 'selected' : '' }}>This Year</option>
+                        </select>
+                    </div>
+                    @if(in_array(auth()->user()->role, ['admin','super_admin','accountant']))
+                    <div class="col-12 col-md-3">
+                        <label class="form-label fw-bold x-small text-uppercase mb-1" style="font-size:10px; color:#64748b;">Salesperson (Brought By)</label>
+                        <select name="saler_id" class="form-select form-select-sm">
+                            <option value="all">All Salespeople</option>
+                            @foreach($salers as $s)
+                                <option value="{{ $s->id }}" {{ request('saler_id') == $s->id ? 'selected' : '' }}>{{ $s->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    @endif
+                    <div class="col-12 col-md-auto d-flex align-items-end gap-2 ms-md-auto">
+                        <button type="submit" class="btn btn-primary btn-sm px-4 fw-bold rounded-2 flex-fill flex-md-grow-0">Apply</button>
+                        <a href="{{ route('admin.customers.index') }}" class="btn btn-outline-secondary btn-sm px-3 fw-bold rounded-2 flex-fill flex-md-grow-0">Reset</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
 
     <!-- Filters & Content -->
     <div class="card border-0 shadow-sm rounded-4">
@@ -198,9 +419,17 @@
                        class="btn btn-sm rounded-pill px-3 {{ request('status') == 'wholesale' ? 'btn-dark' : 'btn-light border' }}">
                         Wholesale
                     </a>
-                    <a href="{{ route('admin.customers.index', ['status' => 'active']) }}" 
+                    <a href="{{ route('admin.customers.index', ['status' => 'active']) }}"
                        class="btn btn-sm rounded-pill px-3 {{ request('status') == 'active' ? 'btn-dark' : 'btn-light border' }}">
                         Active
+                    </a>
+                    <a href="{{ route('admin.customers.index', ['status' => 'new']) }}"
+                       class="btn btn-sm rounded-pill px-3 {{ request('status') == 'new' ? 'btn-success' : 'btn-light border' }}">
+                        <i class="fas fa-user-plus me-1"></i>New
+                    </a>
+                    <a href="{{ route('admin.customers.index', ['status' => 'repeated']) }}"
+                       class="btn btn-sm rounded-pill px-3 {{ request('status') == 'repeated' ? 'btn-primary' : 'btn-light border' }}">
+                        <i class="fas fa-redo me-1"></i>Repeated
                     </a>
                     @if(request()->has('status') || request()->has('search'))
                         <a href="{{ route('admin.customers.index') }}" class="btn btn-sm btn-outline-danger rounded-pill px-3 ms-2">
@@ -243,11 +472,20 @@
                                             >
                                             <div>
                                                 <div class="fw-bold text-dark mb-0 text-truncate" style="max-width: 200px;">{{ $customer->name }}</div>
-                                                @if($customer->is_wholesale)
-                                                    <span class="badge bg-purple-subtle text-purple border border-purple-subtle rounded-pill x-small mt-1">Wholesale</span>
-                                                @else
-                                                    <span class="text-muted x-small">Retail Customer</span>
-                                                @endif
+                                                <div class="d-flex gap-1 flex-wrap mt-1">
+                                                    @if($customer->is_repeated)
+                                                        <span class="badge rounded-pill px-2" style="background:#e0e7ff;color:#4338ca;font-size:9px;font-weight:700;">
+                                                            <i class="fas fa-redo me-1"></i>REPEAT
+                                                        </span>
+                                                    @else
+                                                        <span class="badge rounded-pill px-2" style="background:#dcfce7;color:#15803d;font-size:9px;font-weight:700;">
+                                                            <i class="fas fa-star me-1"></i>NEW
+                                                        </span>
+                                                    @endif
+                                                    @if($customer->is_wholesale)
+                                                        <span class="badge bg-purple-subtle text-purple border border-purple-subtle rounded-pill x-small">Wholesale</span>
+                                                    @endif
+                                                </div>
                                             </div>
                                         </div>
                                     </td>
@@ -301,18 +539,23 @@
                                                 <i class="fas fa-eye"></i>
                                             </a>
                                             
-                                            @if(auth()->user()->hasPermission('manage_customers') || auth()->user()->role === 'accountant')
-                                            <button type="button" 
-                                               class="btn-action btn-edit" 
-                                               title="Edit Profile" 
-                                               data-bs-toggle="modal" 
-                                               data-bs-target="#editCustomerModal{{ $customer->id }}"
-                                               data-no-global-handler>
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            @endif
+                                            @php
+                                                $canEdit = auth()->user()->hasPermission('manage_customers') || 
+                                                          auth()->user()->role === 'accountant' ||
+                                                          (auth()->user()->role === 'saler' && 
+                                                           (auth()->user()->id === $customer->added_by || auth()->user()->id === $customer->account_owner_id));
+                                            @endphp
+                                            
+                                            @if($canEdit)
+                                             <a href="{{ route('admin.customers.edit', $customer) }}" 
+                                                class="btn-action btn-edit" 
+                                                title="Edit Profile"
+                                                data-bs-toggle="tooltip">
+                                                 <i class="fas fa-edit"></i>
+                                             </a>
+                                             @endif
 
-                                            @if((auth()->user()->hasPermission('manage_customers') || auth()->user()->role === 'accountant') && (!$customer->verified || $templates->count() > 0))
+                                            @if((auth()->user()->hasPermission('manage_customers') || auth()->user()->role === 'accountant' || (auth()->user()->role === 'saler' && (auth()->user()->id === $customer->added_by || auth()->user()->id === $customer->account_owner_id))) && (!$customer->verified || $templates->count() > 0))
                                                 <div class="dropdown d-inline-block">
                                                     <button class="btn-action btn-more" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-no-global-handler>
                                                         <i class="fas fa-ellipsis-v"></i>
@@ -351,7 +594,7 @@
                                                 </div>
                                             @endif
 
-                                            @if(auth()->user()->hasPermission('manage_customers') || auth()->user()->role === 'accountant')
+                                            @if(auth()->user()->hasPermission('manage_customers') || auth()->user()->role === 'accountant' || (auth()->user()->role === 'saler' && (auth()->user()->id === $customer->added_by || auth()->user()->id === $customer->account_owner_id)))
                                             <form method="POST" action="{{ route('admin.customers.destroy', $customer) }}" id="deleteForm{{ $customer->id }}" class="d-inline-block">
                                                 @csrf
                                                 @method('DELETE')
@@ -385,9 +628,9 @@
                         @endif
                     </p>
                     @if(auth()->user()->hasPermission('manage_customers') || auth()->user()->role === 'accountant')
-                    <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+                    <a href="{{ route('admin.customers.create') }}" class="btn btn-primary rounded-pill px-4 shadow-sm">
                         <i class="fas fa-plus me-2"></i>Add New Customer
-                    </button>
+                    </a>
                     @endif
                 </div>
             @endif
@@ -419,226 +662,4 @@
 </script>
 @endpush
 
-<!-- Add Customer Modal -->
-<div class="modal fade" id="addCustomerModal" tabindex="-1" aria-labelledby="addCustomerModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg rounded-4">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-bold" id="addCustomerModalLabel">Create New Customer</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form action="{{ route('admin.customers.store') }}" method="POST" data-no-global-handler>
-                @csrf
-                <div class="modal-body p-4">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">Full Name <span class="text-danger">*</span></label>
-                            <input type="text" name="name" class="form-control border-0 bg-light rounded-3" value="{{ old('name') }}" required placeholder="Enter full name">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">Email (Optional)</label>
-                            <input type="email" name="email" class="form-control border-0 bg-light rounded-3" value="{{ old('email') }}" placeholder="customer@example.com">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">Phone Number <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <select name="phone_country_code" class="form-select border-0 bg-light rounded-start-3" style="max-width: 100px;">
-                                    <option value="+255" selected>🇹🇿 +255</option>
-                                    <option value="+254">🇰🇪 +254</option>
-                                    <option value="+256">🇺🇬 +256</option>
-                                    <option value="+250">🇷🇼 +250</option>
-                                    <option value="+257">🇧🇮 +257</option>
-                                    <option value="+243">🇨🇩 +243</option>
-                                    <option value="+27">🇿🇦 +27</option>
-                                </select>
-                                <input type="text" name="phone" class="form-control border-0 bg-light rounded-end-3" value="{{ old('phone') }}" placeholder="7XX XXX XXX" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">WhatsApp (Optional)</label>
-                            <div class="input-group">
-                                <select name="whatsapp_country_code" class="form-select border-0 bg-light rounded-start-3" style="max-width: 100px;">
-                                    <option value="+255" selected>🇹🇿 +255</option>
-                                    <option value="+254">🇰🇪 +254</option>
-                                    <option value="+256">🇺🇬 +256</option>
-                                </select>
-                                <input type="text" name="whatsapp_number" class="form-control border-0 bg-light rounded-end-3" value="{{ old('whatsapp_number') }}" placeholder="7XX XXX XXX">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">Password (Optional)</label>
-                            <input type="password" name="password" class="form-control border-0 bg-light rounded-3" placeholder="Enter password">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">Confirm Password</label>
-                            <input type="password" name="password_confirmation" class="form-control border-0 bg-light rounded-3" placeholder="Confirm password">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">Company Name</label>
-                            <input type="text" name="company_name" class="form-control border-0 bg-light rounded-3" value="{{ old('company_name') }}" placeholder="Company name">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">Business Type</label>
-                            <select name="business_type" class="form-select border-0 bg-light rounded-3">
-                                <option value="">Select Business Type</option>
-                                <option value="retail">Retail Store</option>
-                                <option value="wholesale">Wholesale Distributor</option>
-                                <option value="printing">Printing Company</option>
-                                <option value="advertising">Advertising Agency</option>
-                                <option value="corporate">Corporate</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </div>
-                        @if(auth()->user()->role !== 'saler')
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">Brought By (Saler)</label>
-                            <select name="added_by" class="form-select border-0 bg-light rounded-3">
-                                <option value="">Select Saler (Optional)</option>
-                                @foreach($salers as $saler)
-                                    <option value="{{ $saler->id }}">{{ $saler->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        @endif
-                        <div class="col-12">
-                            <label class="form-label small fw-bold">Business Address</label>
-                            <textarea name="address" rows="2" class="form-control border-0 bg-light rounded-3" placeholder="Physical address">{{ old('address') }}</textarea>
-                        </div>
-                        <div class="col-12">
-                            <div class="d-flex flex-wrap gap-3 mt-2">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="verified" id="modal_verified" checked>
-                                    <label class="form-check-label small" for="modal_verified">Verified Account</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="is_active" id="modal_is_active" checked>
-                                    <label class="form-check-label small" for="modal_is_active">Active Status</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="is_wholesale" id="modal_is_wholesale" value="1">
-                                    <label class="form-check-label small" for="modal_is_wholesale">Wholesale Partner</label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer border-0 pt-0">
-                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary rounded-pill px-4" data-no-global-handler>Create Customer</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-@if(auth()->user()->hasPermission('manage_customers') || auth()->user()->role === 'accountant')
-    @foreach($customers as $customer)
-    <!-- Edit Customer Modal -->
-    <div class="modal fade" id="editCustomerModal{{ $customer->id }}" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content border-0 shadow-lg rounded-4">
-                <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold">Edit Customer: {{ $customer->name }}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form action="{{ route('admin.customers.update', $customer) }}" method="POST" data-no-global-handler>
-                    @csrf
-                    @method('PUT')
-                    <div class="modal-body p-4">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold">Full Name <span class="text-danger">*</span></label>
-                                <input type="text" name="name" class="form-control border-0 bg-light rounded-3" value="{{ old('name', $customer->name) }}" required placeholder="Enter full name">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold">Email (Optional)</label>
-                                <input type="email" name="email" class="form-control border-0 bg-light rounded-3" value="{{ old('email', $customer->email) }}" placeholder="customer@example.com">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold">Phone Number <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <select name="phone_country_code" class="form-select border-0 bg-light rounded-start-3" style="max-width: 100px;">
-                                        <option value="+255" {{ str_contains($customer->phone, '+255') ? 'selected' : '' }}>🇹🇿 +255</option>
-                                        <option value="+254" {{ str_contains($customer->phone, '+254') ? 'selected' : '' }}>🇰🇪 +254</option>
-                                        <option value="+256" {{ str_contains($customer->phone, '+256') ? 'selected' : '' }}>🇺🇬 +256</option>
-                                    </select>
-                                    <input type="text" name="phone" class="form-control border-0 bg-light rounded-end-3" value="{{ old('phone', preg_replace('/^\+\d+ /', '', $customer->phone)) }}" placeholder="7XX XXX XXX" required>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold">WhatsApp (Optional)</label>
-                                <div class="input-group">
-                                    <select name="whatsapp_country_code" class="form-select border-0 bg-light rounded-start-3" style="max-width: 100px;">
-                                        <option value="+255" {{ !$customer->whatsapp_number || str_contains($customer->whatsapp_number, '+255') ? 'selected' : '' }}>🇹🇿 +255</option>
-                                        <option value="+254" {{ $customer->whatsapp_number && str_contains($customer->whatsapp_number, '+254') ? 'selected' : '' }}>🇰🇪 +254</option>
-                                    </select>
-                                    <input type="text" name="whatsapp_number" class="form-control border-0 bg-light rounded-end-3" value="{{ old('whatsapp_number', $customer->whatsapp_number ? preg_replace('/^\+\d+ /', '', $customer->whatsapp_number) : '') }}" placeholder="7XX XXX XXX">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold">Password (Optional)</label>
-                                <input type="password" name="password" class="form-control border-0 bg-light rounded-3" placeholder="Enter new password">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold">Confirm Password</label>
-                                <input type="password" name="password_confirmation" class="form-control border-0 bg-light rounded-3" placeholder="Confirm password">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold">Company Name</label>
-                                <input type="text" name="company_name" class="form-control border-0 bg-light rounded-3" value="{{ old('company_name', $customer->company_name) }}" placeholder="Company name">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold">Business Type</label>
-                                <select name="business_type" class="form-select border-0 bg-light rounded-3">
-                                    <option value="">Select Business Type</option>
-                                    <option value="retail" {{ $customer->business_type == 'retail' ? 'selected' : '' }}>Retail Store</option>
-                                    <option value="wholesale" {{ $customer->business_type == 'wholesale' ? 'selected' : '' }}>Wholesale Distributor</option>
-                                    <option value="printing" {{ $customer->business_type == 'printing' ? 'selected' : '' }}>Printing Company</option>
-                                    <option value="advertising" {{ $customer->business_type == 'advertising' ? 'selected' : '' }}>Advertising Agency</option>
-                                    <option value="corporate" {{ $customer->business_type == 'corporate' ? 'selected' : '' }}>Corporate</option>
-                                    <option value="other" {{ $customer->business_type == 'other' ? 'selected' : '' }}>Other</option>
-                                </select>
-                            </div>
-                            @if(auth()->user()->role !== 'saler')
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold">Brought By (Saler)</label>
-                                <select name="added_by" class="form-select border-0 bg-light rounded-3">
-                                    <option value="">Select Saler (Optional)</option>
-                                    @foreach($salers as $saler)
-                                        <option value="{{ $saler->id }}" {{ $customer->added_by == $saler->id ? 'selected' : '' }}>{{ $saler->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            @endif
-                            <div class="col-12">
-                                <label class="form-label small fw-bold">Business Address</label>
-                                <textarea name="address" rows="2" class="form-control border-0 bg-light rounded-3" placeholder="Physical address">{{ old('address', $customer->address) }}</textarea>
-                            </div>
-                            <div class="col-12">
-                                <div class="d-flex flex-wrap gap-3 mt-2">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="verified" id="edit_verified{{ $customer->id }}" {{ $customer->verified ? 'checked' : '' }}>
-                                        <label class="form-check-label small" for="edit_verified{{ $customer->id }}">Verified Account</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="is_active" id="edit_is_active{{ $customer->id }}" {{ $customer->is_active ? 'checked' : '' }}>
-                                        <label class="form-check-label small" for="edit_is_active{{ $customer->id }}">Active Status</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="is_wholesale" id="edit_is_wholesale{{ $customer->id }}" value="1" {{ $customer->is_wholesale ? 'checked' : '' }}>
-                                        <label class="form-check-label small" for="edit_is_wholesale{{ $customer->id }}">Wholesale Partner</label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer border-0 pt-0">
-                        <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary rounded-pill px-4" data-no-global-handler>Update Customer</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-    @endforeach
-@endif
 @endsection

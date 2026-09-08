@@ -22,7 +22,7 @@ class AdminMiddleware
 
         $user = Auth::user();
         
-        $allowedRoles = ['admin', 'saler', 'receptionist', 'designer', 'operator', 'super_admin', 'manager', 'delivery', 'gatekeeper', 'accountant'];
+        $allowedRoles = ['admin', 'saler', 'receptionist', 'designer', 'operator', 'super_admin', 'manager', 'delivery', 'gatekeeper', 'accountant', 'marketing_manager', 'hr_officer'];
         
         if (!in_array($user->role, $allowedRoles) || !$user->verified) {
             Auth::logout();

@@ -175,16 +175,45 @@
                                         @enderror
                                     </div>
 
-                                    <div class="mb-3">
-                                        <label for="address" class="form-label">Business Address</label>
-                                        <textarea class="form-control @error('address') is-invalid @enderror" 
-                                                  id="address" 
-                                                  name="address" 
-                                                  rows="3">{{ old('address') }}</textarea>
-                                        @error('address')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
+                                     <div class="mb-3">
+                                         <label for="region_id" class="form-label">Region <span class="text-danger">*</span></label>
+                                         <select class="form-select @error('region_id') is-invalid @enderror" 
+                                                 id="region_id" 
+                                                 name="region_id" 
+                                                 required>
+                                             <option value="">Select Region</option>
+                                             @foreach($regions as $region)
+                                                 <option value="{{ $region->id }}" {{ old('region_id') == $region->id ? 'selected' : '' }}>{{ $region->region_name }}</option>
+                                             @endforeach
+                                         </select>
+                                         @error('region_id')
+                                             <div class="invalid-feedback">{{ $message }}</div>
+                                         @enderror
+                                     </div>
+
+                                     <div class="mb-3">
+                                         <label for="district_id" class="form-label">District <span class="text-danger">*</span></label>
+                                         <select class="form-select @error('district_id') is-invalid @enderror" 
+                                                 id="district_id" 
+                                                 name="district_id" 
+                                                 required>
+                                             <option value="">Select District</option>
+                                         </select>
+                                         @error('district_id')
+                                             <div class="invalid-feedback">{{ $message }}</div>
+                                         @enderror
+                                     </div>
+
+                                     <div class="mb-3">
+                                         <label for="address" class="form-label">Business Address</label>
+                                         <textarea class="form-control @error('address') is-invalid @enderror" 
+                                                   id="address" 
+                                                   name="address" 
+                                                   rows="3">{{ old('address') }}</textarea>
+                                         @error('address')
+                                             <div class="invalid-feedback">{{ $message }}</div>
+                                         @enderror
+                                     </div>
 
                                     <div class="mb-3">
                                         <div class="form-check">
@@ -646,6 +675,51 @@ body {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Region and District Dynamic Selection
+    const regionSelect = document.getElementById('region_id');
+    const districtSelect = document.getElementById('district_id');
+
+    if (regionSelect && districtSelect) {
+        regionSelect.addEventListener('change', function() {
+            const regionId = this.value;
+            districtSelect.innerHTML = '<option value="">Loading districts...</option>';
+            districtSelect.disabled = true;
+            
+            if (!regionId) {
+                districtSelect.innerHTML = '<option value="">Select District</option>';
+                districtSelect.disabled = false;
+                return;
+            }
+            
+            fetch(`/regions/${regionId}/districts`)
+                .then(response => response.json())
+                .then(data => {
+                    let html = '<option value="">Select District</option>';
+                    data.forEach(district => {
+                        html += `<option value="${district.id}">${district.district_name}</option>`;
+                    });
+                    districtSelect.innerHTML = html;
+                    districtSelect.disabled = false;
+                    
+                    // Preselect old value if it exists
+                    const oldDistrictId = "{{ old('district_id') }}";
+                    if (oldDistrictId) {
+                        districtSelect.value = oldDistrictId;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching districts:', error);
+                    districtSelect.innerHTML = '<option value="">Error loading districts</option>';
+                    districtSelect.disabled = false;
+                });
+        });
+        
+        // Trigger change to restore selected district on validation failure
+        if (regionSelect.value) {
+            regionSelect.dispatchEvent(new Event('change'));
+        }
+    }
+
     // Phone number formatting
     const phoneInput = document.getElementById('phone');
     if (phoneInput) {
@@ -698,6 +772,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const phone = document.getElementById('phone').value.trim();
             const pwd = document.getElementById('password').value;
             const confirmPwd = document.getElementById('password_confirmation').value;
+            const regionId = document.getElementById('region_id').value;
+            const districtId = document.getElementById('district_id').value;
             
             // Clear previous error states
             document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
@@ -721,6 +797,18 @@ document.addEventListener('DOMContentLoaded', function() {
             // Phone validation
             if (phone.length < 10) {
                 showFieldError('phone', 'Please enter a valid phone number');
+                hasErrors = true;
+            }
+            
+            // Region validation
+            if (!regionId) {
+                showFieldError('region_id', 'Please select a region');
+                hasErrors = true;
+            }
+
+            // District validation
+            if (!districtId) {
+                showFieldError('district_id', 'Please select a district');
                 hasErrors = true;
             }
             

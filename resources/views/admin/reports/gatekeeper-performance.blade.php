@@ -5,7 +5,7 @@
 @push('styles')
 <style>
     /* Mobile Responsive - Font Size Reductions */
-    @media (max-width: 768px) {
+    @media screen and (max-width: 768px) {
         .container-fluid { padding: 0.5rem; }
         h2 { font-size: 1.25rem !important; }
         .text-muted { font-size: 0.75rem !important; }
@@ -15,7 +15,7 @@
         .stats-col { flex: 0 0 50% !important; max-width: 50% !important; }
     }
     
-    @media (max-width: 575.98px) {
+    @media screen and (max-width: 575.98px) {
         .container-fluid { padding: 0.25rem; }
         h2 { font-size: 1.1rem !important; }
         .card-body { padding: 0.75rem !important; }
@@ -98,9 +98,9 @@
 @section('content')
 <div class="container-fluid">
     <div class="print-only report-header mb-4">
-        <div class="d-flex justify-content-between align-items-end">
+        <div class="d-flex justify-content-between align-items-start">
             <div>
-                <img src="{{ asset('images/logo.webp') }}" alt="Logo" style="height: 50px;" onerror="this.style.display='none'">
+                @include('partials.logo-print')
                 <h1 class="fw-bold text-dark mt-2" style="font-size: 20pt; margin-bottom: 0;">Gatekeeper Performance Report</h1>
             </div>
             <div class="text-end text-dark" style="font-size: 9pt;">

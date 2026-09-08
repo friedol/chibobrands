@@ -6,42 +6,42 @@
 @section('content')
 @push('styles')
 <style>
-    /* Hero Banner - Dark + Red 3D Theme */
-    .hero-banner{background:linear-gradient(135deg,#0a0a0a 0%,#1a0000 50%,#000000 100%);padding:80px 0;position:relative;overflow:hidden;min-height:450px}
+    /* Hero Banner */
+    .hero-banner{background:linear-gradient(135deg,#c0392b 0%,#dc3545 60%,#e74c3c 100%);padding:52px 0 44px;position:relative;overflow:hidden}
     .hero-content{position:relative;z-index:10}
-    
-    /* 3D Animated Bubbles */
-    .bubbles-container{position:absolute;width:100%;height:100%;top:0;left:0;overflow:hidden;z-index:1}
-    .bubble{position:absolute;border-radius:50%;background:radial-gradient(circle at 30% 30%,rgba(255,0,0,0.3),rgba(255,0,0,0.05));box-shadow:inset 0 0 30px rgba(255,0,0,0.2),0 0 50px rgba(255,0,0,0.1);animation:float 20s infinite ease-in-out;backdrop-filter:blur(2px)}
-    .bubble::before{content:'';position:absolute;top:10%;left:10%;width:40%;height:40%;border-radius:50%;background:radial-gradient(circle at 50% 50%,rgba(255,255,255,0.3),transparent)}
-    .bubble-1{width:200px;height:200px;left:10%;top:20%;animation-delay:0s;animation-duration:25s}
-    .bubble-2{width:150px;height:150px;right:15%;top:40%;animation-delay:3s;animation-duration:20s}
-    .bubble-3{width:250px;height:250px;left:50%;top:60%;animation-delay:6s;animation-duration:30s}
-    .bubble-4{width:180px;height:180px;right:30%;top:10%;animation-delay:2s;animation-duration:22s}
-    .bubble-5{width:120px;height:120px;left:30%;bottom:10%;animation-delay:4s;animation-duration:18s}
-    .bubble-6{width:220px;height:220px;right:10%;bottom:20%;animation-delay:5s;animation-duration:28s}
-    
+
+    /* Animated Bubbles - white tinted */
+    .bubbles-container{position:absolute;width:100%;height:100%;top:0;left:0;overflow:hidden;z-index:1;pointer-events:none}
+    .bubble{position:absolute;border-radius:50%;background:radial-gradient(circle at 30% 30%,rgba(255,255,255,0.25),rgba(255,255,255,0.04));box-shadow:inset 0 0 30px rgba(255,255,255,0.15),0 0 50px rgba(255,255,255,0.05);animation:float 20s infinite ease-in-out;backdrop-filter:blur(2px)}
+    .bubble::before{content:'';position:absolute;top:10%;left:10%;width:40%;height:40%;border-radius:50%;background:radial-gradient(circle at 50% 50%,rgba(255,255,255,0.35),transparent)}
+    .bubble-1{width:180px;height:180px;left:8%;top:10%;animation-delay:0s;animation-duration:25s}
+    .bubble-2{width:120px;height:120px;right:12%;top:30%;animation-delay:3s;animation-duration:20s}
+    .bubble-3{width:220px;height:220px;left:45%;top:50%;animation-delay:6s;animation-duration:30s}
+    .bubble-4{width:150px;height:150px;right:28%;top:5%;animation-delay:2s;animation-duration:22s}
+    .bubble-5{width:100px;height:100px;left:28%;bottom:5%;animation-delay:4s;animation-duration:18s}
+    .bubble-6{width:200px;height:200px;right:5%;bottom:10%;animation-delay:5s;animation-duration:28s}
+
     @keyframes float{
         0%,100%{transform:translate(0,0) scale(1) rotate(0deg)}
-        25%{transform:translate(30px,-30px) scale(1.1) rotate(90deg)}
-        50%{transform:translate(-20px,20px) scale(0.9) rotate(180deg)}
-        75%{transform:translate(40px,10px) scale(1.05) rotate(270deg)}
+        25%{transform:translate(25px,-25px) scale(1.08) rotate(90deg)}
+        50%{transform:translate(-15px,18px) scale(0.93) rotate(180deg)}
+        75%{transform:translate(35px,8px) scale(1.04) rotate(270deg)}
     }
-    
-    .hero-badge{display:inline-flex;align-items:center;background:linear-gradient(135deg,rgba(255,0,0,0.2),rgba(255,0,0,0.1));color:#ff0000;padding:10px 24px;border-radius:50px;font-size:14px;font-weight:700;border:2px solid rgba(255,0,0,0.3);box-shadow:0 0 20px rgba(255,0,0,0.2);text-transform:uppercase;letter-spacing:1px}
-    .hero-title{font-size:clamp(32px,6vw,56px);font-weight:900;color:#fff;line-height:1.2;letter-spacing:-1px;text-shadow:0 0 30px rgba(255,0,0,0.3),0 0 60px rgba(255,0,0,0.2)}
-    .hero-subtitle{font-size:clamp(16px,2.5vw,20px);color:rgba(255,255,255,0.85);line-height:1.6;text-shadow:0 2px 10px rgba(0,0,0,0.5)}
-    .hero-cta-btn{padding:16px 32px;border-radius:50px;font-weight:600;font-size:16px;transition:all 0.3s;border:2px solid;text-transform:uppercase;letter-spacing:0.5px}
-    .hero-cta-btn.btn-danger{background:#ff0000;border-color:#ff0000;box-shadow:0 10px 30px rgba(255,0,0,0.4)}
-    .hero-cta-btn.btn-danger:hover{background:#cc0000;border-color:#cc0000;transform:translateY(-2px);box-shadow:0 15px 40px rgba(255,0,0,0.5)}
-    .hero-cta-btn.btn-outline-light{background:transparent;border-color:rgba(255,255,255,0.5);color:#fff}
+
+    .hero-badge{display:inline-block;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.35);color:#fff;padding:7px 22px;border-radius:50px;font-size:13px;font-style:italic;font-family:Georgia,'Times New Roman',serif;letter-spacing:0.3px;margin-bottom:16px;backdrop-filter:blur(6px)}
+    .hero-title{font-size:clamp(1.8rem,4vw,2.6rem);font-weight:800;color:#fff;line-height:1.2;margin-bottom:12px;text-shadow:0 2px 10px rgba(0,0,0,0.2)}
+    .hero-subtitle{font-size:clamp(0.85rem,1.5vw,1rem);color:rgba(255,255,255,0.85);max-width:480px;margin:0 auto;line-height:1.6}
+    .hero-cta-btn{padding:10px 24px;border-radius:50px;font-weight:600;font-size:13px;transition:all 0.3s;border:2px solid;letter-spacing:0.3px}
+    .hero-cta-btn.btn-danger{background:rgba(255,255,255,0.2);border-color:rgba(255,255,255,0.5);color:#fff;backdrop-filter:blur(4px)}
+    .hero-cta-btn.btn-danger:hover{background:rgba(255,255,255,0.3);transform:translateY(-2px)}
+    .hero-cta-btn.btn-outline-light{background:transparent;border-color:rgba(255,255,255,0.4);color:#fff}
     .hero-cta-btn.btn-outline-light:hover{background:rgba(255,255,255,0.1);border-color:#fff;transform:translateY(-2px)}
 
     /* Trust Badges */
     .trust-badges{background:#f8f9fa;padding:20px 0;margin-bottom:2rem}
     .trust-badge{display:flex;align-items:center;gap:15px;padding:15px;background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.05);transition:all 0.3s}
     .trust-badge:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.1)}
-    .trust-badge i{font-size:32px;color:#ff0000;min-width:40px;text-align:center}
+    .trust-badge i{font-size:32px;color:#dc3545;min-width:40px;text-align:center}
     .trust-text strong{display:block;font-size:14px;color:#1a1a1a;margin-bottom:2px}
     .trust-text small{font-size:12px;color:#6c757d}
 
@@ -55,9 +55,10 @@
     .cta-band{ background: linear-gradient(135deg, var(--brand), var(--brand-dark)); color:#fff; border-radius:18px; }
     .team-card{ border:none; border-radius:14px; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,.06); }
     .team-card img{ width:100%; height:220px; object-fit:cover; }
-    
+
     @media (max-width: 768px) {
-        .hero-banner{padding:40px 0;min-height:350px}
+        .hero-banner{padding:36px 0 30px}
+        .bubble-3,.bubble-6{display:none}
         .trust-badge{flex-direction:column;text-align:center}
         .trust-badge i{margin-bottom:8px}
     }
@@ -77,26 +78,10 @@
     
     <div class="hero-content">
         <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-lg-10 text-center">
-                    <div class="hero-badge mb-4">
-                        <i class="fas fa-award me-2"></i>About CHIBO BRAND
-                    </div>
-                    <h1 class="hero-title mb-4">
-                        We Don't Just Print — We Build Brands
-                    </h1>
-                    <p class="hero-subtitle mb-5">
-                        Your trusted partner in designing, printing, and branding powerful visual identities that connect with your audience and drive business growth.
-                    </p>
-                    <div class="d-flex gap-3 justify-content-center flex-wrap">
-                        <a href="{{ url('/services') }}" class="btn btn-danger hero-cta-btn">
-                            <i class="fas fa-layer-group me-2"></i>Explore Services
-                        </a>
-                        <a href="{{ url('/contact') }}" class="btn btn-outline-light hero-cta-btn">
-                            <i class="fas fa-envelope me-2"></i>Contact Us
-                        </a>
-                    </div>
-                </div>
+            <div class="text-center">
+                <span class="hero-badge">About CHIBO BRAND</span>
+                <h1 class="hero-title">We Don't Just Print — We Build Brands</h1>
+                <p class="hero-subtitle">Your trusted partner in designing, printing, and branding powerful visual identities that connect with your audience.</p>
             </div>
         </div>
     </div>

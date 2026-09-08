@@ -3,603 +3,739 @@
 @section('page-title', 'Settings')
 
 @section('content')
-<div class="container-fluid">
-    <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item">
-                <a href="{{ route('admin.dashboard') }}" class="text-decoration-none">
-                    <i class="fas fa-home me-1"></i>Dashboard
-                </a>
-            </li>
-            <li class="breadcrumb-item active" aria-current="page">
-                <i class="fas fa-cog me-1"></i>Settings
-            </li>
-        </ol>
-    </nav>
+<div class="container-fluid px-3">
 
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h2 class="mb-1">Settings</h2>
-                    <p class="text-muted">Manage your system settings and preferences</p>
+    <!-- Settings Layout: Sidebar + Content -->
+    <div class="settings-layout d-flex gap-3" style="min-height: 70vh;">
+
+        <!-- ── Left Sidebar ── -->
+        <div class="settings-sidebar flex-shrink-0">
+            <div class="settings-sidebar-inner">
+                <div class="px-2 py-2">
+                    <a href="#" class="settings-nav-item" data-tab="general">
+                        <i class="fas fa-sliders-h"></i>
+                        <span>General</span>
+                    </a>
+                    <a href="#" class="settings-nav-item" data-tab="company">
+                        <i class="fas fa-building"></i>
+                        <span>Company Info</span>
+                    </a>
+                    <a href="#" class="settings-nav-item" data-tab="notifications">
+                        <i class="fas fa-bell"></i>
+                        <span>Notifications</span>
+                    </a>
+                    <a href="{{ route('admin.settings.sms') }}" class="settings-nav-item">
+                        <i class="fas fa-sms"></i>
+                        <span>SMS</span>
+                    </a>
+                    <a href="#" class="settings-nav-item" data-tab="system">
+                        <i class="fas fa-server"></i>
+                        <span>System</span>
+                    </a>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Settings Tabs -->
-    <div class="card">
-        <div class="card-header bg-primary text-white py-2">
-            <h6 class="card-title mb-0">
-                <i class="fas fa-cog me-2"></i>System Settings
-            </h6>
-        </div>
-        <div class="card-body p-0">
-            <ul class="nav nav-tabs card-header-tabs" id="settingsTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab">
-                        <i class="fas fa-cog me-2"></i>General
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="company-tab" data-bs-toggle="tab" data-bs-target="#company" type="button" role="tab">
-                        <i class="fas fa-building me-2"></i>Company Info
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications" type="button" role="tab">
-                        <i class="fas fa-bell me-2"></i>Notifications
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="system-tab" data-bs-toggle="tab" data-bs-target="#system" type="button" role="tab">
-                        <i class="fas fa-server me-2"></i>System
-                    </button>
-                </li>
-            </ul>
-        </div>
-        <div class="card-body">
-            <div class="tab-content" id="settingsTabContent">
-                <!-- General Settings -->
-                <div class="tab-pane fade show active" id="general" role="tabpanel">
-                    <h5 class="mb-3">General Settings</h5>
+        <!-- ── Right Content Panel ── -->
+        <div class="settings-content flex-grow-1">
+
+            <!-- ── General ── -->
+            <div class="settings-panel active" id="panel-general">
+                <div class="settings-panel-header">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="panel-icon-wrap bg-primary-soft">
+                            <i class="fas fa-sliders-h text-primary"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-0 fw-bold">General Settings</h6>
+                            <small class="text-muted">Basic site configuration</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-panel-body">
                     <form method="POST" action="{{ route('admin.settings.update') }}">
                         @csrf
                         @method('PUT')
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="site_name" class="form-label">Site Name</label>
-                                <input type="text" class="form-control" id="site_name" name="site_name" value="CHIBO BRAND" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="site_tagline" class="form-label">Site Tagline</label>
-                                <input type="text" class="form-control" id="site_tagline" name="site_tagline" value="Professional Printing & Branding Solutions">
-                            </div>
-                        </div>
 
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="timezone" class="form-label">Timezone</label>
-                                <select class="form-select" id="timezone" name="timezone">
-                                    <option value="Africa/Dar_es_Salaam" selected>East Africa Time (EAT)</option>
-                                    <option value="UTC">UTC</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="currency" class="form-label">Currency</label>
-                                <select class="form-select" id="currency" name="currency">
-                                    <option value="TZS" selected>Tanzanian Shilling (TZS)</option>
-                                    <option value="USD">US Dollar (USD)</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="maintenance_mode" class="form-label">Maintenance Mode</label>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="maintenance_mode" name="maintenance_mode">
-                                <label class="form-check-label" for="maintenance_mode">
-                                    Enable maintenance mode (site will be unavailable to customers)
-                                </label>
-                            </div>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save me-2"></i>Save Changes
-                        </button>
-                    </form>
-                </div>
-
-                <!-- Company Info -->
-                <div class="tab-pane fade" id="company" role="tabpanel">
-                    <h5 class="mb-3">Company Information</h5>
-                    <form method="POST" action="{{ route('admin.settings.update') }}">
-                        @csrf
-                        @method('PUT')
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="company_name" class="form-label">Company Name</label>
-                                <input type="text" class="form-control" id="company_name" name="company_name" value="CHIBO BRAND" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="company_email" class="form-label">Company Email</label>
-                                <input type="email" class="form-control" id="company_email" name="company_email" value="info@chibobrand.com" required>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="company_phone" class="form-label">Company Phone</label>
-                                <input type="text" class="form-control" id="company_phone" name="company_phone" value="+255 XXX XXX XXX" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="company_whatsapp" class="form-label">WhatsApp Number</label>
-                                <input type="text" class="form-control" id="company_whatsapp" name="company_whatsapp" value="+255 XXX XXX XXX">
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="company_address" class="form-label">Company Address</label>
-                            <textarea class="form-control" id="company_address" name="company_address" rows="3" required>Dar es Salaam, Tanzania</textarea>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="company_website" class="form-label">Website</label>
-                                <input type="url" class="form-control" id="company_website" name="company_website" value="https://chibobrand.com">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="company_tax_id" class="form-label">Tax ID / TIN</label>
-                                <input type="text" class="form-control" id="company_tax_id" name="company_tax_id">
-                            </div>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save me-2"></i>Save Changes
-                        </button>
-                    </form>
-                </div>
-
-                <!-- Notifications -->
-                <div class="tab-pane fade" id="notifications" role="tabpanel">
-                    <h5 class="mb-3">Notification Settings</h5>
-                    <form method="POST" action="{{ route('admin.settings.update') }}">
-                        @csrf
-                        @method('PUT')
-                        
-                        <div class="mb-4">
-                            <h6>Email Notifications</h6>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" id="notify_new_order" name="notify_new_order" checked>
-                                <label class="form-check-label" for="notify_new_order">
-                                    New order notifications
-                                </label>
-                            </div>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" id="notify_low_stock" name="notify_low_stock" checked>
-                                <label class="form-check-label" for="notify_low_stock">
-                                    Low stock alerts
-                                </label>
-                            </div>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" id="notify_new_customer" name="notify_new_customer">
-                                <label class="form-check-label" for="notify_new_customer">
-                                    New customer registrations
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="mb-4">
-                            <h6>SMS Notifications</h6>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" id="sms_order_confirmation" name="sms_order_confirmation" checked>
-                                <label class="form-check-label" for="sms_order_confirmation">
-                                    Send SMS order confirmations to customers
-                                </label>
-                            </div>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" id="sms_order_status" name="sms_order_status" checked>
-                                <label class="form-check-label" for="sms_order_status">
-                                    Send SMS order status updates
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="admin_email" class="form-label">Admin Notification Email</label>
-                            <input type="email" class="form-control" id="admin_email" name="admin_email" value="admin@chibobrand.com">
-                            <small class="text-muted">Email address to receive admin notifications</small>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save me-2"></i>Save Changes
-                        </button>
-                    </form>
-                </div>
-
-                <!-- System Settings -->
-                <div class="tab-pane fade" id="system" role="tabpanel">
-                    <h5 class="mb-3">System Information</h5>
-                    
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <div class="card bg-light">
-                                <div class="card-body">
-                                    <h6 class="card-title">Laravel Version</h6>
-                                    <p class="card-text h4">{{ app()->version() }}</p>
+                        <div class="settings-section">
+                            <div class="settings-section-title">Site Identity</div>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Site Name</label>
+                                    <input type="text" class="form-control" name="site_name" value="CHIBO BRAND">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Site Tagline</label>
+                                    <input type="text" class="form-control" name="site_tagline" value="Professional Printing & Branding Solutions">
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <div class="card bg-light">
-                                <div class="card-body">
-                                    <h6 class="card-title">PHP Version</h6>
-                                    <p class="card-text h4">{{ PHP_VERSION }}</p>
+
+                        <div class="settings-section">
+                            <div class="settings-section-title">Regional</div>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Timezone</label>
+                                    <select class="form-select" name="timezone">
+                                        <option value="Africa/Dar_es_Salaam" selected>East Africa Time (EAT)</option>
+                                        <option value="UTC">UTC</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Currency</label>
+                                    <select class="form-select" name="currency">
+                                        <option value="TZS" selected>Tanzanian Shilling (TZS)</option>
+                                        <option value="USD">US Dollar (USD)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <div class="settings-section-title">Maintenance</div>
+                            <div class="toggle-row">
+                                <div>
+                                    <div class="fw-semibold" style="font-size:0.82rem;">Maintenance Mode</div>
+                                    <div class="text-muted" style="font-size:0.75rem;">Site will be unavailable to customers when enabled</div>
+                                </div>
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" id="maintenance_mode" name="maintenance_mode" role="switch">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end pt-2">
+                            <button type="submit" class="btn btn-save">
+                                <i class="fas fa-save me-2"></i>Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- ── Company Info ── -->
+            <div class="settings-panel" id="panel-company">
+                <div class="settings-panel-header">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="panel-icon-wrap bg-info-soft">
+                            <i class="fas fa-building text-info"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-0 fw-bold">Company Information</h6>
+                            <small class="text-muted">Legal and contact details</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-panel-body">
+                    <form method="POST" action="{{ route('admin.settings.update') }}">
+                        @csrf
+                        @method('PUT')
+
+                        <div class="settings-section">
+                            <div class="settings-section-title">Identity</div>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Company Name</label>
+                                    <input type="text" class="form-control" name="company_name" value="CHIBO BRAND">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Tax ID / TIN</label>
+                                    <input type="text" class="form-control" name="company_tax_id">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <div class="settings-section-title">Contact</div>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" class="form-control" name="company_email" value="info@chibobrand.com">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Phone</label>
+                                    <input type="text" class="form-control" name="company_phone" value="+255 XXX XXX XXX">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">WhatsApp</label>
+                                    <input type="text" class="form-control" name="company_whatsapp" value="+255 XXX XXX XXX">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Website</label>
+                                    <input type="url" class="form-control" name="company_website" value="https://chibobrand.com">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <div class="settings-section-title">Address</div>
+                            <textarea class="form-control" name="company_address" rows="3">Dar es Salaam, Tanzania</textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-end pt-2">
+                            <button type="submit" class="btn btn-save">
+                                <i class="fas fa-save me-2"></i>Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- ── Notifications ── -->
+            <div class="settings-panel" id="panel-notifications">
+                <div class="settings-panel-header">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="panel-icon-wrap bg-warning-soft">
+                            <i class="fas fa-bell text-warning"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-0 fw-bold">Notification Settings</h6>
+                            <small class="text-muted">Control alert and messaging preferences</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-panel-body">
+                    <form method="POST" action="{{ route('admin.settings.update') }}">
+                        @csrf
+                        @method('PUT')
+
+                        <div class="settings-section">
+                            <div class="settings-section-title">Email Notifications</div>
+                            <div class="toggle-row">
+                                <div>
+                                    <div class="fw-semibold" style="font-size:0.82rem;">New Order</div>
+                                    <div class="text-muted" style="font-size:0.75rem;">Get notified when a new order is placed</div>
+                                </div>
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" name="notify_new_order" role="switch" checked>
+                                </div>
+                            </div>
+                            <div class="toggle-row">
+                                <div>
+                                    <div class="fw-semibold" style="font-size:0.82rem;">Low Stock Alerts</div>
+                                    <div class="text-muted" style="font-size:0.75rem;">Get notified when stock levels are low</div>
+                                </div>
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" name="notify_low_stock" role="switch" checked>
+                                </div>
+                            </div>
+                            <div class="toggle-row">
+                                <div>
+                                    <div class="fw-semibold" style="font-size:0.82rem;">New Customer Registration</div>
+                                    <div class="text-muted" style="font-size:0.75rem;">Get notified when a customer registers</div>
+                                </div>
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" name="notify_new_customer" role="switch">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <div class="settings-section-title">SMS Notifications</div>
+                            <div class="toggle-row">
+                                <div>
+                                    <div class="fw-semibold" style="font-size:0.82rem;">Order Confirmation SMS</div>
+                                    <div class="text-muted" style="font-size:0.75rem;">Send SMS to customers when order is confirmed</div>
+                                </div>
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" name="sms_order_confirmation" role="switch" checked>
+                                </div>
+                            </div>
+                            <div class="toggle-row">
+                                <div>
+                                    <div class="fw-semibold" style="font-size:0.82rem;">Order Status Updates</div>
+                                    <div class="text-muted" style="font-size:0.75rem;">Send SMS when order status changes</div>
+                                </div>
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" name="sms_order_status" role="switch" checked>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <div class="settings-section-title">Admin Notification Email</div>
+                            <div class="row g-3">
+                                <div class="col-md-8">
+                                    <label class="form-label">Recipient Email</label>
+                                    <input type="email" class="form-control" name="admin_email" value="admin@chibobrand.com">
+                                    <div class="form-text">All admin alerts will be sent to this address</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end pt-2">
+                            <button type="submit" class="btn btn-save">
+                                <i class="fas fa-save me-2"></i>Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- ── System ── -->
+            <div class="settings-panel" id="panel-system">
+                <div class="settings-panel-header">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="panel-icon-wrap bg-secondary-soft">
+                            <i class="fas fa-server text-secondary"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-0 fw-bold">System Information</h6>
+                            <small class="text-muted">Environment details and maintenance tools</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-panel-body">
+
+                    <div class="settings-section">
+                        <div class="settings-section-title">Security</div>
+                        <div class="toggle-row">
+                            <div>
+                                <div class="fw-semibold" style="font-size:0.82rem;">Two-Factor Authentication (2FA)</div>
+                                <div class="text-muted" style="font-size:0.75rem;">Require users to verify their identity on unrecognized devices during login</div>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span id="twofa-status-label" class="badge {{ $twoFaEnabled ? 'bg-success' : 'bg-secondary' }}" style="font-size:0.72rem;">
+                                    {{ $twoFaEnabled ? 'Enabled' : 'Disabled' }}
+                                </span>
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" id="twofa_toggle" role="switch"
+                                           {{ $twoFaEnabled ? 'checked' : '' }}>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                        <div class="row g-3">
+                            <div class="col-sm-6 col-lg-3">
+                                <div class="sys-info-card">
+                                    <div class="sys-info-icon"><i class="fab fa-laravel"></i></div>
+                                    <div class="sys-info-label">Laravel</div>
+                                    <div class="sys-info-value">{{ app()->version() }}</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6 col-lg-3">
+                                <div class="sys-info-card">
+                                    <div class="sys-info-icon"><i class="fab fa-php"></i></div>
+                                    <div class="sys-info-label">PHP</div>
+                                    <div class="sys-info-value">{{ PHP_VERSION }}</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6 col-lg-3">
+                                <div class="sys-info-card">
+                                    <div class="sys-info-icon"><i class="fas fa-code-branch"></i></div>
+                                    <div class="sys-info-label">Environment</div>
+                                    <div class="sys-info-value text-capitalize">{{ app()->environment() }}</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6 col-lg-3">
+                                <div class="sys-info-card">
+                                    <div class="sys-info-icon"><i class="fas fa-bug"></i></div>
+                                    <div class="sys-info-label">Debug Mode</div>
+                                    <div class="sys-info-value">{{ config('app.debug') ? 'On' : 'Off' }}</div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <div class="card bg-light">
-                                <div class="card-body">
-                                    <h6 class="card-title">Environment</h6>
-                                    <p class="card-text h4">{{ app()->environment() }}</p>
-                                </div>
+                    <div class="settings-section">
+                        <div class="settings-section-title">Cache & Maintenance</div>
+                        <div class="row g-2">
+                            <div class="col-auto">
+                                <button type="button" class="btn btn-action-outline btn-outline-primary" onclick="clearCache()">
+                                    <i class="fas fa-broom me-2"></i>Clear Cache
+                                </button>
+                            </div>
+                            <div class="col-auto">
+                                <button type="button" class="btn btn-action-outline btn-outline-info" onclick="clearViews()">
+                                    <i class="fas fa-eye-slash me-2"></i>Clear Views
+                                </button>
+                            </div>
+                            <div class="col-auto">
+                                <button type="button" class="btn btn-action-outline btn-outline-warning" onclick="clearConfig()">
+                                    <i class="fas fa-cog me-2"></i>Clear Config
+                                </button>
+                            </div>
+                            <div class="col-auto">
+                                <button type="button" class="btn btn-action-outline btn-outline-danger" onclick="clearAll()">
+                                    <i class="fas fa-trash-alt me-2"></i>Clear All
+                                </button>
                             </div>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <div class="card bg-light">
-                                <div class="card-body">
-                                    <h6 class="card-title">Debug Mode</h6>
-                                    <p class="card-text h4">{{ config('app.debug') ? 'Enabled' : 'Disabled' }}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <hr class="my-4">
-
-                    <h6 class="mb-3">System Actions</h6>
-                    <div class="d-flex gap-2 flex-wrap">
-                        <button type="button" class="btn btn-outline-primary" onclick="clearCache()">
-                            <i class="fas fa-broom me-2"></i>Clear Cache
-                        </button>
-                        <button type="button" class="btn btn-outline-info" onclick="clearViews()">
-                            <i class="fas fa-eye-slash me-2"></i>Clear Views
-                        </button>
-                        <button type="button" class="btn btn-outline-warning" onclick="clearConfig()">
-                            <i class="fas fa-cog me-2"></i>Clear Config
-                        </button>
-                        <button type="button" class="btn btn-outline-danger" onclick="clearAll()">
-                            <i class="fas fa-trash-alt me-2"></i>Clear All
-                        </button>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
+
+        </div><!-- /.settings-content -->
+    </div><!-- /.settings-layout -->
 </div>
 
 <style>
-/* Breadcrumb styles */
-.breadcrumb {
-    background: transparent;
-    padding: 0.5rem 0;
-    margin-bottom: 0;
-    font-size: 0.875rem;
+/* ── Layout ── */
+.settings-layout {
+    align-items: flex-start;
 }
 
-.breadcrumb-item {
+/* ── Sidebar ── */
+.settings-sidebar {
+    width: 220px;
+    position: sticky;
+    top: 70px;
+}
+
+.settings-sidebar-inner {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+
+.settings-sidebar-brand {
+    border-bottom: 1px solid #f1f3f5;
+    background: #fafafa;
+}
+
+.brand-icon-wrap {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #dc3545, #c0392b);
+    border-radius: 8px;
     display: flex;
     align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 0.8rem;
+    flex-shrink: 0;
 }
 
-.breadcrumb-item + .breadcrumb-item::before {
-    content: "›";
-    color: #6c757d;
-    font-size: 1.2rem;
-    font-weight: 600;
-    margin: 0 0.5rem;
+.settings-nav-group {
+    padding: 0 4px;
 }
 
-.breadcrumb-item a {
-    color: #6c757d;
-    text-decoration: none;
-    transition: color 0.2s ease;
+.settings-nav-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: #adb5bd;
+    padding: 0 8px 4px;
 }
 
-.breadcrumb-item a:hover {
-    color: #0d6efd;
-}
-
-.breadcrumb-item.active {
+.settings-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 10px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 500;
     color: #495057;
-    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.18s ease;
+    margin-bottom: 2px;
 }
 
-.breadcrumb-item i {
-    font-size: 0.75rem;
+.settings-nav-item i {
+    font-size: 0.78rem;
+    width: 16px;
+    text-align: center;
+    color: #868e96;
+    flex-shrink: 0;
+    transition: color 0.18s;
 }
 
-/* Card header height reduction */
-.card-header {
-    padding: 0.5rem 1rem;
-    min-height: 2.5rem;
+.settings-nav-item:hover {
+    background: #f8f9fa;
+    color: #dc3545;
 }
 
-.card-header h6 {
-    font-size: 0.95rem;
+.settings-nav-item:hover i {
+    color: #dc3545;
+}
+
+.settings-nav-item.active {
+    background: rgba(220, 53, 69, 0.08);
+    color: #dc3545;
     font-weight: 600;
-    line-height: 1.2;
 }
 
-/* Font size reductions */
-h2 {
-    font-size: 1.5rem;
+.settings-nav-item.active i {
+    color: #dc3545;
 }
 
-h5 {
-    font-size: 1rem;
+/* ── Content Panel ── */
+.settings-content {
+    min-width: 0;
 }
 
-h6 {
+.settings-panel {
+    display: none;
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+
+.settings-panel.active {
+    display: block;
+}
+
+.settings-panel-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid #f1f3f5;
+    background: #fafafa;
+}
+
+.panel-icon-wrap {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 0.9rem;
+    flex-shrink: 0;
 }
 
+.bg-primary-soft   { background: rgba(13,110,253,0.1); }
+.bg-info-soft      { background: rgba(13,202,240,0.1); }
+.bg-warning-soft   { background: rgba(255,193,7,0.12); }
+.bg-secondary-soft { background: rgba(108,117,125,0.1); }
+
+.settings-panel-body {
+    padding: 20px;
+}
+
+/* ── Sections ── */
+.settings-section {
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #f1f3f5;
+}
+
+.settings-section:last-of-type {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.settings-section-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #adb5bd;
+    margin-bottom: 14px;
+}
+
+/* ── Toggle Row ── */
+.toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.toggle-row:last-child {
+    border-bottom: none;
+}
+
+/* ── Form ── */
 .form-label {
-    font-size: 0.875rem;
-    font-weight: 500;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 5px;
 }
 
 .form-control, .form-select {
-    font-size: 0.875rem;
-}
-
-.btn {
-    font-size: 0.875rem;
-}
-
-.text-muted {
-    font-size: 0.8rem;
-}
-
-small {
-    font-size: 0.75rem;
-}
-
-.card-text {
-    font-size: 0.9rem;
-}
-
-.card-text.h4 {
-    font-size: 1.1rem;
-}
-
-/* Settings Page Styles */
-.nav-tabs .nav-link {
-    color: #6c757d;
-    border: none;
-    border-bottom: 2px solid transparent;
-    padding: 0.75rem 1rem;
-    font-size: 0.9rem;
-    transition: all 0.3s ease;
-}
-
-.nav-tabs .nav-link:hover {
-    color: #FF0000;
-    border-color: transparent;
-}
-
-.nav-tabs .nav-link.active {
-    color: #FF0000;
-    background-color: #fff; /* Add subtle white or light background */
-    border-color: transparent transparent #FF0000;
-    font-weight: 700;
-    text-shadow: 0 0 1px rgba(255, 0, 0, 0.4); /* make text pop slightly */
-}
-
-
-.card {
-    border: 1px solid #e9ecef;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.card-header {
-    background: white;
-    border-bottom: 1px solid #e9ecef;
-    padding: 0;
-}
-
-.form-control,
-.form-select {
+    font-size: 0.82rem;
     border-radius: 8px;
-    border: 1px solid #e9ecef;
-    padding: 0.75rem;
+    border-color: #e9ecef;
+    padding: 0.5rem 0.75rem;
 }
 
-.form-control:focus,
-.form-select:focus {
-    border-color: #FF0000;
-    box-shadow: 0 0 0 0.2rem rgba(255, 0, 0, 0.1);
+.form-control:focus, .form-select:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.18rem rgba(220,53,69,0.12);
 }
 
-.btn-primary {
-    background: linear-gradient(135deg, #FF0000 0%, #cc0000 100%);
+.form-text {
+    font-size: 0.72rem;
+    color: #adb5bd;
+}
+
+/* ── Save Button ── */
+.btn-save {
+    background: linear-gradient(135deg, #dc3545 0%, #c0392b 100%);
+    color: #fff;
     border: none;
-    padding: 0.75rem 1.5rem;
     border-radius: 8px;
+    padding: 8px 20px;
+    font-size: 0.82rem;
     font-weight: 600;
+    transition: all 0.2s ease;
 }
 
-.btn-primary:hover {
-    background: linear-gradient(135deg, #cc0000 0%, #990000 100%);
+.btn-save:hover {
+    background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(255, 0, 0, 0.3);
+    box-shadow: 0 4px 12px rgba(220,53,69,0.25);
+    color: #fff;
 }
 
-.btn-outline-primary,
-.btn-outline-info,
-.btn-outline-warning,
-.btn-outline-danger {
+/* ── System Info Cards ── */
+.sys-info-card {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+}
+
+.sys-info-icon {
+    font-size: 1.4rem;
+    color: #868e96;
+    margin-bottom: 6px;
+}
+
+.sys-info-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #adb5bd;
+    margin-bottom: 3px;
+}
+
+.sys-info-value {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #343a40;
+}
+
+.btn-action-outline {
+    font-size: 0.8rem;
     border-radius: 8px;
-    padding: 0.75rem 1.5rem;
+    padding: 7px 14px;
     font-weight: 600;
 }
 
+/* ── Form switch red ── */
 .form-check-input:checked {
-    background-color: #FF0000;
-    border-color: #FF0000;
+    background-color: #dc3545;
+    border-color: #dc3545;
 }
 
-.bg-light {
-    background-color: #f8f9fa !important;
-}
-
-/* Responsive */
+/* ── Responsive ── */
 @media (max-width: 768px) {
-    .nav-tabs .nav-link {
-        padding: 0.75rem 1rem;
-        font-size: 0.8rem;
+    .settings-layout {
+        flex-direction: column;
     }
-    
-    .card-body {
-        padding: 1rem;
+    .settings-sidebar {
+        width: 100%;
+        position: static;
     }
-    
-    h2 {
-        font-size: 1.25rem;
-    }
-    
-    h5 {
-        font-size: 0.9rem;
-    }
-    
-    h6 {
-        font-size: 0.85rem;
-    }
-    
-    .form-label {
-        font-size: 0.8rem;
-    }
-    
-    .form-control, .form-select {
-        font-size: 0.8rem;
-    }
-    
-    .btn {
-        font-size: 0.8rem;
-    }
-    
-    .card-header {
-        padding: 0.25rem 0.5rem;
-        min-height: 2rem;
-    }
-    
-    .card-header h6 {
-        font-size: 0.85rem;
-    }
-}
-
-@media (max-width: 576px) {
-    .nav-tabs {
-        flex-wrap: nowrap;
+    .settings-sidebar-inner {
+        display: flex;
         overflow-x: auto;
     }
-    
-    .nav-tabs .nav-link {
-        padding: 0.75rem;
-        font-size: 0.75rem;
-        white-space: nowrap;
-    }
-    
-    .nav-tabs .nav-link i {
+    .settings-sidebar-brand {
         display: none;
+    }
+    .settings-nav-group {
+        display: flex;
+        flex-direction: row;
+        gap: 4px;
+        white-space: nowrap;
+        padding: 6px;
+    }
+    .settings-nav-label { display: none; }
+    .settings-nav-item {
+        padding: 6px 10px;
+        margin-bottom: 0;
     }
 }
 </style>
 
 <script>
+// ── Tab switching ──
+var initialTab = new URLSearchParams(window.location.search).get('tab') || 'general';
+
+function activateTab(tabName) {
+    document.querySelectorAll('.settings-nav-item[data-tab]').forEach(function(i) { i.classList.remove('active'); });
+    var navItem = document.querySelector('.settings-nav-item[data-tab="' + tabName + '"]');
+    if (navItem) navItem.classList.add('active');
+
+    document.querySelectorAll('.settings-panel').forEach(function(p) { p.classList.remove('active'); });
+    var panel = document.getElementById('panel-' + tabName);
+    if (panel) panel.classList.add('active');
+}
+
+// Activate on page load from URL param
+activateTab(initialTab);
+
+document.querySelectorAll('.settings-nav-item').forEach(function(item) {
+    item.addEventListener('click', function(e) {
+        var tab = this.dataset.tab;
+
+        // If no data-tab, it's a real navigation link — let it navigate
+        if (!tab) return;
+
+        e.preventDefault();
+        activateTab(tab);
+    });
+});
+
+// ── Cache helpers ──
 function clearCache() {
-    if (confirm('Clear application cache?')) {
-        fetch('/admin/clear-cache', {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            alert(data.message || 'Cache cleared successfully!');
-        })
-        .catch(error => {
-            alert('Error clearing cache');
-        });
-    }
+    if (!confirm('Clear application cache?')) return;
+    fetch('/admin/clear-cache', { method: 'POST', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' } })
+        .then(r => r.json()).then(d => alert(d.message || 'Cache cleared!')).catch(() => alert('Error clearing cache'));
 }
-
 function clearViews() {
-    if (confirm('Clear compiled views?')) {
-        fetch('/admin/clear-views', {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            alert(data.message || 'Views cleared successfully!');
-        })
-        .catch(error => {
-            alert('Error clearing views');
-        });
-    }
+    if (!confirm('Clear compiled views?')) return;
+    fetch('/admin/clear-views', { method: 'POST', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' } })
+        .then(r => r.json()).then(d => alert(d.message || 'Views cleared!')).catch(() => alert('Error clearing views'));
 }
-
 function clearConfig() {
-    if (confirm('Clear configuration cache?')) {
-        fetch('/admin/clear-config', {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            alert(data.message || 'Config cleared successfully!');
-        })
-        .catch(error => {
-            alert('Error clearing config');
-        });
-    }
+    if (!confirm('Clear configuration cache?')) return;
+    fetch('/admin/clear-config', { method: 'POST', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' } })
+        .then(r => r.json()).then(d => alert(d.message || 'Config cleared!')).catch(() => alert('Error clearing config'));
+}
+function clearAll() {
+    if (!confirm('Clear all caches?')) return;
+    fetch('/admin/clear-all', { method: 'POST', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' } })
+        .then(r => r.json()).then(d => alert(d.message || 'All caches cleared!')).catch(() => alert('Error clearing caches'));
 }
 
-function clearAll() {
-    if (confirm('Clear all caches? This will clear cache, views, config, and routes.')) {
-        fetch('/admin/clear-all', {
+// ── 2FA Toggle ──
+const twofaToggle = document.getElementById('twofa_toggle');
+if (twofaToggle) {
+    twofaToggle.addEventListener('change', function() {
+        const enabled = this.checked;
+        const label = document.getElementById('twofa-status-label');
+        this.disabled = true;
+
+        fetch('{{ route('admin.settings.toggle2fa') }}', {
             method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Content-Type': 'application/json'
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled: enabled })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                label.textContent = enabled ? 'Enabled' : 'Disabled';
+                label.className = 'badge ' + (enabled ? 'bg-success' : 'bg-secondary');
+            } else {
+                this.checked = !enabled; // revert
             }
         })
-        .then(response => response.json())
-        .then(data => {
-            alert(data.message || 'All caches cleared successfully!');
-        })
-        .catch(error => {
-            alert('Error clearing caches');
-        });
-    }
+        .catch(() => { this.checked = !enabled; })
+        .finally(() => { this.disabled = false; });
+    });
 }
 </script>
 @endsection

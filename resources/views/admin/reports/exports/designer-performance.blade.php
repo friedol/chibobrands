@@ -100,17 +100,7 @@
                 <td>{{ $task->customer->name ?? 'N/A' }}</td>
                 <td>{{ $task->designer->name ?? 'Unassigned' }}</td>
                 <td class="text-center">
-                    @php
-                        $statusColors = [
-                            'pending' => 'bg-warning',
-                            'in_progress' => 'bg-info',
-                            'in_review' => 'bg-primary',
-                            'completed' => 'bg-success',
-                            'rejected' => 'bg-danger'
-                        ];
-                        $badgeClass = $statusColors[$task->status] ?? 'bg-secondary';
-                    @endphp
-                    <span class="badge {{ $badgeClass }}">{{ ucfirst(str_replace('_', ' ', $task->status)) }}</span>
+                    <span class="badge badge-{{ $task->status }}">{{ ucfirst(str_replace('_', ' ', $task->status)) }}</span>
                 </td>
                 <td class="text-end">{{ $task->created_at->format('M d, Y') }}</td>
             </tr>

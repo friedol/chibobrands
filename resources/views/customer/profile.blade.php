@@ -135,6 +135,40 @@
                         <!-- Address Section -->
                         <div class="mb-4">
                             <h6 class="text-muted mb-3 fw-bold">Address Information</h6>
+                            
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label for="region_id" class="form-label fw-semibold">Region *</label>
+                                    <select class="form-select @error('region_id') is-invalid @enderror" 
+                                            id="region_id" 
+                                            name="region_id" 
+                                            required>
+                                        <option value="">Select Region</option>
+                                        @foreach($regions as $region)
+                                            <option value="{{ $region->id }}" {{ old('region_id', $customer->region_id) == $region->id ? 'selected' : '' }}>{{ $region->region_name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('region_id')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="district_id" class="form-label fw-semibold">District *</label>
+                                    <select class="form-select @error('district_id') is-invalid @enderror" 
+                                            id="district_id" 
+                                            name="district_id" 
+                                            required>
+                                        <option value="">Select District</option>
+                                        @foreach($districts as $district)
+                                            <option value="{{ $district->id }}" {{ old('district_id', $customer->district_id) == $district->id ? 'selected' : '' }}>{{ $district->district_name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('district_id')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+
                             <div class="mb-3">
                                 <label for="address" class="form-label fw-semibold">Address</label>
                                 <textarea class="form-control @error('address') is-invalid @enderror" 
@@ -473,6 +507,51 @@ h6 {
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Region and District Dynamic Selection
+    const regionSelect = document.getElementById('region_id');
+    const districtSelect = document.getElementById('district_id');
+
+    if (regionSelect && districtSelect) {
+        regionSelect.addEventListener('change', function() {
+            const regionId = this.value;
+            districtSelect.innerHTML = '<option value="">Loading districts...</option>';
+            districtSelect.disabled = true;
+            
+            if (!regionId) {
+                districtSelect.innerHTML = '<option value="">Select District</option>';
+                districtSelect.disabled = false;
+                return;
+            }
+            
+            fetch(`/regions/${regionId}/districts`)
+                .then(response => response.json())
+                .then(data => {
+                    let html = '<option value="">Select District</option>';
+                    data.forEach(district => {
+                        html += `<option value="${district.id}">${district.district_name}</option>`;
+                    });
+                    districtSelect.innerHTML = html;
+                    districtSelect.disabled = false;
+                    
+                    // If customer's current district is in this region, select it
+                    const currentDistrictId = "{{ old('district_id', $customer->district_id) }}";
+                    if (currentDistrictId) {
+                        districtSelect.value = currentDistrictId;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching districts:', error);
+                    districtSelect.innerHTML = '<option value="">Error loading districts</option>';
+                    districtSelect.disabled = false;
+                });
+        });
+        
+        // Only trigger initial load if the select has a value AND the districts options are empty/default
+        if (regionSelect.value && districtSelect.options.length <= 1) {
+            regionSelect.dispatchEvent(new Event('change'));
+        }
+    }
+
     // Phone number formatting
     const phoneInput = document.getElementById('phone');
     phoneInput.addEventListener('input', function() {

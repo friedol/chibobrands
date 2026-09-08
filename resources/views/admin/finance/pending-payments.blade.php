@@ -17,14 +17,24 @@
                         <button class="btn btn-outline-dark btn-sm rounded-pill px-3 x-small" type="button"
                             data-bs-toggle="collapse" data-bs-target="#filterCollapse">
                             <i class="fas fa-filter me-1"></i> Filter
-                            @if(request()->anyFilled(['period', 'start_date', 'end_date', 'search']))
+                            @if(request()->anyFilled(['period', 'start_date', 'end_date', 'search', 'saler_id']))
                                 <span class="badge bg-primary ms-1">Active</span>
                             @endif
                         </button>
-                        <button class="btn btn-outline-dark btn-sm rounded-pill px-3 x-small"
-                                onclick="window.open('{{ route('admin.finance.pending-payments.print') }}?search={{ $search }}&period={{ $period ?? 'all' }}&start_date={{ request('start_date', $dateFromStr) }}&end_date={{ request('end_date', $dateToStr) }}', '_blank')">
-                            <i class="fas fa-print me-1"></i> Print
-                        </button>
+                        @php
+                            $pendingPaymentsExportParams = [
+                                'search' => $search ?? '',
+                                'period' => $period ?? 'all',
+                                'start_date' => request('start_date', $dateFromStr),
+                                'end_date' => request('end_date', $dateToStr),
+                                'saler_id' => $salerId ?? '',
+                            ];
+                        @endphp
+                        <x-report-export-menu
+                            :print-url="route('admin.finance.pending-payments.print', $pendingPaymentsExportParams)"
+                            :pdf-url="route('admin.finance.pending-payments.pdf', $pendingPaymentsExportParams)"
+                            :excel-url="route('admin.finance.pending-payments.excel', $pendingPaymentsExportParams)"
+                        />
                         <button class="btn btn-outline-dark btn-sm rounded-pill px-3 x-small"
                             onclick="window.location.reload()">
                             <i class="fas fa-sync-alt me-1"></i> Refresh
@@ -35,22 +45,34 @@
         </div>
 
         <!-- Collapsable Filters -->
-        <div class="collapse {{ request()->anyFilled(['period', 'start_date', 'end_date', 'search']) ? 'show' : '' }} mb-4"
+        <div class="collapse {{ request()->anyFilled(['period', 'start_date', 'end_date', 'search', 'saler_id']) ? 'show' : '' }} mb-4"
             id="filterCollapse">
             <div class="card border-0 shadow-sm border-top border-4 border-primary">
                 <div class="card-body bg-light p-3">
                     <form action="{{ route('admin.finance.pending-payments') }}" method="GET" class="row g-2 align-items-end"
                         data-no-global-handler>
-                        
+
                         <div class="col-12 col-md-3">
                             <label class="form-label fw-bold x-small text-uppercase mb-1">Search Records</label>
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
-                                <input type="text" name="search" class="form-control" placeholder="Customer or code..." value="{{ $search }}">
+                                <input type="text" name="search" class="form-control" placeholder="Customer, code or salesperson..." value="{{ $search }}">
                             </div>
                         </div>
 
-                        <div class="col-12 col-md-3">
+                        <div class="col-12 col-md-2">
+                            <label class="form-label fw-bold x-small text-uppercase mb-1">Salesperson</label>
+                            <select name="saler_id" class="form-select form-select-sm">
+                                <option value="">All Salespersons</option>
+                                @foreach($salers as $saler)
+                                    <option value="{{ $saler->id }}" {{ ($salerId ?? '') == $saler->id ? 'selected' : '' }}>
+                                        {{ $saler->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md-2">
                             <label class="form-label fw-bold x-small text-uppercase mb-1">Debt Age (Created Within)</label>
                             <select name="period" id="periodSelect" class="form-select form-select-sm">
                                 <option value="all" {{ ($period ?? '') == 'all' ? 'selected' : '' }}>All Time (Total Debt)</option>
@@ -217,6 +239,7 @@
                                     <tr>
                                         <th class="ps-4 x-small border-0 text-muted">TASK</th>
                                         <th class="x-small border-0 text-muted">CUSTOMER</th>
+                                        <th class="x-small border-0 text-muted">SALESPERSON</th>
                                         <th class="x-small border-0 text-muted text-end">TOTAL</th>
                                         <th class="x-small border-0 text-muted text-end">PAID</th>
                                         <th class="x-small border-0 text-muted text-end">BALANCE</th>
@@ -242,6 +265,9 @@
                                                 <div class="small fw-bold">{{ $task->customer->name ?? 'Walk-in' }}</div>
                                                 <div class="x-small text-muted">{{ $task->customer->phone ?? 'N/A' }}</div>
                                             </td>
+                                            <td>
+                                                <div class="small">{{ $task->saler->name ?? '-' }}</div>
+                                            </td>
                                             <td class="text-end small">{{ number_format($taskTotal) }}</td>
                                             <td class="text-end small text-success">{{ number_format($task->amount_paid) }}</td>
                                             <td class="text-end small text-danger fw-bold">{{ number_format($task->balance) }}
@@ -263,7 +289,7 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="7" class="text-center py-5 text-muted">
+                                            <td colspan="8" class="text-center py-5 text-muted">
                                                 <div class="mb-2"><i class="fas fa-check-circle fa-2x opacity-25"></i></div>
                                                 <p class="mb-0">No pending design tasks found.</p>
                                             </td>
@@ -392,6 +418,14 @@
                             </select>
                         </div>
 
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Payment Date <span class="text-danger">*</span></label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-white"><i class="fas fa-calendar-alt"></i></span>
+                                <input type="date" class="form-control" name="payment_date" value="{{ date('Y-m-d') }}" required>
+                            </div>
+                        </div>
+
                         <div class="mb-0">
                             <label class="form-label small fw-bold">Note (Optional)</label>
                             <textarea class="form-control form-control-sm" name="note" rows="2"
@@ -459,6 +493,19 @@
                                 <option value="Bank Transfer">Bank Transfer</option>
                                 <option value="Card">Card</option>
                             </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="paymentDate" class="form-label fw-bold text-dark" style="font-size: 12px;">
+                                Payment Date <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-white" style="font-size: 12px;"><i
+                                        class="fas fa-calendar-alt"></i></span>
+                                <input type="date" class="form-control" id="paymentDate" name="payment_date"
+                                    value="{{ date('Y-m-d') }}" required style="font-size: 12px;">
+                            </div>
+                            <div class="form-text" style="font-size: 11px;">Select the date when debt/payment was made</div>
                         </div>
 
                         <div class="mb-3">

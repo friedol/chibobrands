@@ -278,6 +278,18 @@
                                 <small class="form-text text-muted">Select an existing customer or create a new one</small>
                             </div>
 
+                            <div class="mb-3" id="customer_business_wrapper" style="display: none;">
+                                <label class="form-label fw-semibold">Business Profile</label>
+                                <select class="form-select select2-business @error('customer_business_id') is-invalid @enderror"
+                                    id="customer_business_select" name="customer_business_id">
+                                    <option value="">Main customer profile (default)</option>
+                                </select>
+                                @error('customer_business_id')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                                <small class="form-text text-muted">Choose which business this task and payment belong to.</small>
+                            </div>
+
                             <!-- New Customer Form (hidden by default) -->
                             <div id="new_customer_form" style="display: none;">
                                 <div class="row g-3">
@@ -966,6 +978,7 @@
             const existingTitles = @json($existingTitles ?? []);
             const taskTypeData = @json($taskTypes ?? []);
             let currentCustomerId = null;
+            const oldBusinessId = @json(old('customer_business_id'));
 
             // Initialize Select2
             $(document).ready(function () {
@@ -1003,7 +1016,23 @@
                     // Trigger native change event for existing logic
                     this.dispatchEvent(new Event('change'));
                 });
+
+                initializeBusinessSelect();
             });
+
+            function initializeBusinessSelect() {
+                const $businessSelect = $('#customer_business_select');
+                if ($businessSelect.data('select2')) {
+                    $businessSelect.select2('destroy');
+                }
+
+                $businessSelect.select2({
+                    theme: 'bootstrap-5',
+                    placeholder: 'Search customer business profile...',
+                    allowClear: true,
+                    width: '100%'
+                });
+            }
 
             // Saler data for JavaScript
             const salersData = {
@@ -1057,16 +1086,21 @@
                 const newCustomerForm = document.getElementById('new_customer_form');
                 const existingCustomerInfo = document.getElementById('existing_customer_info');
                 const existingTasksCard = document.getElementById('existing_tasks_card');
+                const businessWrapper = document.getElementById('customer_business_wrapper');
+                const businessSelect = document.getElementById('customer_business_select');
 
                 if (selectedValue === 'new') {
                     newCustomerForm.style.display = 'block';
                     existingCustomerInfo.style.display = 'none';
                     existingTasksCard.style.display = 'none';
+                    businessWrapper.style.display = 'none';
+                    businessSelect.innerHTML = '<option value="">Main customer profile (default)</option>';
                     currentCustomerId = null;
                 } else if (selectedValue) {
                     newCustomerForm.style.display = 'none';
                     existingCustomerInfo.style.display = 'block';
                     existingTasksCard.style.display = 'block';
+                    businessWrapper.style.display = 'block';
                     currentCustomerId = selectedValue;
 
                     // Get customer data from the customersData object
@@ -1165,6 +1199,7 @@
 
                     // Load existing tasks
                     loadExistingTasks(selectedValue);
+                    loadCustomerBusinesses(selectedValue);
                 } else {
                     newCustomerForm.style.display = 'none';
                     existingCustomerInfo.style.display = 'none';
@@ -1172,9 +1207,53 @@
                     if (existingTasksCard) {
                         existingTasksCard.style.display = 'none';
                     }
+                    businessWrapper.style.display = 'none';
+                    businessSelect.innerHTML = '<option value="">Main customer profile (default)</option>';
                     currentCustomerId = null;
                 }
             });
+
+            function loadCustomerBusinesses(customerId) {
+                const businessSelect = document.getElementById('customer_business_select');
+                const url = '{{ route("admin.design-tasks.customer-businesses", ["customerId" => "PLACEHOLDER"]) }}'.replace('PLACEHOLDER', customerId);
+
+                businessSelect.innerHTML = '<option value="">Main customer profile (default)</option>';
+
+                fetch(url)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.businesses || data.businesses.length === 0) {
+                            return;
+                        }
+
+                        data.businesses.forEach(business => {
+                            const option = document.createElement('option');
+                            option.value = business.id;
+                            const primaryLabel = business.is_primary ? ' [Primary]' : '';
+                            const typeLabel = business.type ? ` - ${business.type}` : '';
+                            const contactLabel = business.phone ? ` | ${business.phone}` : '';
+                            option.textContent = `${business.name}${typeLabel}${primaryLabel}${contactLabel}`;
+
+                            if (oldBusinessId && String(oldBusinessId) === String(business.id)) {
+                                option.selected = true;
+                            }
+
+                            businessSelect.appendChild(option);
+                        });
+
+                        initializeBusinessSelect();
+                    })
+                    .catch(error => {
+                        console.error('Error loading customer businesses:', error);
+                        initializeBusinessSelect();
+                    });
+            }
+
+            const selectedCustomerOnLoad = document.getElementById('customer_select').value;
+            if (selectedCustomerOnLoad && selectedCustomerOnLoad !== 'new') {
+                document.getElementById('customer_business_wrapper').style.display = 'block';
+                loadCustomerBusinesses(selectedCustomerOnLoad);
+            }
 
             // Load existing tasks for customer
             function loadExistingTasks(customerId) {
@@ -2278,14 +2357,55 @@
                     customerSelect.dispatchEvent(new Event('change'));
                 }
 
-                // Handle form submission - simple double-submission prevention
+                // Handle form submission with duplicate task detection
                 const taskForm = document.getElementById('taskForm');
                 const submitBtn = document.getElementById('submitTaskForm');
 
                 if (taskForm && submitBtn) {
-                    taskForm.addEventListener('submit', function (e) {
+                    let bypassDuplicateCheck = false;
+
+                    taskForm.addEventListener('submit', async function (e) {
+                        if (bypassDuplicateCheck) return;
+                        e.preventDefault();
+
+                        const customerId = document.getElementById('customer_id')?.value;
+                        const taskTypeId = document.querySelector('select[name="design_task_type_id"]')?.value;
+                        const title = document.querySelector('input[name="title"]')?.value;
+                        const designerId = document.querySelector('select[name="designer_id"]')?.value;
+
+                        if (customerId) {
+                            try {
+                                const response = await fetch('{{ route("admin.design-tasks.check-duplicate") }}', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                    },
+                                    body: JSON.stringify({
+                                        customer_id: customerId,
+                                        design_task_type_id: taskTypeId,
+                                        title: title,
+                                        designer_id: designerId
+                                    })
+                                });
+
+                                const res = await response.json();
+
+                                if (res.duplicate) {
+                                    const confirmProceed = confirm(`DUPLICATE TASK WARNING:\n\n${res.message}\nExisting Task: ${res.existing_task.title} (${res.existing_task.created_at})\n\nDo you still want to register this task?`);
+                                    if (!confirmProceed) {
+                                        return;
+                                    }
+                                }
+                            } catch (err) {
+                                console.error('Duplicate check error:', err);
+                            }
+                        }
+
+                        bypassDuplicateCheck = true;
                         submitBtn.disabled = true;
                         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
+                        taskForm.submit();
                     });
                 }
 

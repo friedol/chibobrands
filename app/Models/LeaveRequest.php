@@ -34,7 +34,8 @@ class LeaveRequest extends Model
     public function getStatusBadgeAttribute(): string
     {
         return match($this->status) {
-            'approved'  => 'success',
+            'approved'  => 'info',
+            'completed' => 'success',
             'rejected'  => 'danger',
             'cancelled' => 'secondary',
             default     => 'warning',
@@ -49,5 +50,10 @@ class LeaveRequest extends Model
     public function scopeApproved($query)
     {
         return $query->where('status', 'approved');
+    }
+
+    public function scopeCompleted($query)
+    {
+        return $query->where('status', 'completed');
     }
 }

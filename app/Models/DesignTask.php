@@ -27,6 +27,7 @@ class DesignTask extends Model
         'priority',
         'deadline',
         'completed_at',
+        'super_completed_at',
         'price',
         'amount_paid',
         'balance',
@@ -48,11 +49,13 @@ class DesignTask extends Model
         'loss_recorded_at',
         'loss_recorded_by',
         'loss_amount',
+        'customer_business_id',
     ];
 
     protected $casts = [
         'deadline' => 'datetime',
         'completed_at' => 'datetime',
+        'super_completed_at' => 'datetime',
         'priority' => 'integer',
         'reference_images' => 'array',
         'price' => 'decimal:2',
@@ -117,6 +120,23 @@ class DesignTask extends Model
     {
         return $this->belongsTo(Customer::class);
     }
+
+        protected static function booted(): void
+        {
+            static::creating(function (DesignTask $task) {
+                if (!empty($task->customer_business_id) || empty($task->customer_id)) {
+                    return;
+                }
+
+                $primaryBusinessId = CustomerBusiness::where('customer_id', $task->customer_id)
+                    ->orderByDesc('is_primary')
+                    ->value('id');
+
+                if ($primaryBusinessId) {
+                    $task->customer_business_id = $primaryBusinessId;
+                }
+            });
+        }
 
     public function receptionist(): BelongsTo
     {
@@ -191,6 +211,11 @@ class DesignTask extends Model
         return $query->where('receptionist_id', $receptionistId);
     }
 
+        public function customerBusiness(): BelongsTo
+        {
+            return $this->belongsTo(CustomerBusiness::class, 'customer_business_id');
+        }
+
     public function scopeWithStatus($query, $status)
     {
         return $query->where('status', $status);
@@ -230,6 +255,20 @@ class DesignTask extends Model
     }
 
     /**
+     * Whether this customer has other (non-trashed) tasks that are not yet
+     * super_completed/delivered/cancelled. Used to hold off the "your order
+     * is complete" SMS until every task in a multi-item order (e.g. bags +
+     * banner + signage) is finished, not just this one.
+     */
+    public function hasPendingSiblingTasks(): bool
+    {
+        return static::where('customer_id', $this->customer_id)
+            ->where('id', '!=', $this->id)
+            ->whereNotIn('status', [self::STATUS_SUPER_COMPLETED, self::STATUS_DELIVERED, self::STATUS_CANCELLED])
+            ->exists();
+    }
+
+    /**
      * Generate unique task code.
      */
     public static function generateTaskCode(): string
@@ -239,5 +278,30 @@ class DesignTask extends Model
         } while (static::where('task_code', $code)->exists());
 
         return $code;
+    }
+
+    /**
+     * After a payment is made against this task, sync all debt payments' statuses.
+     * Called by PaymentObserver automatically.
+     */
+    public function syncDebtStatusOnPayments(): void
+    {
+        $fresh = $this->fresh();
+        if (!$fresh) return;
+
+        $payments = Payment::where('design_task_id', $this->id)
+                            ->where('is_debt', true)
+                            ->get();
+
+        foreach ($payments as $payment) {
+            if ($fresh->balance <= 0) {
+                $payment->debt_status = Payment::DEBT_PAID;
+            } elseif ($fresh->amount_paid > 0 && $fresh->balance > 0) {
+                $payment->debt_status = Payment::DEBT_PARTIAL;
+            } else {
+                $payment->debt_status = Payment::DEBT_PENDING;
+            }
+            $payment->saveQuietly();
+        }
     }
 }

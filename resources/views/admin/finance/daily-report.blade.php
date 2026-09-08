@@ -13,20 +13,10 @@
     $pdfFilename = 'finance-daily-report-' . (($dateFrom ?? '') === ($dateTo ?? '') ? ($dateFrom ?? 'report') : ($dateFrom ?? '') . '_to_' . ($dateTo ?? '')) . '.pdf';
 @endphp
 <div class="container-fluid">
-    <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb" class="mb-3 no-print">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}" class="text-decoration-none"><i class="fas fa-home me-1"></i>Dashboard</a></li>
-            <li class="breadcrumb-item"><a href="{{ route('admin.finance.dashboard') }}" class="text-decoration-none">Finance</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Finance Report</li>
-        </ol>
-    </nav>
-
     <!-- Header Section -->
-    <div class="row align-items-center mb-4 no-print">
-        <div class="col-12">
-            <div class="d-flex flex-row justify-content-between align-items-start mb-2 gap-2">
-                <div class="flex-grow-1">
+    <div class="smart-toolbar no-print mb-3">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3">
+            <div class="flex-grow-1">
                     <h2 class="mb-0 fw-bold text-dark">Finance Analytics</h2>
                     <p class="text-muted small mb-0">
                         @if($isRange)
@@ -36,63 +26,58 @@
                         @endif
                     </p>
                 </div>
-            <div class="d-flex flex-wrap gap-2">
-                <a href="{{ route('admin.finance.dashboard') }}" data-no-global-handler data-no-preloader class="btn btn-outline-primary btn-sm">
+            <div class="d-flex flex-wrap gap-2 smart-actions">
+                <a href="{{ route('admin.finance.dashboard') }}" data-no-global-handler data-no-preloader class="btn btn-smart btn-sm">
                     <i class="fas fa-chart-line me-1"></i> Finance Hub
                 </a>
-                <a href="{{ route('admin.finance.cash-flow') }}" data-no-global-handler data-no-preloader class="btn btn-outline-info btn-sm">
+                <a href="{{ route('admin.finance.cash-flow') }}" data-no-global-handler data-no-preloader class="btn btn-smart btn-sm">
                     <i class="fas fa-exchange-alt me-1"></i> Cash Flow
                 </a>
-                <button class="btn btn-outline-primary btn-sm px-3 fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
-                    <i class="fas fa-filter me-1"></i> Filter
-                    @if(request()->anyFilled(['period', 'date_from', 'date_to']))
-                        <span class="badge bg-primary ms-1">Active</span>
-                    @endif
-                </button>
-                <a href="{{ $pdfUrl }}" target="_blank" rel="noopener" class="btn btn-success btn-sm share-pdf-btn" data-pdf-url="{{ $pdfUrl }}" data-pdf-filename="{{ $pdfFilename }}" title="Share this report as PDF (email, messaging, etc.).">
-                    <i class="fas fa-share-alt me-1"></i> Share PDF
-                </a>
-                <button class="btn btn-primary btn-sm" onclick="window.print()">
-                    <i class="fas fa-print me-1"></i> Print
-                </button>
+                <x-report-export-menu
+                    :print-url="$previewUrl"
+                    :pdf-url="$pdfUrl"
+                    print-target="_blank"
+                    label="Export"
+                />
             </div>
         </div>
-        
-        <!-- Modern Collapsable Filters -->
-        <div class="collapse {{ request()->anyFilled(['period', 'date_from', 'date_to']) ? 'show' : '' }} mb-4 no-print" id="filterCollapse">
-            <div class="card border-0 shadow-sm border-top border-4 border-primary">
-                <div class="card-body bg-light p-3">
-                    <form action="{{ route('admin.finance.daily-report') }}" method="GET" class="row g-2 align-items-end" data-no-global-handler>
-                        <div class="col-12 col-md-3">
+    </div>
+
+    <!-- Smart Filters -->
+    <div class="mb-4 no-print" id="filterCollapse">
+        <div class="card smart-filter-card border-0 shadow-sm">
+            <div class="card-body bg-light p-3">
+                <form action="{{ route('admin.finance.daily-report') }}" method="GET" class="row g-2 g-md-3 align-items-end" data-no-global-handler>
+                        <div class="col-12 col-md-4 col-lg-3">
                             <label class="form-label fw-bold x-small text-uppercase mb-1">Time Period</label>
                             <select name="period" id="periodSelect" class="form-select form-select-sm">
                                 <option value="today" {{ ($period ?? '') == 'today' ? 'selected' : '' }}>Today</option>
                                 <option value="yesterday" {{ ($period ?? '') == 'yesterday' ? 'selected' : '' }}>Yesterday</option>
                                 <option value="week" {{ ($period ?? '') == 'week' ? 'selected' : '' }}>This Week</option>
                                 <option value="month" {{ ($period ?? '') == 'month' ? 'selected' : '' }}>This Month</option>
+                                <option value="6_months" {{ ($period ?? '') == '6_months' ? 'selected' : '' }}>Last 6 Months</option>
                                 <option value="year" {{ ($period ?? '') == 'year' ? 'selected' : '' }}>This Year</option>
+                                <option value="2_years" {{ ($period ?? '') == '2_years' ? 'selected' : '' }}>Last 2 Years</option>
                                 <option value="custom" {{ ($period ?? '') == 'custom' ? 'selected' : '' }}>Custom Range</option>
+                                <option value="all" {{ ($period ?? '') == 'all' ? 'selected' : '' }}>All Time</option>
                             </select>
                         </div>
                         
-                        <div class="col-6 col-md-2 custom-date-group {{ ($period ?? '') == 'custom' ? '' : 'd-none' }}">
+                        <div class="col-6 col-md-4 col-lg-3 custom-date-group {{ ($period ?? '') == 'custom' ? '' : 'd-none' }}">
                             <label class="form-label fw-bold x-small text-uppercase mb-1">From Date</label>
                             <input type="date" name="date_from" class="form-control form-control-sm" value="{{ $dateFrom }}">
                         </div>
 
-                        <div class="col-6 col-md-2 custom-date-group {{ ($period ?? '') == 'custom' ? '' : 'd-none' }}">
+                        <div class="col-6 col-md-4 col-lg-3 custom-date-group {{ ($period ?? '') == 'custom' ? '' : 'd-none' }}">
                             <label class="form-label fw-bold x-small text-uppercase mb-1">To Date</label>
                             <input type="date" name="date_to" class="form-control form-control-sm" value="{{ $dateTo }}">
                         </div>
 
-                        <div class="col-12 col-md-auto ms-auto">
-                            <div class="btn-group shadow-sm w-100">
-                                <button type="submit" class="btn btn-primary btn-sm px-4 fw-bold">APPLY</button>
-                                <a href="{{ route('admin.finance.daily-report') }}" class="btn btn-dark btn-sm px-4 fw-bold">RESET</a>
-                            </div>
+                        <div class="col-12 col-md-auto ms-md-auto d-flex gap-2 filter-submit-actions">
+                            <button type="submit" class="btn btn-smart-dark btn-sm px-4 fw-bold">Apply</button>
+                            <a href="{{ route('admin.finance.daily-report') }}" class="btn btn-smart-light btn-sm px-4 fw-bold">Reset</a>
                         </div>
-                    </form>
-                </div>
+                </form>
             </div>
         </div>
     </div>
@@ -103,7 +88,7 @@
         <div class="print-only report-header">
             <div class="d-flex justify-content-between align-items-center mb-0">
                 <div class="d-flex align-items-center">
-                    <img src="{{ asset('images/logo.webp') }}" alt="Logo" style="height: 60px; margin-right: 20px;" onerror="this.style.display='none'">
+                    @include('partials.logo-print', ['logoStyle' => 'height:60px;margin-right:20px;object-fit:contain;'])
                     <div>
                         <h1 class="fw-bold mb-0 text-dark" style="letter-spacing: 0.5px;">Financial Report</h1>
                       
@@ -238,9 +223,11 @@
         @endforeach
 
         @php
-            $totalIn = $grandTotalIncomeMobile + $grandTotalIncomeCash + $grandTotalIncomeBank;
-            $totalOut = $grandTotalExpenseMobile + $grandTotalExpenseCash + $grandTotalExpenseBank;
-            $net = $totalIn - $totalOut;
+            $totalIn    = $grandTotalIncomeMobile + $grandTotalIncomeCash + $grandTotalIncomeBank;
+            $totalOut   = $grandTotalExpenseMobile + $grandTotalExpenseCash + $grandTotalExpenseBank;
+            $revenue    = $totalIn + $grandTotalIncomeRemain; // total billed = collected + outstanding
+            $netRevenue = $revenue - $totalOut;               // revenue minus expenses
+            $net        = $totalIn - $totalOut;
         @endphp
 
         <!-- Consolidated Summary Row (Only at the end) -->
@@ -251,32 +238,49 @@
                     <h6 class="fw-bold text-uppercase mb-4 pb-2 border-bottom border-secondary border-opacity-10">
                         <i class="fas fa-calculator me-2 text-primary"></i>Global Consolidated Summary
                     </h6>
-                    
-                    <div class="d-flex justify-content-between mb-2 small">
-                        <span class="text-muted">Total Revenue (In):</span>
-                        <span class="fw-bold text-dark">TZS {{ number_format($totalIn, 0) }}</span>
+
+                    {{-- Revenue = total billed (price of all tasks = collected + outstanding) --}}
+                    <div class="d-flex justify-content-between mb-1 small">
+                        <span class="text-muted fw-semibold">Revenue:</span>
+                        <span class="fw-bold text-dark">TZS {{ number_format($revenue, 0) }}</span>
                     </div>
-                    
-                    <div class="d-flex justify-content-between mb-2 small">
-                        <span class="text-muted">Total Expenses (Out):</span>
-                        <span class="fw-bold text-warning">TZS {{ number_format($totalOut, 0) }}</span>
+
+                    {{-- Collected = payments actually received --}}
+                    <div class="d-flex justify-content-between mb-1 small ps-3">
+                        <span class="text-muted">↳ Collected:</span>
+                        <span class="fw-bold text-success">TZS {{ number_format($totalIn, 0) }}</span>
                     </div>
-                    
-                    <div class="d-flex justify-content-between mb-2 small">
-                        <span class="text-muted">Total Outstanding (Remain):</span>
+
+                    {{-- Outstanding balance still owed --}}
+                    <div class="d-flex justify-content-between mb-3 small ps-3">
+                        <span class="text-muted">↳ Outstanding <span class="x-small">(Remain)</span>:</span>
                         <span class="fw-bold text-info">TZS {{ number_format($grandTotalIncomeRemain, 0) }}</span>
                     </div>
 
+                    {{-- Expenses --}}
+                    <div class="d-flex justify-content-between mb-2 small">
+                        <span class="text-muted">Total Expenses (Out):</span>
+                        <span class="fw-bold text-warning">− TZS {{ number_format($totalOut, 0) }}</span>
+                    </div>
+
+                    {{-- Debt collected --}}
                     <div class="d-flex justify-content-between mb-2 small">
                         <span class="text-muted">Total Debt Collected:</span>
-                        <span class="fw-bold text-success">TZS {{ number_format($grandTotals['income']['total_debt'], 0) }}</span>
+                        <span class="fw-bold text-primary">TZS {{ number_format($grandTotals['income']['total_debt'], 0) }}</span>
                     </div>
-                    
-                    <div class="d-flex justify-content-between border-top border-secondary border-opacity-10 pt-3 mt-3 align-items-center">
-                        <span class="fw-bold small text-uppercase">Net Position:</span>
-                        <span class="fw-bold fs-5 text-primary">
-                            TZS {{ number_format($net, 0) }}
+
+                    {{-- Net Revenue = Total Sales − Expenses --}}
+                    <div class="d-flex justify-content-between border-top border-secondary border-opacity-10 pt-3 mt-3 mb-1 align-items-center">
+                        <span class="fw-bold small text-uppercase">Net Revenue <span class="x-small text-muted fw-normal">(Total Sales − Expenses)</span>:</span>
+                        <span class="fw-bold fs-5 {{ $netRevenue >= 0 ? 'text-success' : 'text-danger' }}">
+                            TZS {{ number_format($netRevenue, 0) }}
                         </span>
+                    </div>
+
+                    {{-- Net Cash = Revenue (collected) − Expenses --}}
+                    <div class="d-flex justify-content-between align-items-center small">
+                        <span class="text-muted">Net Cash <span class="x-small">(Revenue − Expenses)</span>:</span>
+                        <span class="fw-bold text-primary">TZS {{ number_format($net, 0) }}</span>
                     </div>
                 </div>
             </div>
@@ -345,6 +349,78 @@
         --glass-border: rgba(255, 255, 255, 0.3);
     }
 
+    .smart-toolbar {
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        padding: 0;
+    }
+
+    .smart-actions .btn {
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 6px 12px;
+    }
+
+    .btn-smart {
+        background: #ffffff;
+        border: 1px solid #d1d5db;
+        color: #334155;
+    }
+
+    .btn-smart:hover {
+        background: #f8fafc;
+        border-color: #9ca3af;
+        color: #111827;
+    }
+
+    .smart-filter-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 14px;
+    }
+
+    .smart-input {
+        background: #ffffff;
+        border: 1px solid #d1d5db;
+        border-radius: 10px;
+        color: #111827;
+        height: 36px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .smart-input:focus {
+        border-color: #6b7280;
+        box-shadow: 0 0 0 2px rgba(107, 114, 128, 0.15);
+        outline: none;
+    }
+
+    .btn-smart-dark {
+        background: #111827;
+        color: #ffffff;
+        border: 1px solid #111827;
+        border-radius: 10px;
+    }
+
+    .btn-smart-dark:hover {
+        background: #0f172a;
+        color: #ffffff;
+    }
+
+    .btn-smart-light {
+        background: #ffffff;
+        color: #334155;
+        border: 1px solid #d1d5db;
+        border-radius: 10px;
+    }
+
+    .btn-smart-light:hover {
+        background: #f8fafc;
+        color: #111827;
+    }
+
     .glass-morphism {
         background: var(--glass-bg);
         backdrop-filter: blur(12px);
@@ -355,6 +431,32 @@
 
     .filter-bar {
         transition: all 0.3s ease;
+    }
+
+    @media (max-width: 768px) {
+        .smart-toolbar {
+            padding: 12px;
+        }
+
+        .smart-actions {
+            width: 100%;
+        }
+
+        .smart-actions .btn {
+            flex: 1 1 calc(50% - 8px);
+            text-align: center;
+        }
+
+        .filter-submit-actions .btn {
+            flex: 1 1 0;
+            text-align: center;
+        }
+    }
+
+    @media (min-width: 769px) {
+        .filter-submit-actions .btn {
+            min-width: 110px;
+        }
     }
 
     .filter-group {
@@ -473,7 +575,7 @@
     .report-container {
         font-family: 'Nunito Sans', sans-serif;
         background: white;
-        border-radius: 20px;
+        border-radius: 10px;
         padding: 40px;
         box-shadow: var(--card-shadow);
         border: 1px solid rgba(0,0,0,0.02);
@@ -483,7 +585,7 @@
     .report-table {
         border: none !important;
         margin-top: 20px;
-        border-radius: 12px;
+        border-radius: 6px;
         overflow: hidden;
         border-collapse: separate !important;
         border-spacing: 0;

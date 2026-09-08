@@ -5,7 +5,7 @@
 @push('styles')
 <style>
     /* Mobile Responsive - Font Size Reductions */
-    @media (max-width: 768px) {
+    @media screen and (max-width: 768px) {
         .container-fluid { padding: 0.5rem; }
         h2 { font-size: 1.25rem !important; }
         .text-muted { font-size: 0.75rem !important; }
@@ -15,7 +15,7 @@
         .stats-col { flex: 0 0 50% !important; max-width: 50% !important; }
     }
     
-    @media (max-width: 575.98px) {
+    @media screen and (max-width: 575.98px) {
         .container-fluid { padding: 0.25rem; }
         h2 { font-size: 1.1rem !important; }
         .card-body { padding: 0.75rem !important; }
@@ -103,7 +103,7 @@
     <div class="print-only report-header">
         <div class="d-flex justify-content-between align-items-center">
             <div>
-                <img src="{{ asset('images/logo.webp') }}" alt="Logo" style="height: 50px;" onerror="this.style.display='none'">
+                @include('partials.logo-print')
                 <h1 class="fw-bold text-dark mt-2">Delivery Performance Report</h1>
                 <p class="mb-0 text-dark">Period: {{ ucfirst($period ?: 'Custom Range') }}</p>
             </div>

@@ -5,12 +5,17 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Order;
 use App\Models\DesignTask;
+use App\Models\SalesTarget;
+use App\Support\Concerns\ResolvesSalesTargets;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
 class SalerPerformanceController extends Controller
 {
+    use ResolvesSalesTargets;
+
+
     /**
      * Display the saler performance dashboard.
      */
@@ -60,6 +65,9 @@ class SalerPerformanceController extends Controller
                 if ($dateFrom && $dateTo) {
                     $q->whereBetween('created_at', [$dateFrom . ' 00:00:00', $dateTo . ' 23:59:59']);
                 }
+                // Design tasks are the sole source of saler performance revenue —
+                // exclude cancelled tasks so this matches $summary['total_revenue'] below.
+                $q->where('status', '!=', DesignTask::STATUS_CANCELLED);
             }])
             ->with(['salerOrders' => function($q) use ($dateFrom, $dateTo) {
                 if ($dateFrom && $dateTo) {
@@ -78,14 +86,52 @@ class SalerPerformanceController extends Controller
 
         $salers = $query->get();
 
-        // Summary Stats (of whatever is in $salers)
+        $leadsQuery = \App\Models\Lead::query();
+        $payingCustomersQuery = \App\Models\Customer::where(function($q) {
+            $q->where('purchase_count', '>', 0)
+              ->orWhereHas('orders');
+        });
+
+        if ($salerId || $user->role === 'saler') {
+            $sid = $salerId ?: $user->id;
+            $leadsQuery->where('assigned_seller_id', $sid);
+            $payingCustomersQuery->where('account_owner_id', $sid);
+        }
+
+        $totalLeads = $leadsQuery->count();
+        $payingCustomersCount = $payingCustomersQuery->count();
+        $unconvertedLeadsCount = max(0, $totalLeads - $payingCustomersCount);
+
+        // Count unique customers from design tasks in the period
+        $customerCountQuery = \App\Models\DesignTask::query()
+            ->where('status', '!=', DesignTask::STATUS_CANCELLED);
+        if ($dateFrom && $dateTo) {
+            $customerCountQuery->whereBetween('created_at', [$dateFrom . ' 00:00:00', $dateTo . ' 23:59:59']);
+        }
+        if ($salerId || $user->role === 'saler') {
+            $sid = $salerId ?: $user->id;
+            $customerCountQuery->where(function($q) use ($sid) {
+                $q->where('receptionist_id', $sid)
+                  ->orWhere('saler_id', $sid);
+            });
+        }
+        $totalCustomers = $customerCountQuery->distinct('customer_id')->count('customer_id');
+
+        // Summary Stats
         $summary = [
-            'total_orders' => 0, // Orders are now excluded from performance per request
+            'total_orders' => 0,
             'total_tasks' => $salers->sum('design_tasks_count'),
             'total_revenue' => $salers->sum(function($s) {
                 return $s->designTasks->where('status', '!=', DesignTask::STATUS_CANCELLED)->sum('price');
             }),
+            'balance_due' => $salers->sum(function($s) {
+                return $s->designTasks->where('status', '!=', DesignTask::STATUS_CANCELLED)->sum('balance');
+            }),
+            'total_customers' => $totalCustomers,
             'active_salers' => $salers->where('is_active', true)->count(),
+            'total_leads' => $totalLeads,
+            'paying_customers_count' => $payingCustomersCount,
+            'unconverted_leads_count' => $unconvertedLeadsCount,
         ];
 
         // Trend Data (Last 30 Days)
@@ -149,6 +195,108 @@ class SalerPerformanceController extends Controller
         $recentTasks = $taskDetailQuery->with('customer')->latest()->take(30)->get();
 
         return view('admin.saler-performance.index', compact('salers', 'period', 'summary', 'allSalers', 'salerId', 'dateFrom', 'dateTo', 'trendData', 'statusDistribution', 'recentOrders', 'recentTasks'));
+    }
+
+    public function print(Request $request)
+    {
+        $period = $request->get('period', 'month');
+
+        $dateRange = match($period) {
+            'today'     => [now()->startOfDay(), now()->endOfDay()],
+            'yesterday' => [now()->subDay()->startOfDay(), now()->subDay()->endOfDay()],
+            'week'      => [now()->startOfWeek(), now()->endOfWeek()],
+            'month'     => [now()->startOfMonth(), now()->endOfMonth()],
+            '6_months'  => [now()->subMonths(6)->startOfDay(), now()->endOfDay()],
+            'year'      => [now()->startOfYear(), now()->endOfYear()],
+            '2_years'   => [now()->subYears(2)->startOfDay(), now()->endOfDay()],
+            'custom'    => [
+                $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : now()->startOfMonth(),
+                $request->filled('end_date')   ? Carbon::parse($request->end_date)->endOfDay()     : now()->endOfDay(),
+            ],
+            'all'       => [Carbon::createFromDate(2000, 1, 1), now()->endOfDay()],
+            default     => [now()->startOfMonth(), now()->endOfMonth()],
+        };
+
+        [$startDate, $endDate] = $dateRange;
+
+        $periodLabel = match($period) {
+            'today'     => 'Today — ' . now()->format('M d, Y'),
+            'yesterday' => 'Yesterday — ' . now()->subDay()->format('M d, Y'),
+            'week'      => 'This Week (' . now()->startOfWeek()->format('M d') . ' – ' . now()->endOfWeek()->format('M d, Y') . ')',
+            'month'     => 'This Month — ' . now()->format('F Y'),
+            '6_months'  => 'Last 6 Months',
+            'year'      => 'This Year — ' . now()->format('Y'),
+            '2_years'   => 'Last 2 Years',
+            'custom'    => $startDate->format('M d, Y') . ' – ' . $endDate->format('M d, Y'),
+            'all'       => 'All Time',
+            default     => ucfirst(str_replace('_', ' ', $period)),
+        };
+
+        $applyPeriod = fn($query, $col = 'created_at') => $query->whereBetween($col, [$startDate, $endDate]);
+
+        $authUser = Auth::user();
+
+        $userQuery = User::whereIn('role', ['saler', 'admin', 'manager'])->orderBy('name');
+        if ($authUser->role === 'saler') {
+            $userQuery->where('id', $authUser->id);
+        } elseif ($request->filled('saler_id')) {
+            $userQuery->where('id', (int) $request->saler_id);
+        }
+
+        $salers = $userQuery->get()
+            ->map(function ($user) use ($applyPeriod, $startDate, $endDate, $period) {
+                // Design tasks are the sole source of saler performance revenue (orders are excluded).
+                $taskQuery  = DesignTask::where('saler_id', $user->id)->where('status', '!=', DesignTask::STATUS_CANCELLED);
+                $totalSales = $applyPeriod(clone $taskQuery)->sum('price') ?? 0;
+
+                [$targetAmount, $targetNote] = $this->resolveSalesTarget(
+                    SalesTarget::where('seller_id', $user->id),
+                    $startDate, $endDate, $period
+                );
+
+                $achievement  = $targetAmount > 0 ? round(($totalSales / $targetAmount) * 100, 1) : 0;
+                $taskCount    = $applyPeriod(clone $taskQuery)->count();
+
+                return [
+                    'id'            => $user->id,
+                    'name'          => $user->name,
+                    'role'          => $user->role,
+                    'total_sales'   => $totalSales,
+                    'target_amount' => $targetAmount,
+                    'target_note'   => $targetNote,
+                    'achievement'   => $achievement,
+                    'task_count'    => $taskCount,
+                ];
+            })
+            ->sortByDesc('total_sales')
+            ->values();
+
+        $grandTotal   = $salers->sum('total_sales');
+        $singleSaler  = $salers->count() === 1 ? $salers->first() : null;
+        $singleSalerTasks = collect();
+
+        $summary = [
+            'total_tasks' => $salers->sum('task_count'),
+            'total_revenue' => $salers->sum('total_sales'),
+            'active_salers' => $salers->count(),
+        ];
+
+        if ($singleSaler) {
+            $singleSalerTasks = DesignTask::query()
+                ->with(['customer:id,name,company_name,phone,whatsapp_number'])
+                ->where('saler_id', $singleSaler['id'])
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->where('status', '!=', DesignTask::STATUS_CANCELLED)
+                ->orderByDesc('created_at')
+                ->get(['id', 'task_code', 'title', 'status', 'customer_id', 'price', 'amount_paid', 'balance']);
+
+            $summary['total_tasks'] = $singleSalerTasks->count();
+            $summary['total_revenue'] = (float) $singleSalerTasks->sum('price');
+            $summary['total_paid'] = (float) $singleSalerTasks->sum('amount_paid');
+            $summary['balance_due'] = (float) $singleSalerTasks->sum('balance');
+        }
+
+        return view('admin.reports.exports.saler-performance-print', compact('salers', 'periodLabel', 'grandTotal', 'period', 'startDate', 'endDate', 'singleSaler', 'singleSalerTasks', 'summary'));
     }
 
     /**
@@ -355,60 +503,153 @@ class SalerPerformanceController extends Controller
 
         $title = 'Saler Performance Report';
 
-        // Calculate Summary
+        // Calculate Summary — design tasks are the sole source of saler performance revenue (orders excluded)
         $summary = [
-            'total_orders' => $salers->sum(fn($s) => $s->salerOrders->count()),
             'design_tasks' => $salers->sum(fn($s) => $s->designTasks->count()),
-            'total_revenue' => $salers->sum(fn($s) => 
-                $s->salerOrders->where('approval_status', 'approved')->sum('total_amount') + 
-                $s->designTasks->sum('price')
-            ),
+            'total_revenue' => $salers->sum(fn($s) => $s->designTasks->sum('price')),
             'avg_deal' => 0,
         ];
-        
-        $totalTransactions = $summary['total_orders'] + $summary['design_tasks'];
-        $summary['avg_deal'] = $totalTransactions > 0 ? $summary['total_revenue'] / $totalTransactions : 0;
+
+        $summary['avg_deal'] = $summary['design_tasks'] > 0 ? $summary['total_revenue'] / $summary['design_tasks'] : 0;
 
         if ($type === 'pdf') {
-            // If single saler, get more details
+            // Build same rich data structure as print() for a consistent PDF design
+            $periodLabel = match($period) {
+                'today'     => 'Today — ' . now()->format('M d, Y'),
+                'yesterday' => 'Yesterday — ' . now()->subDay()->format('M d, Y'),
+                'week'      => 'This Week (' . now()->startOfWeek()->format('M d') . ' – ' . now()->endOfWeek()->format('M d, Y') . ')',
+                'month'     => 'This Month — ' . now()->format('F Y'),
+                '6_months'  => 'Last 6 Months',
+                'year'      => 'This Year — ' . now()->format('Y'),
+                '2_years'   => 'Last 2 Years',
+                'custom'    => ($dateFrom ? $dateFrom->format('M d, Y') : '?') . ' – ' . ($dateTo ? $dateTo->format('M d, Y') : '?'),
+                'all'       => 'All Time',
+                default     => ucfirst(str_replace('_', ' ', $period)),
+            };
+
+            $applyPeriod = fn($query) => ($dateFrom && $dateTo)
+                ? $query->whereBetween('created_at', [$dateFrom, $dateTo])
+                : $query;
+
+            $salersPdf = $salers->map(function ($user) use ($applyPeriod, $dateFrom, $dateTo, $period) {
+                $taskQuery   = DesignTask::where('saler_id', $user->id)->where('status', '!=', DesignTask::STATUS_CANCELLED);
+                $totalSales  = $applyPeriod(clone $taskQuery)->sum('price') ?? 0;
+                $taskCount   = $applyPeriod(clone $taskQuery)->count();
+
+                [$targetAmount] = $this->resolveSalesTarget(
+                    SalesTarget::where('seller_id', $user->id),
+                    $dateFrom ?? now()->startOfMonth(), $dateTo ?? now()->endOfMonth(), $period
+                );
+
+                $achievement = $targetAmount > 0 ? round(($totalSales / $targetAmount) * 100, 1) : 0;
+
+                return [
+                    'id'            => $user->id,
+                    'name'          => $user->name,
+                    'role'          => $user->role,
+                    'total_sales'   => $totalSales,
+                    'target_amount' => $targetAmount,
+                    'achievement'   => $achievement,
+                    'task_count'    => $taskCount,
+                ];
+            })->sortByDesc('total_sales')->values();
+
+            $grandTotal  = $salersPdf->sum('total_sales');
+            $singleSaler = $salersPdf->count() === 1 ? $salersPdf->first() : null;
+
+            // 6-month history for single saler view
             $history = [];
-            $recentOrders = [];
-            $recentTasks = [];
-            
-            if ($salerId || $user->role === 'saler') {
-                $saler = $salers->first();
-                // Get last 6 months summary for the individual report
+            $singleSalerTasks = collect();
+            if ($singleSaler) {
+                $salerUser = $salers->first();
                 for ($i = 0; $i < 6; $i++) {
                     $date = now()->subMonths($i);
-                    $month = $date->month;
-                    $year = $date->year;
-                    
                     $history[] = [
-                        'month' => $date->format('F Y'),
-                        'revenue' => $saler->salerOrders()->whereYear('created_at', $year)->whereMonth('created_at', $month)->where('approval_status', 'approved')->where('payment_status', 'paid')->sum('total_amount') + 
-                                   $saler->designTasks()->whereYear('created_at', $year)->whereMonth('created_at', $month)->whereIn('status', [DesignTask::STATUS_COMPLETED, DesignTask::STATUS_SUPER_COMPLETED, DesignTask::STATUS_PRINTED])->sum('amount_paid'),
-                        'orders' => $saler->salerOrders()->whereYear('created_at', $year)->whereMonth('created_at', $month)->count(),
-                        'tasks' => $saler->designTasks()->whereYear('created_at', $year)->whereMonth('created_at', $month)->count(),
+                        'month'   => $date->format('F Y'),
+                        'revenue' => DesignTask::where('saler_id', $singleSaler['id'])->whereYear('created_at', $date->year)->whereMonth('created_at', $date->month)->where('status', '!=', DesignTask::STATUS_CANCELLED)->sum('price'),
+                        'tasks'   => DesignTask::where('saler_id', $singleSaler['id'])->whereYear('created_at', $date->year)->whereMonth('created_at', $date->month)->where('status', '!=', DesignTask::STATUS_CANCELLED)->count(),
                     ];
                 }
-                
-                $recentOrders = $saler->salerOrders()->with('customer')->latest()->take(10)->get();
-                $recentTasks = $saler->designTasks()->with('customer')->latest()->take(10)->get();
+                $singleSalerTasks = DesignTask::with(['customer:id,name,phone'])
+                    ->where('saler_id', $singleSaler['id'])
+                    ->when($dateFrom && $dateTo, fn($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
+                    ->where('status', '!=', DesignTask::STATUS_CANCELLED)
+                    ->orderByDesc('created_at')
+                    ->get(['id', 'task_code', 'title', 'status', 'customer_id', 'price', 'amount_paid', 'balance']);
             }
 
-            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.reports.exports.saler-performance', compact('salers', 'title', 'summary', 'history', 'recentOrders', 'recentTasks'));
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.reports.exports.saler-performance', compact(
+                'salersPdf', 'grandTotal', 'periodLabel', 'singleSaler',
+                'singleSalerTasks', 'history', 'dateFrom', 'dateTo', 'summary'
+            ))->setPaper('a4', 'portrait');
             return $pdf->download('saler-performance-report.pdf');
         } else {
-            // Excel Export
-            return $this->exportToExcel([
-                ['Salesperson', 'Total Orders', 'Design Tasks', 'Total Revenue'],
-                ...$salers->map(fn($s) => [
-                    $s->name,
-                    $s->saler_orders_count ?? $s->salerOrders->count(),
-                    $s->design_tasks_count ?? $s->designTasks->count(),
-                    'TZS ' . number_format($s->salerOrders->where('approval_status', 'approved')->where('payment_status', 'paid')->sum('total_amount') + $s->designTasks->whereIn('status', [DesignTask::STATUS_COMPLETED, DesignTask::STATUS_SUPER_COMPLETED, DesignTask::STATUS_PRINTED])->sum('amount_paid'))
-                ])
-            ], 'saler-performance-report.csv');
+            // Multi-sheet XLSX matching the PDF/print content
+            $periodLabel = ucfirst(str_replace('_', ' ', $period));
+            $dateLabel   = ($dateFrom && $dateTo)
+                ? $dateFrom->format('Y-m-d') . ' to ' . $dateTo->format('Y-m-d')
+                : 'All Time';
+
+            // Sheet 1 — Summary
+            $summarySheet = [
+                'title'    => 'Summary',
+                'headings' => ['Metric', 'Value'],
+                'rows'     => [
+                    ['Report Period',        $dateLabel],
+                    ['Generated',            now()->format('Y-m-d H:i')],
+                    ['Total Design Tasks',   $summary['design_tasks']],
+                    ['Total Revenue (TZS)',  number_format($summary['total_revenue'], 2)],
+                    ['Avg Deal Value (TZS)', number_format($summary['avg_deal'], 2)],
+                ],
+            ];
+
+            // Sheet 2 — Saler Breakdown
+            $breakdownRows = [];
+            foreach ($salers as $saler) {
+                $tasks   = $saler->designTasks->count();
+                $revenue = $saler->designTasks->sum('price');
+                $orders  = $saler->salerOrders->count();
+                $breakdownRows[] = [
+                    $saler->name,
+                    ucfirst($saler->role),
+                    $orders,
+                    $tasks,
+                    number_format($revenue, 2),
+                    $saler->is_active ? 'Active' : 'Inactive',
+                ];
+            }
+            $breakdownSheet = [
+                'title'    => 'Saler Breakdown',
+                'headings' => ['Salesperson', 'Role', 'Total Orders', 'Design Tasks', 'Revenue (TZS)', 'Status'],
+                'rows'     => $breakdownRows,
+            ];
+
+            // Sheet 3 — Task Details
+            $taskRows = [];
+            foreach ($salers as $saler) {
+                foreach ($saler->designTasks as $task) {
+                    $taskRows[] = [
+                        $task->task_code,
+                        $task->title,
+                        $saler->name,
+                        optional($task->created_at)->format('Y-m-d'),
+                        ucfirst(str_replace('_', ' ', $task->status)),
+                        number_format($task->price, 2),
+                        number_format($task->amount_paid, 2),
+                        number_format($task->balance, 2),
+                    ];
+                }
+            }
+            $taskSheet = [
+                'title'    => 'Task Details',
+                'headings' => ['Task Code', 'Title', 'Salesperson', 'Date', 'Status', 'Price (TZS)', 'Paid (TZS)', 'Balance (TZS)'],
+                'rows'     => $taskRows,
+            ];
+
+            return \Maatwebsite\Excel\Facades\Excel::download(
+                new \App\Exports\MultiSheetReportExport([$summarySheet, $breakdownSheet, $taskSheet]),
+                "saler-performance-{$period}-" . now()->format('Y-m-d') . '.xlsx'
+            );
         }
     }
 

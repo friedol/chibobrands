@@ -48,6 +48,12 @@
                     <a href="{{ route('admin.orders.index') }}" class="btn btn-outline-dark btn-sm rounded-pill px-3 shadow-none" style="font-size: 12px;">
                         <i class="fas fa-undo me-1"></i>Reset
                     </a>
+                    @if(auth()->user()->hasPermission('delete_all_orders'))
+                    <button type="button" class="btn btn-danger btn-sm rounded-pill px-3 shadow-none" style="font-size: 12px;"
+                            data-bs-toggle="modal" data-bs-target="#deleteAllOrdersModal">
+                        <i class="fas fa-trash-alt me-1"></i>Delete All
+                    </button>
+                    @endif
                 </div>
             </div>
 
@@ -420,5 +426,37 @@ function exportToExcel() {
 }
 </script>
 
+@if(auth()->user()->hasPermission('delete_all_orders'))
+{{-- Delete All Orders Confirmation Modal --}}
+<div class="modal fade" id="deleteAllOrdersModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-danger text-white border-0 py-3 px-4">
+                <h6 class="modal-title fw-bold mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Delete All Orders</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body px-4 py-4 text-center">
+                <div class="mb-3">
+                    <div style="width:60px;height:60px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
+                        <i class="fas fa-trash-alt text-danger" style="font-size:24px;"></i>
+                    </div>
+                    <h6 class="fw-bold text-dark mb-1">Are you absolutely sure?</h6>
+                    <p class="text-muted small mb-0">This will permanently delete <strong>all online orders</strong>, their items, and associated payment records. This action <strong>cannot be undone</strong>.</p>
+                </div>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-0 d-flex gap-2 justify-content-center">
+                <button type="button" class="btn btn-light rounded-pill px-4 fw-bold" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ route('admin.orders.destroy-all') }}" method="POST" class="d-inline">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold">
+                        <i class="fas fa-trash-alt me-1"></i>Yes, Delete All
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
 
 @endsection

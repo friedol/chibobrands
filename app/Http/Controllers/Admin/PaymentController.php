@@ -163,6 +163,7 @@ class PaymentController extends Controller
         $request->validate([
             'amount' => 'required|numeric|min:0.01',
             'payment_method' => 'required|string',
+            'payment_date' => 'nullable|date',
             'note' => 'nullable|string',
         ]);
 
@@ -177,12 +178,13 @@ class PaymentController extends Controller
             $order->payment_status = 'partial';
         }
 
+        $paymentDateStr = $request->filled('payment_date') ? \Carbon\Carbon::parse($request->payment_date)->format('d/m/Y') : now()->format('d/m/Y H:i');
+
         // Append note
-        $noteEntry = "Payment: TZS " . number_format($newAmount) . " (" . $request->payment_method . ")";
+        $noteEntry = "Payment: TZS " . number_format($newAmount) . " (" . $request->payment_method . ") Date: " . $paymentDateStr;
         if ($request->note) {
             $noteEntry .= " - " . $request->note;
         }
-        $noteEntry .= " [" . now()->format('d/m/Y H:i') . "]";
 
         $order->notes = ($order->notes ? $order->notes . "\n" : "") . $noteEntry;
 

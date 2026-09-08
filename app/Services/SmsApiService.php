@@ -604,36 +604,59 @@ class SmsApiService
         }
 
         try {
-            // Create short message based on status (SMS length limit: ~160 characters)
             $taskTitle = strlen($task->title) > 30 ? substr($task->title, 0, 27) . '...' : $task->title;
             $customerName = strlen($customer->name) > 20 ? substr($customer->name, 0, 17) . '...' : $customer->name;
-            
-            // Determine contact number
-            $sellerContact = "0655392319"; // Default Chibo
+
+            // Determine seller contact
+            $sellerContact = "0655392319";
             if ($task->saler_id) {
                 $saler = \App\Models\User::find($task->saler_id);
-                if ($saler && $saler->phone) {
-                    $sellerContact = $saler->phone;
-                }
-            } else if ($task->receptionist_id) {
-                 $receptionist = \App\Models\User::find($task->receptionist_id);
-                 if ($receptionist && $receptionist->phone) {
-                     $sellerContact = $receptionist->phone;
-                 }
+                if ($saler && $saler->phone) $sellerContact = $saler->phone;
+            } elseif ($task->receptionist_id) {
+                $receptionist = \App\Models\User::find($task->receptionist_id);
+                if ($receptionist && $receptionist->phone) $sellerContact = $receptionist->phone;
             }
 
-            $messages = [
-                'created' => "Hello {$customerName}, task '{$taskTitle}' created. We'll update you soon. Contact: {$sellerContact}. - CHIBOBRAND",
-                'assigned' => "Hello {$customerName}, task '{$taskTitle}' assigned to designer. Contact: {$sellerContact}. - CHIBOBRAND",
-                'in_progress' => "Hello {$customerName}, work on '{$taskTitle}' started. Contact: {$sellerContact}. - CHIBOBRAND",
-                'completed' => "Hello {$customerName}, task '{$taskTitle}' is complete! Contact: {$sellerContact}. - CHIBOBRAND",
-                'super_completed' => "Hello {$customerName}, '{$taskTitle}' is ready! Code: {$task->pickup_code}. Total: " . number_format($task->price, 0) . " TZS, Balance: " . number_format($task->balance, 0) . " TZS. Contact: {$sellerContact} - CHIBOBRAND",
-                'status_changed' => "Hello {$customerName}, '{$taskTitle}' status: {$task->status_label}. Contact: {$sellerContact}. - CHIBOBRAND",
-                'delivery_assigned' => "Hello {$customerName}, '{$taskTitle}' is out for delivery. Contact: {$sellerContact}. - CHIBOBRAND",
-                'delivered' => "Hello {$customerName}, '{$taskTitle}' has been delivered. Thank you! Contact: {$sellerContact}. - CHIBOBRAND",
+            // Map status → auto-settings trigger key
+            $triggerMap = [
+                'completed'        => 'task_completed',
+                'super_completed'  => 'task_ready',
+                'delivery_assigned'=> 'delivery_assigned',
+                'cancelled'        => 'task_cancelled',
+            ];
+            $triggerKey = $triggerMap[$status] ?? null;
+
+            // Check auto-settings: if trigger is explicitly disabled, skip
+            $autoSettings = app(\App\Services\SmsAutoSettingsService::class);
+            if ($triggerKey && !$autoSettings->isEnabled($triggerKey)) {
+                Log::info("Auto SMS skipped (disabled): trigger={$triggerKey}, task={$task->id}");
+                return ['success' => false, 'message' => "Auto SMS trigger '{$triggerKey}' is disabled."];
+            }
+
+            // Build template vars
+            $vars = [
+                'name'           => $customerName,
+                'task_code'      => $task->task_code ?? ('Task #' . $task->id),
+                'task_title'     => $taskTitle,
+                'amount'         => number_format($task->price ?? 0),
+                'paid'           => number_format($task->amount_paid ?? 0),
+                'balance'        => number_format($task->balance ?? 0),
+                'pickup_code'    => $task->pickup_code ?? '',
+                'deadline'       => $task->deadline ? $task->deadline->format('d M Y H:i') : 'TBD',
+                'seller_contact' => $sellerContact,
             ];
 
-            $message = $messages[$status] ?? $messages['status_changed'];
+            // Use saved template if trigger key is known and template is non-empty
+            if ($triggerKey) {
+                $savedTemplate = $autoSettings->getTemplate($triggerKey);
+                if ($savedTemplate) {
+                    $message = $autoSettings->resolveTemplate($triggerKey, $vars);
+                } else {
+                    $message = $this->buildDefaultTaskMessage($status, $vars);
+                }
+            } else {
+                $message = $this->buildDefaultTaskMessage($status, $vars);
+            }
 
             Log::info('Preparing to send SMS notification', [
                 'customer_id' => $customer->id,
@@ -668,6 +691,91 @@ class SmsApiService
             ];
         }
     }
+
+    /**
+     * Fetch the Beem Africa account balance.
+     * Returns ['success'=>true, 'balance'=>123.45, 'currency'=>'TZS'] or ['success'=>false, 'message'=>'...']
+     */
+    public function getBalance(): array
+    {
+        try {
+            $secretKeyRaw = trim($this->apiSecret ?? '');
+            $apiKeyToUse  = trim($this->apiKey ?? '');
+
+            if (empty($apiKeyToUse) || empty($secretKeyRaw)) {
+                return ['success' => false, 'message' => 'API credentials not configured.'];
+            }
+
+            // Try raw secret first (what actually authenticates per the logs)
+            $secretOptions = [$secretKeyRaw];
+            $decodedSecret = @base64_decode($secretKeyRaw, true);
+            if ($decodedSecret !== false && $decodedSecret !== $secretKeyRaw && strlen($decodedSecret) >= 10) {
+                // Try decoded first (it's more likely the real secret)
+                array_unshift($secretOptions, $decodedSecret);
+            }
+
+            foreach ($secretOptions as $secret) {
+                $credentials = base64_encode($apiKeyToUse . ':' . $secret);
+
+                $response = Http::timeout(15)
+                    ->withHeaders([
+                        'Authorization' => 'Basic ' . $credentials,
+                        'Accept'        => 'application/json',
+                    ])
+                    ->get('https://apisms.beem.africa/v1/vendors/balance');
+
+                if ($response->successful()) {
+                    $data = $response->json();
+                    Log::info('Beem Africa balance fetched', ['data' => $data]);
+                    // Beem Africa nests the balance under data.data; credit_balance = SMS units
+                    $inner = $data['data'] ?? $data;
+                    $balance = $inner['credit_balance'] ?? $inner['balance'] ?? 0;
+                    return [
+                        'success'  => true,
+                        'balance'  => (int) $balance,
+                        'unit'     => 'SMS',
+                        'raw'      => $data,
+                    ];
+                }
+
+                if ($response->status() !== 401) {
+                    // Non-auth error – report it directly
+                    $body = $response->json();
+                    return [
+                        'success' => false,
+                        'message' => $body['message'] ?? ('HTTP ' . $response->status()),
+                    ];
+                }
+                // 401 → try next secret format
+            }
+
+            return ['success' => false, 'message' => 'Authentication failed. Check API credentials.'];
+        } catch (\Exception $e) {
+            Log::error('Beem Africa balance check failed: ' . $e->getMessage());
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    private function buildDefaultTaskMessage(string $status, array $v): string
+    {
+        $n  = $v['name'];
+        $tc = $v['task_code'];
+        $tt = $v['task_title'];
+        $sc = $v['seller_contact'];
+        $pc = $v['pickup_code'];
+        $bl = $v['balance'];
+
+        return match ($status) {
+            'completed'         => "Hello {$n}, design task {$tc} ({$tt}) imekamilika! Mawasiliano: {$sc} - CHIBOBRAND",
+            'super_completed'   => "Hello {$n}, kazi {$tc} ({$tt}) iko tayari! Pickup code: {$pc}. Balance: TZS {$bl}. Mawasiliano: {$sc} - CHIBOBRAND",
+            'delivery_assigned' => "Hello {$n}, kazi {$tc} ({$tt}) iko njiani kwako! Mawasiliano: {$sc} - CHIBOBRAND",
+            'cancelled'         => "Hello {$n}, design task {$tc} ({$tt}) imefutwa. Wasiliana nasi: {$sc} - CHIBOBRAND",
+            'assigned'          => "Hello {$n}, design task {$tc} ({$tt}) imekabidhiwa kwa msanifu. Mawasiliano: {$sc} - CHIBOBRAND",
+            'in_progress'       => "Hello {$n}, kazi {$tc} ({$tt}) imeanza! Tutakuarifiwa hivi karibuni. Mawasiliano: {$sc} - CHIBOBRAND",
+            default             => "Hello {$n}, design task {$tc} ({$tt}) status imebadilika. Mawasiliano: {$sc} - CHIBOBRAND",
+        };
+    }
+
     /**
      * Send receipt SMS for an Order
      */
@@ -741,8 +849,8 @@ class SmsApiService
             $balance = $task->balance;
 
             // Deadline
-            $completionDate = $task->deadline ? $task->deadline->timezone('Africa/Dar_es_Salaam')->format('d F Y') : $task->created_at->copy()->timezone('Africa/Dar_es_Salaam')->addDays(3)->format('d F Y');
-            $completionTime = $task->deadline ? $task->deadline->timezone('Africa/Dar_es_Salaam')->format('H:i') : '12:00';
+            $completionDate = $task->deadline ? $task->deadline->format('d F Y') : $task->created_at->copy()->timezone('Africa/Dar_es_Salaam')->addDays(3)->format('d F Y');
+            $completionTime = $task->deadline ? $task->deadline->format('H:i') : '12:00';
 
             // Seller Contact
             $sellerContact = "0655392319"; // Default Chibo
@@ -800,8 +908,8 @@ class SmsApiService
                 // Format individual deadline
                 $taskDeadline = '';
                 if ($task->deadline) {
-                    $deadlineDate = $task->deadline->timezone('Africa/Dar_es_Salaam')->format('d M');
-                    $deadlineTime = $task->deadline->timezone('Africa/Dar_es_Salaam')->format('H:i');
+                    $deadlineDate = $task->deadline->format('d M');
+                    $deadlineTime = $task->deadline->format('H:i');
                     // Format: itakamilika 12 Jan 14:00
                     $taskDeadline = " itakamilika {$deadlineDate} {$deadlineTime}";
                 } else {

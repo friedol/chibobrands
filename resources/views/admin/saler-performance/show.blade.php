@@ -8,7 +8,7 @@
     <div class="print-only report-header">
         <div class="d-flex justify-content-between align-items-center">
             <div>
-                <img src="{{ asset('images/logo.webp') }}" alt="Logo" style="height: 50px;" onerror="this.style.display='none'">
+                @include('partials.logo-print', ['logoStyle' => 'height:50px;object-fit:contain;'])
                 <h1 class="fw-bold text-dark mt-2">Individual Performance Report</h1>
                 <p class="mb-0 text-dark">Staff: {{ $saler->name }} ({{ $saler->phone }})</p>
                 <p class="mb-0 text-dark">Period: {{ \Carbon\Carbon::parse($dateFrom)->format('M d, Y') }} - {{ \Carbon\Carbon::parse($dateTo)->format('M d, Y') }}</p>

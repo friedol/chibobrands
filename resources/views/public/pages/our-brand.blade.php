@@ -7,54 +7,103 @@
 <link rel="stylesheet" href="{{ asset('css/landing-page.css') }}">
 @endpush
 
-@section('content')
-<!-- 1️⃣ HERO SECTION -->
-<section class="hero-landing">
-    <!-- 3D Animated Bubbles -->
-    <div class="bubbles-container-hero">
-        <div class="bubble-hero bubble-hero-1"></div>
-        <div class="bubble-hero bubble-hero-2"></div>
-        <div class="bubble-hero bubble-hero-3"></div>
-        <div class="bubble-hero bubble-hero-4"></div>
-        <div class="bubble-hero bubble-hero-5"></div> 
-        <div class="bubble-hero bubble-hero-6"></div>
-    </div>
+@push('styles')
+<style>
+    .our-brand-hero {
+        background: linear-gradient(135deg, #c0392b 0%, #dc3545 60%, #e74c3c 100%);
+        padding: 52px 0 44px;
+        position: relative;
+        overflow: hidden;
+    }
+    .our-brand-hero .ob-bubbles {
+        position: absolute;
+        width: 100%; height: 100%;
+        top: 0; left: 0;
+        overflow: hidden;
+        z-index: 1;
+        pointer-events: none;
+    }
+    .ob-bubble {
+        position: absolute;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.25), rgba(255,255,255,0.04));
+        box-shadow: inset 0 0 30px rgba(255,255,255,0.15), 0 0 50px rgba(255,255,255,0.05);
+        animation: ob-float 20s infinite ease-in-out;
+        backdrop-filter: blur(2px);
+    }
+    .ob-bubble::before {
+        content: '';
+        position: absolute;
+        top: 10%; left: 10%;
+        width: 40%; height: 40%;
+        border-radius: 50%;
+        background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.35), transparent);
+    }
+    .ob-bubble-1 { width: 180px; height: 180px; left: 8%;   top: 10%;    animation-delay: 0s; animation-duration: 25s; }
+    .ob-bubble-2 { width: 120px; height: 120px; right: 12%; top: 30%;    animation-delay: 3s; animation-duration: 20s; }
+    .ob-bubble-3 { width: 220px; height: 220px; left: 45%;  top: 50%;    animation-delay: 6s; animation-duration: 30s; }
+    .ob-bubble-4 { width: 150px; height: 150px; right: 28%; top: 5%;     animation-delay: 2s; animation-duration: 22s; }
+    .ob-bubble-5 { width: 100px; height: 100px; left: 28%;  bottom: 5%;  animation-delay: 4s; animation-duration: 18s; }
+    .ob-bubble-6 { width: 200px; height: 200px; right: 5%;  bottom: 10%; animation-delay: 5s; animation-duration: 28s; }
+    @keyframes ob-float {
+        0%,100% { transform: translate(0,0) scale(1) rotate(0deg); }
+        25%      { transform: translate(25px,-25px) scale(1.08) rotate(90deg); }
+        50%      { transform: translate(-15px,18px) scale(0.93) rotate(180deg); }
+        75%      { transform: translate(35px,8px) scale(1.04) rotate(270deg); }
+    }
+    .ob-badge {
+        display: inline-block;
+        background: rgba(255,255,255,0.18);
+        border: 1.5px solid rgba(255,255,255,0.35);
+        color: #fff;
+        padding: 7px 22px;
+        border-radius: 50px;
+        font-size: 13px;
+        font-style: italic;
+        font-family: Georgia, 'Times New Roman', serif;
+        letter-spacing: 0.3px;
+        margin-bottom: 16px;
+        backdrop-filter: blur(6px);
+    }
+    .ob-title {
+        font-size: clamp(1.8rem, 4vw, 2.6rem);
+        font-weight: 800;
+        color: #fff;
+        line-height: 1.2;
+        margin-bottom: 12px;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    .ob-subtitle {
+        font-size: clamp(0.85rem, 1.5vw, 1rem);
+        color: rgba(255,255,255,0.85);
+        max-width: 480px;
+        margin: 0 auto;
+        line-height: 1.6;
+    }
+    @media (max-width: 768px) {
+        .our-brand-hero { padding: 36px 0 30px; }
+        .ob-bubble-3, .ob-bubble-6 { display: none; }
+    }
+</style>
+@endpush
 
-    <div class="floating-elements">
-        <i class="fas fa-tshirt fa-3x float-item"></i>
-        <i class="fas fa-mug-hot fa-3x float-item"></i>
-        <i class="fas fa-id-card fa-3x float-item"></i>
-        <i class="fas fa-flag fa-3x float-item"></i>
+@section('content')
+<!-- Hero Section -->
+<div class="our-brand-hero">
+    <div class="ob-bubbles">
+        <div class="ob-bubble ob-bubble-1"></div>
+        <div class="ob-bubble ob-bubble-2"></div>
+        <div class="ob-bubble ob-bubble-3"></div>
+        <div class="ob-bubble ob-bubble-4"></div>
+        <div class="ob-bubble ob-bubble-5"></div>
+        <div class="ob-bubble ob-bubble-6"></div>
     </div>
-    
-    <div class="particle-container"></div>
-    
-    <div class="hero-content container">
-        <div class="hero-logo fade-in mb-4">
-            <a href="{{ url('/shop') }}">
-                <img src="{{ asset('images/logo.webp') }}" alt="CHIBO BRAND Logo" class="img-fluid" style="max-width: 200px; height: auto;" onerror="this.style.display='none'">
-            </a>
-        </div>
-        <h1 class="hero-title fade-in">
-            We Design. We Print. We Build Brands That Stand Out.
-        </h1>
-        <p class="hero-subtitle fade-in">
-            Welcome to CHIBO BRAND — your trusted partner for creative design, high-quality printing, and complete branding solutions.
-        </p>
-        <div class="hero-buttons fade-in">
-            <a href="#services" class="btn btn-hero btn-hero-primary">
-                <i class="fas fa-rocket me-2"></i>Explore Our Services
-            </a>
-            <a href="{{ url('/contact') }}" class="btn btn-hero btn-hero-outline">
-                <i class="fas fa-envelope me-2"></i>Get a Free Quote
-            </a>
-        </div>
+    <div class="container text-center" style="position:relative;z-index:10;">
+        <span class="ob-badge">Our Brand</span>
+        <h1 class="ob-title">We Design. We Print. We Build Brands.</h1>
+        <p class="ob-subtitle">Welcome to CHIBO BRAND — your trusted partner for creative design, high-quality printing, and complete branding solutions.</p>
     </div>
-    
-    <div class="scroll-indicator">
-        <i class="fas fa-chevron-down fa-2x text-white"></i>
-    </div>
-</section>
+</div>
 
 <!-- 2️⃣ ABOUT PREVIEW SECTION -->
 <section class="section-landing about-section">

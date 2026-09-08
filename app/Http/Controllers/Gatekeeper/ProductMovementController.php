@@ -18,7 +18,11 @@ class ProductMovementController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request)
+    /**
+     * Shared filtered query used by index(), printFiltered(), exportPdf() and
+     * exportExcel() so every report format is built from the exact same data.
+     */
+    private function buildMovementsQuery(Request $request)
     {
         $query = ProductMovement::query();
 
@@ -35,7 +39,7 @@ class ProductMovementController extends Controller
             // Allows filtering by "Who Handled It"
             $query->where('handler_type', $request->person_type);
         }
-        
+
         if ($request->filled('date_from')) {
             $query->whereDate('movement_date', '>=', $request->date_from);
         }
@@ -44,7 +48,12 @@ class ProductMovementController extends Controller
             $query->whereDate('movement_date', '<=', $request->date_to);
         }
 
-        $movements = $query->latest('movement_date')->paginate(20)->withQueryString();
+        return $query;
+    }
+
+    public function index(Request $request)
+    {
+        $movements = $this->buildMovementsQuery($request)->latest('movement_date')->paginate(20)->withQueryString();
 
         return view('gatekeeper.index', compact('movements'));
     }
@@ -57,7 +66,7 @@ class ProductMovementController extends Controller
         // Fetch registered users for autocomplete/selection
         $deliveryPersonnel = User::where('role', 'delivery')->where('is_active', true)->orderBy('name')->get();
         // Broad definition of staff for the purpose of movement
-        $staffUsers = User::whereIn('role', ['admin', 'manager', 'operator', 'receptionist', 'designer', 'saler', 'gatekeeper'])
+        $staffUsers = User::whereIn('role', ['admin', 'manager', 'operator', 'receptionist', 'designer', 'saler', 'gatekeeper', 'accountant', 'marketing_manager', 'hr_officer'])
                         ->where('is_active', true)
                         ->orderBy('name')
                         ->get();
@@ -215,6 +224,65 @@ class ProductMovementController extends Controller
     }
 
     /**
+     * Delivery confirmation page — search super_completed tasks and mark delivered.
+     */
+    public function deliverIndex(Request $request)
+    {
+        $q = trim((string) $request->get('q', ''));
+
+        $tasks = collect();
+        if ($q !== '') {
+            $tasks = DesignTask::with(['customer', 'department'])
+                ->where('status', DesignTask::STATUS_SUPER_COMPLETED)
+                ->where(function ($query) use ($q) {
+                    $query->where('task_code', 'like', '%' . $q . '%')
+                        ->orWhere('title', 'like', '%' . $q . '%')
+                        ->orWhereHas('customer', fn($cq) =>
+                            $cq->where('name', 'like', '%' . $q . '%')
+                               ->orWhere('phone', 'like', '%' . $q . '%')
+                        );
+                })
+                ->latest()
+                ->limit(30)
+                ->get();
+        } else {
+            // Show all tasks ready for delivery by default
+            $tasks = DesignTask::with(['customer', 'department'])
+                ->where('status', DesignTask::STATUS_SUPER_COMPLETED)
+                ->latest()
+                ->limit(50)
+                ->get();
+        }
+
+        return view('gatekeeper.deliver', compact('tasks', 'q'));
+    }
+
+    /**
+     * Mark a design task as delivered (super_completed → delivered).
+     */
+    public function markDelivered(Request $request, DesignTask $task)
+    {
+        if ($task->status !== DesignTask::STATUS_SUPER_COMPLETED) {
+            return back()->with('error', 'Task "' . $task->task_code . '" cannot be marked as delivered. Current status: ' . $task->status_label);
+        }
+
+        $task->status = DesignTask::STATUS_DELIVERED;
+        $task->delivery_status = 'delivered';
+        $task->delivered_at = now();
+        $task->save();
+
+        TaskUpdate::create([
+            'task_id'  => $task->id,
+            'admin_id' => Auth::id(),
+            'type'     => TaskUpdate::TYPE_STATUS_UPDATE,
+            'content'  => 'Task marked as Delivered by Gatekeeper.',
+            'metadata' => ['from' => 'super_completed', 'to' => 'delivered'],
+        ]);
+
+        return back()->with('success', 'Task ' . $task->task_code . ' — "' . $task->title . '" has been marked as Delivered.');
+    }
+
+    /**
      * Display the specified resource.
      */
     public function show(ProductMovement $movement)
@@ -227,35 +295,61 @@ class ProductMovementController extends Controller
      */
     public function printFiltered(Request $request)
     {
-        $query = ProductMovement::query();
-
-        // Apply same filters as index
-        if ($request->filled('type')) {
-            $query->where('type', $request->type);
-        }
-
-        if ($request->filled('product_name')) {
-            $query->where('product_name', 'like', '%' . $request->product_name . '%');
-        }
-
-        if ($request->filled('person_type')) {
-            $query->where('handler_type', $request->person_type);
-        }
-        
-        if ($request->filled('date_from')) {
-            $query->whereDate('movement_date', '>=', $request->date_from);
-        }
-
-        if ($request->filled('date_to')) {
-            $query->whereDate('movement_date', '<=', $request->date_to);
-        }
-
-        $movements = $query->latest('movement_date')->get();
+        $movements = $this->buildMovementsQuery($request)->latest('movement_date')->get();
 
         if ($movements->isEmpty()) {
             return redirect()->back()->with('error', 'No records found to print.');
         }
 
         return view('gatekeeper.print-logs', compact('movements'));
+    }
+
+    /**
+     * PDF export of the gatekeeper movement log — same filtered data as index()/printFiltered().
+     */
+    public function exportPdf(Request $request)
+    {
+        $movements = $this->buildMovementsQuery($request)->latest('movement_date')->get();
+
+        $title    = 'Gatekeeper Movement Log';
+        $dateFrom = $request->date_from;
+        $dateTo   = $request->date_to;
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.reports.exports.product-movements', compact('movements', 'title', 'dateFrom', 'dateTo'))
+            ->setPaper('a4', 'landscape');
+
+        return $pdf->download('product-movements-report-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    /**
+     * Excel export of the gatekeeper movement log — same filtered data as index()/printFiltered().
+     */
+    public function exportExcel(Request $request)
+    {
+        $movements = $this->buildMovementsQuery($request)->latest('movement_date')->get();
+
+        $headings = ['Type', 'Date', 'Product', 'Qty', 'Unit Price', 'Handler', 'Handler Type', 'Source / Recipient', 'Context Type'];
+
+        $rows = $movements->map(function ($movement) {
+            $contextName = $movement->type === 'in' ? $movement->source_name : $movement->recipient_name;
+            $contextType = $movement->type === 'in' ? $movement->source_type : $movement->recipient_type;
+
+            return [
+                strtoupper($movement->type),
+                $movement->movement_date?->format('Y-m-d H:i'),
+                $movement->product_name,
+                $movement->quantity,
+                $movement->unit_price ? (float) $movement->unit_price : null,
+                $movement->handler_name,
+                $movement->handler_type,
+                $contextName,
+                $contextType,
+            ];
+        })->toArray();
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\SimpleArrayExport($rows, $headings, 'Product Movements'),
+            'product-movements-report-' . now()->format('Y-m-d') . '.xlsx'
+        );
     }
 }

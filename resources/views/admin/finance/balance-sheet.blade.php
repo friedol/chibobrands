@@ -3,16 +3,6 @@
 @section('title', 'Balance Sheet - ' . \Carbon\Carbon::parse($dateFrom)->format('M d') . ' – ' . $asAt->format('M d, Y'))
 
 @section('content')
-@php
-    $pdfParams = array_filter([
-        'period' => $period ?? null,
-        'start_date' => $dateFrom ? \Carbon\Carbon::parse($dateFrom)->format('Y-m-d') : null,
-        'end_date' => $dateTo ? \Carbon\Carbon::parse($dateTo)->format('Y-m-d') : null,
-        'department_id' => request('department_id'),
-    ], fn($v) => $v !== null && $v !== '');
-    $pdfUrl = route('admin.finance.balance-sheet.pdf', $pdfParams);
-    $pdfFilename = 'balance-sheet-' . $asAt->format('Y-m-d') . (request('department_id') ? '-dept-' . request('department_id') : '') . '.pdf';
-@endphp
 <div class="container-fluid">
     <!-- Breadcrumb -->
     <nav aria-label="breadcrumb" class="mb-3 no-print">
@@ -43,12 +33,11 @@
                     <a href="{{ route('admin.finance.reports') }}" data-no-global-handler data-no-preloader class="btn btn-outline-info btn-sm">
                         <i class="fas fa-file-invoice me-1"></i> Analytics
                     </a>
-                    <a href="{{ $pdfUrl }}" target="_blank" rel="noopener" class="btn btn-success btn-sm share-pdf-btn" data-pdf-url="{{ $pdfUrl }}" data-pdf-filename="{{ $pdfFilename }}" title="Share as PDF">
-                        <i class="fas fa-share-alt me-1"></i> Share PDF
-                    </a>
-                    <button type="button" class="btn btn-primary btn-sm" onclick="window.print()">
-                        <i class="fas fa-print me-1"></i> Print
-                    </button>
+                    <x-report-export-menu
+                        :print-url="route('admin.finance.balance-sheet.print', request()->all())"
+                        :pdf-url="route('admin.finance.balance-sheet.pdf', request()->all())"
+                        :excel-url="route('admin.finance.balance-sheet.excel', request()->all())"
+                    />
                 </div>
             </div>
         </div>

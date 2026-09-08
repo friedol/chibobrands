@@ -22,6 +22,12 @@
                         onclick="window.location.reload()">
                         <i class="fas fa-sync-alt me-1"></i> Refresh
                     </button>
+                    <x-report-export-menu
+                        :print-url="route('admin.sales-dept.reports.print', request()->all())"
+                        :pdf-url="route('admin.sales-dept.reports.pdf', request()->all())"
+                        :excel-url="route('admin.sales-dept.reports.excel', request()->all())"
+                        print-target="_blank"
+                    />
                 </div>
             </div>
         </div>

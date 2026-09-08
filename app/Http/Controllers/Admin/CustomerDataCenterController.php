@@ -38,19 +38,60 @@ class CustomerDataCenterController extends Controller
             $query->where('follow_up_status', 'New Customer');
         }
 
+        // Apply Customer Type filter
+        $typeFilter = $request->get('type', 'all');
+        if ($typeFilter === 'new') {
+            $query->where('is_repeated', false);
+        } elseif ($typeFilter === 'repeated') {
+            $query->where('is_repeated', true);
+        }
+
+        // Apply Specific Date filter
+        $dateFilter = $request->get('date');
+        if ($request->filled('date')) {
+            $query->where(function ($q) use ($dateFilter) {
+                $q->whereDate('manual_follow_up_date', $dateFilter)
+                  ->orWhere(function ($sq) use ($dateFilter) {
+                      $sq->whereNull('manual_follow_up_date')
+                        ->whereDate('next_expected_order_date', $dateFilter);
+                  });
+            });
+        }
+
         $customers = $query->orderBy('priority_ranking', 'desc')
             ->orderBy('next_expected_order_date', 'asc')
             ->paginate(15)
             ->withQueryString();
+
+        // Calculate Weekly summary statistics
+        $startOfWeek = Carbon::now()->startOfWeek();
+        $endOfWeek = Carbon::now()->endOfWeek();
+
+        $weeklyNew = Customer::forSaler($user)
+            ->where('is_repeated', false)
+            ->whereBetween('created_at', [$startOfWeek, $endOfWeek])
+            ->count();
+
+        $weeklyRepeated = Customer::forSaler($user)
+            ->where('is_repeated', true)
+            ->whereExists(function ($q) use ($startOfWeek, $endOfWeek) {
+                $q->select(\DB::raw(1))
+                  ->from('design_tasks')
+                  ->whereColumn('design_tasks.customer_id', 'customers.id')
+                  ->whereBetween('design_tasks.created_at', [$startOfWeek, $endOfWeek]);
+            })
+            ->count();
 
         $stats = [
             'due_today' => Customer::forSaler($user)->where('follow_up_status', 'Due Today')->count(),
             'overdue' => Customer::forSaler($user)->where('follow_up_status', 'Overdue')->count(),
             'upcoming' => Customer::forSaler($user)->where('follow_up_status', 'Upcoming')->count(),
             'total_customers' => Customer::forSaler($user)->count(),
+            'weekly_new' => $weeklyNew,
+            'weekly_repeated' => $weeklyRepeated,
         ];
 
-        return view('admin.customers.data-center.index', compact('customers', 'stats', 'statusFilter'));
+        return view('admin.customers.data-center.index', compact('customers', 'stats', 'statusFilter', 'typeFilter', 'dateFilter'));
     }
 
     /**

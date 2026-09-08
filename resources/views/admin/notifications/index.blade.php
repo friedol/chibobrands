@@ -1,381 +1,370 @@
 @extends('layouts.admin')
 
-@section('title', 'Notifications - CHIBO BRAND')
+@section('page-title', 'Notifications')
+
+@push('styles')
+<style>
+    .notif-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.875rem;
+        padding: 0.875rem 1rem;
+        border-bottom: 1px solid #f1f5f9;
+        transition: background 0.15s;
+        position: relative;
+    }
+
+    .notif-row:last-child { border-bottom: none; }
+
+    .notif-row:hover { background: #f8faff; }
+
+    .notif-row.is-unread { background: #f0f6ff; }
+    .notif-row.is-unread:hover { background: #e8f0ff; }
+
+    .unread-dot {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: #0d6efd;
+        border-radius: 0 2px 2px 0;
+    }
+
+    .notif-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        flex-shrink: 0;
+    }
+
+    .ni-task     { background: #f5f3ff; color: #7c3aed; }
+    .ni-order    { background: #f0fdf4; color: #16a34a; }
+    .ni-delivery { background: #ecfeff; color: #0891b2; }
+    .ni-alert    { background: #fffbeb; color: #d97706; }
+    .ni-reg      { background: #eff6ff; color: #2563eb; }
+    .ni-system   { background: #f1f5f9; color: #64748b; }
+
+    .notif-body { flex: 1; min-width: 0; }
+
+    .notif-title {
+        font-size: 0.825rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 0.15rem;
+    }
+
+    .notif-msg {
+        font-size: 0.78rem;
+        color: #64748b;
+        line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .notif-meta {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.35rem;
+    }
+
+    .notif-time {
+        font-size: 0.7rem;
+        color: #94a3b8;
+    }
+
+    .notif-sender {
+        font-size: 0.7rem;
+        color: #94a3b8;
+    }
+
+    .notif-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        flex-shrink: 0;
+    }
+
+    .btn-notif {
+        width: 28px;
+        height: 28px;
+        border-radius: 7px;
+        border: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        cursor: pointer;
+        transition: all 0.15s;
+        background: transparent;
+    }
+
+    .btn-notif-read  { color: #16a34a; }
+    .btn-notif-read:hover  { background: #f0fdf4; color: #15803d; }
+    .btn-notif-del   { color: #dc2626; }
+    .btn-notif-del:hover   { background: #fef2f2; color: #b91c1c; }
+    .btn-notif-view  { color: #2563eb; }
+    .btn-notif-view:hover  { background: #eff6ff; color: #1d4ed8; }
+
+    /* Filter bar */
+    .filter-pill {
+        padding: 0.35rem 0.875rem;
+        border-radius: 20px;
+        font-size: 0.775rem;
+        font-weight: 500;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        color: #475569;
+        text-decoration: none;
+        transition: all 0.15s;
+        white-space: nowrap;
+    }
+
+    .filter-pill:hover { border-color: #0d6efd; color: #0d6efd; }
+    .filter-pill.active { background: #0d6efd; border-color: #0d6efd; color: #fff; }
+
+    /* Stat chips */
+    .stat-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.4rem 0.75rem;
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        font-size: 0.775rem;
+    }
+
+    .stat-chip .chip-num {
+        font-weight: 700;
+        font-size: 1rem;
+        line-height: 1;
+    }
+
+    .empty-state { padding: 3rem 1rem; text-align: center; }
+    .empty-state i { font-size: 2.5rem; color: #cbd5e0; margin-bottom: 0.75rem; display: block; }
+</style>
+@endpush
 
 @section('content')
-<div class="container-fluid py-4">
-    <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb" class="mb-4">
-        <ol class="breadcrumb bg-transparent p-0">
-            <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}" class="text-primary text-decoration-none">Dashboard</a></li>
-            <li class="breadcrumb-item active">Notifications</li>
-        </ol>
-    </nav>
+@php
+    $unreadCount = auth()->user()->notifications()->where('status','unread')->count();
+    $totalCount  = auth()->user()->notifications()->count();
+    $readCount   = $totalCount - $unreadCount;
+@endphp
 
-    <!-- Page Header -->
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-5 gap-3">
+<div class="container-fluid py-3">
+
+    {{-- Page Header --}}
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
         <div>
-            <h1 class="h2 fw-bold text-dark mb-1">Notifications Hub</h1>
-            <p class="text-muted mb-0">Stay updated with the latest tasks, orders, and system activities.</p>
+            <h4 class="fw-bold text-dark mb-1">
+                Notifications
+                @if($unreadCount > 0)
+                    <span class="badge bg-danger rounded-pill ms-1" style="font-size:0.65rem;">{{ $unreadCount }} new</span>
+                @endif
+            </h4>
+            <p class="text-muted small mb-0">Your activity feed — tasks, orders, alerts and system events</p>
         </div>
-        <div class="d-flex gap-2">
-            @php
-                $unreadCount = auth()->user()->notifications()->unread()->count();
-            @endphp
-            @if($unreadCount > 0)
-            <form method="POST" action="{{ route('admin.notifications.mark-all-read') }}">
-                @csrf
-                <button type="submit" data-no-global-handler class="btn btn-primary d-flex align-items-center gap-2 px-4 shadow-sm border-0" style="border-radius: 12px; background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);">
-                    <i class="fas fa-check-double"></i>
-                    <span>Mark All as Read</span>
-                </button>
-            </form>
-            @endif
-        </div>
+        @if($unreadCount > 0)
+        <form method="POST" action="{{ route('admin.notifications.mark-all-read') }}">
+            @csrf
+            <button type="submit" data-no-global-handler class="btn btn-outline-primary btn-sm px-4">
+                <i class="fas fa-check-double me-2"></i>Mark All Read
+            </button>
+        </form>
+        @endif
     </div>
 
-    <div class="row g-4">
-        <!-- Sidebar Filters -->
-        <div class="col-lg-3">
-            <div class="card border-0 shadow-sm sticky-top" style="top: 100px; border-radius: 20px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px);">
-                <div class="card-body p-4">
-                    <h5 class="fw-bold mb-4 d-flex align-items-center gap-2">
-                        <i class="fas fa-sliders-h text-primary"></i>
-                        Filter Activity
-                    </h5>
-                    
-                    <form method="GET" action="{{ route('admin.notifications.index') }}">
-                        <div class="mb-4">
-                            <label class="form-label fw-semibold small text-uppercase text-muted">Status</label>
-                            <div class="d-flex flex-column gap-2 mt-2">
-                                <a href="{{ route('admin.notifications.index', ['status' => 'unread'] + request()->except('status')) }}" 
-                                   class="btn btn-light text-start border-0 py-2 px-3 d-flex justify-content-between align-items-center {{ request('status') === 'unread' ? 'bg-primary text-white shadow-sm' : '' }}" 
-                                   style="border-radius: 10px;">
-                                   <span>Unread</span>
-                                   @if($unreadCount > 0)
-                                   <span class="badge {{ request('status') === 'unread' ? 'bg-white text-primary' : 'bg-danger text-white' }} rounded-pill">{{ $unreadCount }}</span>
-                                   @endif
-                                </a>
-                                <a href="{{ route('admin.notifications.index', ['status' => 'read'] + request()->except('status')) }}" 
-                                   class="btn btn-light text-start border-0 py-2 px-3 {{ request('status') === 'read' ? 'bg-primary text-white shadow-sm' : '' }}" 
-                                   style="border-radius: 10px;">Read</a>
-                                <a href="{{ route('admin.notifications.index', request()->except('status')) }}" 
-                                   class="btn btn-light text-start border-0 py-2 px-3 {{ !request('status') ? 'bg-primary text-white shadow-sm' : '' }}" 
-                                   style="border-radius: 10px;">All Notifications</a>
-                            </div>
-                        </div>
+    {{-- Stats --}}
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <span class="stat-chip">
+            <i class="fas fa-bell text-primary"></i>
+            <span class="text-muted">Total</span>
+            <span class="chip-num text-dark">{{ $totalCount }}</span>
+        </span>
+        <span class="stat-chip">
+            <i class="fas fa-bolt text-danger"></i>
+            <span class="text-muted">Unread</span>
+            <span class="chip-num text-danger">{{ $unreadCount }}</span>
+        </span>
+        <span class="stat-chip">
+            <i class="fas fa-check-circle text-success"></i>
+            <span class="text-muted">Read</span>
+            <span class="chip-num text-success">{{ $readCount }}</span>
+        </span>
+    </div>
 
-                        <div class="mb-0">
-                            <label class="form-label fw-semibold small text-uppercase text-muted">Notification Type</label>
-                            <select name="type" class="form-select border-0 bg-light py-2" style="border-radius: 10px;">
-                                <option value="">All Types</option>
-                                <option value="task" {{ request('type') === 'task' ? 'selected' : '' }}>Design Tasks</option>
-                                <option value="delivery" {{ request('type') === 'delivery' ? 'selected' : '' }}>Delivery Tasks</option>
-                                <option value="order" {{ request('type') === 'order' ? 'selected' : '' }}>Orders</option>
-                                <option value="registration" {{ request('type') === 'registration' ? 'selected' : '' }}>Registrations</option>
-                                <option value="alert" {{ request('type') === 'alert' ? 'selected' : '' }}>Alerts</option>
-                            </select>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold small text-uppercase text-muted">Sent By</label>
-                            <select name="sender_id" class="form-select border-0 bg-light py-2" style="border-radius: 10px;">
-                                <option value="">Everyone</option>
-                                @foreach($staff as $member)
-                                    <option value="{{ $member->id }}" {{ request('sender_id') == $member->id ? 'selected' : '' }}>
-                                        {{ $member->name }} ({{ ucfirst($member->role) }})
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        
-                        <button type="submit" data-no-global-handler class="btn btn-primary w-100 mt-4 py-2 shadow-sm border-0" style="border-radius: 10px;">Apply Filters</button>
-                    </form>
-                </div>
-            </div>
-        </div>
+    {{-- Filters --}}
+    <div class="card border-0 shadow-sm mb-3" style="border-radius:10px;">
+        <div class="card-body py-2 px-3">
+            <form method="GET" action="{{ route('admin.notifications.index') }}" class="d-flex flex-wrap align-items-center gap-2">
 
-        <!-- Notification Feed -->
-        <div class="col-lg-9">
-            @if(request()->anyFilled(['status', 'type', 'sender_id']))
-                <div class="alert bg-white border-0 shadow-sm mb-4 d-flex justify-content-between align-items-center" style="border-radius: 12px; padding: 12px 20px;">
-                    <div class="d-flex align-items-center gap-2">
-                        <i class="fas fa-filter text-primary small"></i>
-                        <span class="small text-muted fw-bold">Active Filters:</span>
-                        <div class="d-flex flex-wrap gap-1 ms-2">
-                            @if(request('status')) <span class="badge bg-primary-subtle text-primary rounded-pill">Status: {{ ucfirst(request('status')) }}</span> @endif
-                            @if(request('type')) <span class="badge bg-primary-subtle text-primary rounded-pill">Type: {{ ucfirst(request('type')) }}</span> @endif
-                            @if(request('sender_id')) 
-                                @php $s = $staff->where('id', request('sender_id'))->first(); @endphp
-                                <span class="badge bg-primary-subtle text-primary rounded-pill">Sent By: {{ $s ? $s->name : 'Staff' }}</span> 
-                            @endif
-                        </div>
-                    </div>
-                    <a href="{{ route('admin.notifications.index') }}" class="btn btn-sm btn-link text-muted text-decoration-none small fw-bold">
-                        <i class="fas fa-times me-1"></i>Reset
+                {{-- Status pills --}}
+                <div class="d-flex gap-1 flex-wrap">
+                    <a href="{{ route('admin.notifications.index', request()->except('status', 'page')) }}"
+                       class="filter-pill {{ !request('status') ? 'active' : '' }}">All</a>
+                    <a href="{{ route('admin.notifications.index', array_merge(request()->except('status','page'), ['status'=>'unread'])) }}"
+                       class="filter-pill {{ request('status')==='unread' ? 'active' : '' }}">
+                        Unread @if($unreadCount > 0)<span class="ms-1 badge bg-danger rounded-pill" style="font-size:0.6rem;">{{ $unreadCount }}</span>@endif
                     </a>
+                    <a href="{{ route('admin.notifications.index', array_merge(request()->except('status','page'), ['status'=>'read'])) }}"
+                       class="filter-pill {{ request('status')==='read' ? 'active' : '' }}">Read</a>
                 </div>
-            @endif
-            <div class="notification-feed">
-                @forelse($notifications as $notification)
-                    @php
-                        $isTask = str_contains(strtolower($notification->type ?? ''), 'task');
-                        $isOrder = str_contains(strtolower($notification->type ?? ''), 'order');
-                        $isRegistration = str_contains(strtolower($notification->type ?? ''), 'registration');
-                        $isAlert = str_contains(strtolower($notification->type ?? ''), 'alert') || str_contains(strtolower($notification->type ?? ''), 'warning');
-                        $isDelivery = str_contains(strtolower($notification->type ?? ''), 'delivery');
-                        
-                        $iconClass = 'fa-bell';
-                        $iconBg = 'primary';
-                        
-                        if ($isTask && !$isDelivery) { $iconClass = 'fa-palette'; $iconBg = 'purple'; }
-                        elseif ($isOrder) { $iconClass = 'fa-shopping-bag'; $iconBg = 'success'; }
-                        elseif ($isRegistration) { $iconClass = 'fa-user-plus'; $iconBg = 'info'; }
-                        elseif ($isAlert) { $iconClass = 'fa-exclamation-triangle'; $iconBg = 'warning'; }
-                        elseif ($isDelivery) { $iconClass = 'fa-truck'; $iconBg = 'info'; }
-                    @endphp
-                    
-                    <div class="card border-0 shadow-sm mb-3 position-relative overflow-hidden notification-card {{ $notification->status === 'unread' ? 'unread-card shadow-md' : '' }}" 
-                         style="border-radius: 18px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-left: 5px solid transparent !important;">
-                        
-                        @if($notification->status === 'unread')
-                        <div class="unread-indicator"></div>
-                        @endif
 
-                        <div class="card-body p-4">
-                            <div class="d-flex gap-4">
-                                <!-- Status Icon -->
-                                <div class="flex-shrink-0">
-                                    <div class="icon-box icon-{{ $iconBg }} shadow-sm">
-                                        <i class="fas {{ $iconClass }}"></i>
-                                    </div>
-                                </div>
+                <div class="vr d-none d-md-block mx-1" style="height:20px;"></div>
 
-                                <!-- Content -->
-                                <div class="flex-grow-1">
-                                    <div class="d-flex justify-content-between align-items-start mb-1">
-                                        <h6 class="fw-bold text-dark mb-0">
-                                            {{ ucwords(str_replace(['_', '-'], ' ', $notification->type ?? 'System Alert')) }}
-                                        </h6>
-                                        <div class="d-flex align-items-center gap-3">
-                                            <div class="d-flex flex-column align-items-end">
-                                                <span class="small text-muted fw-medium d-flex align-items-center gap-1">
-                                                    <i class="far fa-clock"></i>
-                                                    {{ $notification->created_at->diffForHumans() }}
-                                                </span>
-                                                @if($notification->sender)
-                                                <div class="mt-1 d-flex align-items-center gap-1">
-                                                    <span class="x-small text-muted">Sent By:</span>
-                                                    <span class="badge bg-light text-dark border p-1 px-2 fw-bold" style="font-size: 0.65rem; border-radius: 6px;">
-                                                        {{ $notification->sender->name }}
-                                                        <span class="ms-1 text-primary opacity-75">({{ ucfirst($notification->sender->role) }})</span>
-                                                    </span>
-                                                </div>
-                                                @endif
-                                            </div>
-                                            
-                                            <div class="dropdown">
-                                                <button class="btn btn-link text-muted p-0 border-0" data-bs-toggle="dropdown">
-                                                    <i class="fas fa-ellipsis-v"></i>
-                                                </button>
-                                                <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg" style="border-radius: 12px; padding: 8px;">
-                                                    @if($notification->status === 'unread')
-                                                    <li>
-                                                        <form method="POST" action="{{ route('admin.notifications.read', $notification->id) }}">
-                                                            @csrf
-                                                            <button type="submit" data-no-global-handler class="dropdown-item d-flex align-items-center gap-2 py-2" style="border-radius: 8px;">
-                                                                <i class="fas fa-check text-success"></i> Mark as Read
-                                                            </button>
-                                                        </form>
-                                                    </li>
-                                                    @endif
-                                                    <li>
-                                                        <form method="POST" action="{{ route('admin.notifications.delete', $notification->id) }}" onsubmit="return confirm('Archive this notification?')">
-                                                            @csrf
-                                                            @method('DELETE')
-                                                            <button type="submit" data-no-global-handler class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger" style="border-radius: 8px;">
-                                                                <i class="fas fa-archive"></i> Archive
-                                                            </button>
-                                                        </form>
-                                                    </li>
-                                                </ul>
-                                            </div>
-                                        </div>
-                                    </div>
+                {{-- Type select --}}
+                <select name="type" class="form-select form-select-sm" style="width:auto; border-radius:8px; font-size:0.775rem;" onchange="this.form.submit()">
+                    <option value="">All Types</option>
+                    <option value="task"         {{ request('type')==='task'         ? 'selected' : '' }}>Design Tasks</option>
+                    <option value="delivery"     {{ request('type')==='delivery'     ? 'selected' : '' }}>Delivery</option>
+                    <option value="order"        {{ request('type')==='order'        ? 'selected' : '' }}>Orders</option>
+                    <option value="registration" {{ request('type')==='registration' ? 'selected' : '' }}>Registrations</option>
+                    <option value="alert"        {{ request('type')==='alert'        ? 'selected' : '' }}>Alerts</option>
+                </select>
 
-                                    <div class="notification-text text-muted mb-3" style="font-size: 0.95rem; line-height: 1.6;">
-                                        {!! nl2br(e($notification->message)) !!}
-                                    </div>
+                {{-- Sender select --}}
+                <select name="sender_id" class="form-select form-select-sm" style="width:auto; border-radius:8px; font-size:0.775rem;" onchange="this.form.submit()">
+                    <option value="">All Senders</option>
+                    @foreach($staff as $member)
+                        <option value="{{ $member->id }}" {{ request('sender_id') == $member->id ? 'selected' : '' }}>
+                            {{ $member->name }}
+                        </option>
+                    @endforeach
+                </select>
 
-                                    @php
-                                        // Generate URL based on related model
-                                        $url = '#';
-                                        if ($notification->related_type === 'App\Models\DesignTask' && $notification->related_id) {
-                                            $url = route('admin.design-tasks.show', $notification->related_id);
-                                        } elseif (str_contains(strtolower($notification->message), 'task')) {
-                                            // Fallback for old notifications
-                                            preg_match('/ID[:\s]+(\d+)/i', $notification->message, $matches);
-                                            if (isset($matches[1])) $url = route('admin.design-tasks.show', $matches[1]);
-                                        }
-                                    @endphp
-                                    
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        @if($url !== '#')
-                                        <a href="{{ $url }}" class="btn btn-link p-0 text-decoration-none fw-bold d-flex align-items-center gap-1 action-link">
-                                            View Details
-                                            <i class="fas fa-arrow-right" style="font-size: 0.8rem;"></i>
-                                        </a>
-                                        @else
-                                        <span></span> {{-- Spacer --}}
-                                        @endif
-                                        
-                                        @if($isDelivery)
-                                        <span class="badge bg-info-subtle text-info rounded-pill px-3 py-1 fw-bold" style="font-size: 0.65rem;">
-                                            <i class="fas fa-truck me-1"></i>DELIVERY
-                                        </span>
-                                        @endif
-                                        
-                                        @if($notification->status === 'unread')
-                                        <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-1 fw-bold" style="font-size: 0.65rem;">
-                                            <i class="fas fa-bolt me-1"></i>NEW
-                                        </span>
-                                        @endif
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                @empty
-                    <div class="text-center py-5">
-                        <div class="mb-4">
-                            <i class="fas fa-bell-slash text-muted" style="font-size: 5rem; opacity: 0.2;"></i>
-                        </div>
-                        <h4 class="fw-bold text-dark">No Notifications Found</h4>
-                        <p class="text-muted">You're all caught up! When you receive new activities, they'll appear here.</p>
-                        <a href="{{ route('admin.notifications.index') }}" class="btn btn-outline-primary px-4 mt-2" style="border-radius: 12px;">Clear Filters</a>
-                    </div>
-                @endforelse
-
-                <!-- Pagination -->
-                <div class="mt-5 d-flex justify-content-center">
-                    {{ $notifications->links() }}
-                </div>
-            </div>
+                @if(request()->anyFilled(['status','type','sender_id']))
+                    <a href="{{ route('admin.notifications.index') }}" class="btn btn-sm btn-outline-secondary px-3" style="border-radius:8px; font-size:0.775rem;">
+                        <i class="fas fa-times me-1"></i>Clear
+                    </a>
+                @endif
+            </form>
         </div>
     </div>
+
+    {{-- Notification List --}}
+    <div class="card border-0 shadow-sm" style="border-radius:12px; overflow:hidden;">
+        @forelse($notifications as $notification)
+        @php
+            $type = strtolower($notification->type ?? '');
+            $isTask     = str_contains($type, 'task') && !str_contains($type, 'delivery');
+            $isOrder    = str_contains($type, 'order');
+            $isDelivery = str_contains($type, 'delivery');
+            $isAlert    = str_contains($type, 'alert') || str_contains($type, 'warning');
+            $isReg      = str_contains($type, 'registration');
+
+            if ($isTask)         { $iconClass = 'fa-paint-brush'; $iconBg = 'ni-task'; }
+            elseif ($isOrder)    { $iconClass = 'fa-shopping-cart'; $iconBg = 'ni-order'; }
+            elseif ($isDelivery) { $iconClass = 'fa-truck'; $iconBg = 'ni-delivery'; }
+            elseif ($isAlert)    { $iconClass = 'fa-exclamation-triangle'; $iconBg = 'ni-alert'; }
+            elseif ($isReg)      { $iconClass = 'fa-user-plus'; $iconBg = 'ni-reg'; }
+            else                 { $iconClass = 'fa-bell'; $iconBg = 'ni-system'; }
+
+            $isUnread = $notification->status === 'unread';
+            $title = ucwords(str_replace(['_','-'],' ', $notification->type ?? 'System Notification'));
+
+            $url = '#';
+            if ($notification->related_type === 'App\Models\DesignTask' && $notification->related_id) {
+                $url = route('admin.design-tasks.show', $notification->related_id);
+            } elseif (str_contains(strtolower($notification->message ?? ''), 'task')) {
+                preg_match('/ID[:\s]+(\d+)/i', $notification->message, $m);
+                if (isset($m[1])) $url = route('admin.design-tasks.show', $m[1]);
+            }
+        @endphp
+
+        <div class="notif-row {{ $isUnread ? 'is-unread' : '' }}">
+            @if($isUnread)<div class="unread-dot"></div>@endif
+
+            {{-- Icon --}}
+            <div class="notif-icon {{ $iconBg }}">
+                <i class="fas {{ $iconClass }}"></i>
+            </div>
+
+            {{-- Body --}}
+            <div class="notif-body">
+                <div class="d-flex align-items-center gap-2 mb-0.5">
+                    <span class="notif-title">{{ $title }}</span>
+                    @if($isUnread)
+                        <span class="badge bg-primary rounded-pill" style="font-size:0.6rem; padding:0.2rem 0.5rem;">New</span>
+                    @endif
+                </div>
+                <div class="notif-msg">{{ $notification->message }}</div>
+                <div class="notif-meta">
+                    <span class="notif-time">
+                        <i class="far fa-clock me-1"></i>{{ $notification->created_at->diffForHumans() }}
+                    </span>
+                    @if($notification->sender)
+                        <span class="notif-sender">
+                            &bull; {{ $notification->sender->name }}
+                            <span class="text-muted">({{ ucfirst($notification->sender->role) }})</span>
+                        </span>
+                    @endif
+                </div>
+            </div>
+
+            {{-- Actions --}}
+            <div class="notif-actions">
+                @if($url !== '#')
+                    <a href="{{ $url }}" class="btn-notif btn-notif-view" title="View related">
+                        <i class="fas fa-external-link-alt"></i>
+                    </a>
+                @endif
+
+                <a href="{{ route('admin.notifications.show', $notification->id) }}" class="btn-notif btn-notif-view" title="Open notification">
+                    <i class="fas fa-eye"></i>
+                </a>
+
+                @if($isUnread)
+                <form method="POST" action="{{ route('admin.notifications.read', $notification->id) }}" class="d-inline">
+                    @csrf
+                    <button type="submit" data-no-global-handler class="btn-notif btn-notif-read" title="Mark as read">
+                        <i class="fas fa-check"></i>
+                    </button>
+                </form>
+                @endif
+
+                <form method="POST" action="{{ route('admin.notifications.delete', $notification->id) }}"
+                    class="d-inline" onsubmit="return confirm('Delete this notification?')">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" data-no-global-handler class="btn-notif btn-notif-del" title="Delete">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+        @empty
+        <div class="empty-state">
+            <i class="fas fa-bell-slash"></i>
+            <h6 class="fw-bold text-dark">No notifications found</h6>
+            <p class="text-muted small mb-3">
+                @if(request()->anyFilled(['status','type','sender_id']))
+                    No results match your current filters.
+                @else
+                    You're all caught up! New activity will appear here.
+                @endif
+            </p>
+            @if(request()->anyFilled(['status','type','sender_id']))
+                <a href="{{ route('admin.notifications.index') }}" class="btn btn-outline-primary btn-sm px-4">Clear Filters</a>
+            @endif
+        </div>
+        @endforelse
+    </div>
+
+    {{-- Pagination --}}
+    @if($notifications->hasPages())
+    <div class="mt-3 d-flex justify-content-center">
+        {{ $notifications->links() }}
+    </div>
+    @endif
 </div>
-
-<style>
-/* Modern Color Palette */
-:root {
-    --purple: #6f42c1;
-    -- purple-light: #ebe5f7;
-    --success-light: #e7f3ec;
-    --info-light: #e7f0f7;
-    --warning-light: #fef5e7;
-    --primary-light: #e7efff;
-}
-
-.x-small { font-size: 0.7rem; }
-
-body {
-    background-color: #f8f9fa;
-}
-
-/* Glassmorphism Classes */
-.notification-card {
-    background: #fff;
-    border-radius: 18px;
-    transition: all 0.3s ease;
-}
-
-.notification-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08) !important;
-}
-
-.unread-card {
-    background: #fff;
-    border-left: 5px solid #0d6efd !important;
-}
-
-/* Icon Box Custom Styling */
-.icon-box {
-    width: 60px;
-    height: 60px;
-    border-radius: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-}
-
-.icon-purple { background-color: var(--purple-light); color: var(--purple); }
-.icon-success { background-color: var(--success-light); color: #28a745; }
-.icon-info { background-color: var(--info-light); color: #0dcaf0; }
-.icon-warning { background-color: var(--warning-light); color: #ffc107; }
-.icon-primary { background-color: var(--primary-light); color: #0d6efd; }
-
-.action-link {
-    font-size: 0.85rem;
-    color: #6c757d;
-    transition: all 0.2s;
-}
-
-.action-link:hover {
-    color: #0d6efd;
-}
-
-.action-link i {
-    transition: transform 0.2s;
-}
-
-.action-link:hover i {
-    transform: translateX(4px);
-}
-
-.unread-indicator {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    width: 10px;
-    height: 10px;
-    background-color: #0d6efd;
-    border-radius: 50%;
-    box-shadow: 0 0 10px rgba(13, 110, 253, 0.5);
-}
-
-/* Badge Tweaks */
-.bg-primary-subtle {
-    background-color: #e7efff !important;
-}
-
-/* Responsive Table Fixes */
-    /* Mobile Responsiveness & Font Size Reductions */
-    @media (max-width: 768px) {
-        /* Page Header */
-        h1.h2 { font-size: 1.25rem !important; }
-        .text-muted.mb-0 { font-size: 0.75rem !important; }
-        .btn-primary.px-4 { padding: 0.5rem 1rem !important; font-size: 0.8rem !important; }
-        
-        /* Filter Sidebar - ensure it doesn't take too much space or adjust fonts */
-        .card-body.p-4 { padding: 1rem !important; }
-        h5.fw-bold { font-size: 1rem !important; }
-        .form-label { font-size: 0.6rem !important; }
-        .btn-light { font-size: 0.8rem !important; padding: 0.5rem !important; }
-        .form-select { font-size: 0.8rem !important; }
-        
-        /* Notification Card */
-        .notification-card .card-body { padding: 1rem !important; }
-        .icon-box { width: 45px !important; height: 45px !important; font-size: 1.1rem !important; }
-        h6.fw-bold { font-size: 0.85rem !important; }
-        .small.text-muted { font-size: 0.7rem !important; }
-        .notification-text { font-size: 0.8rem !important; line-height: 1.4 !important; }
-        .action-link { font-size: 0.75rem !important; }
-        .badge { font-size: 0.6rem !important; padding: 0.25rem 0.5rem !important; }
-        
-        /* Sidebar collapse behavior (since it's col-lg-3, it will be full width on mobile) */
-        .col-lg-3 { margin-bottom: 1.5rem; }
-    }
-</style>
 @endsection

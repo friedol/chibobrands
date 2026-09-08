@@ -42,21 +42,11 @@
                     <div class="col-md-6">
                         <label class="form-label">Phone Number <span class="text-danger">*</span></label>
                         <div class="input-group">
-                            <select name="phone_country_code" class="form-select" style="max-width: 120px;">
-                                <option value="+255" selected>🇹🇿 +255</option>
-                                <option value="+254">🇰🇪 +254</option>
-                                <option value="+256">🇺🇬 +256</option>
-                                <option value="+250">🇷🇼 +250</option>
-                                <option value="+257">🇧🇮 +257</option>
-                                <option value="+243">🇨🇩 +243</option>
-                                <option value="+27">🇿🇦 +27</option>
-                                <option value="+234">🇳🇬 +234</option>
-                                <option value="+1">🇺🇸 +1</option>
-                                <option value="+44">🇬🇧 +44</option>
-                                <option value="+971">🇦🇪 +971</option>
-                                <option value="+91">🇮🇳 +91</option>
-                                <option value="+86">🇨🇳 +86</option>
-                            </select>
+                            <input type="text" name="phone_country_code"
+                                   class="form-control text-center fw-bold"
+                                   value="{{ old('phone_country_code', '+255') }}"
+                                   placeholder="+255" maxlength="6"
+                                   style="max-width:80px;" title="Country code — e.g. +255, +254">
                             <input type="text" name="phone" class="form-control @error('phone') is-invalid @enderror" value="{{ old('phone') }}" placeholder="XXX XXX XXX" required>
                             @error('phone')
                                 <div class="invalid-feedback">{{ $message }}</div>
@@ -116,6 +106,16 @@
                             <option value="other" {{ old('business_type')=='other' ? 'selected' : '' }}>Other</option>
                         </select>
                     </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Customer Source</label>
+                        <select name="customer_source" class="form-select">
+                            <option value="">Select Marketing Source</option>
+                            @php $sources = \App\Models\CustomerSource::active()->get(); @endphp
+                            @foreach($sources as $source)
+                                <option value="{{ $source->name }}" {{ old('customer_source') == $source->name ? 'selected' : '' }}>{{ $source->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                     @if(auth()->user()->role !== 'saler')
                     <div class="col-md-6">
                         <label class="form-label">Brought By (Saler)</label>
@@ -133,6 +133,43 @@
                         @enderror
                     </div>
                     @endif
+                    <div class="col-md-6">
+                        <label class="form-label">Region</label>
+                        <select name="region_id" id="region_id" class="form-select @error('region_id') is-invalid @enderror">
+                            <option value="">Select Region (Optional)</option>
+                            @foreach($regions as $region)
+                                <option value="{{ $region->id }}" {{ old('region_id') == $region->id ? 'selected' : '' }}>{{ $region->region_name }}</option>
+                            @endforeach
+                        </select>
+                        @error('region_id')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">District</label>
+                        <select name="district_id" id="district_id" class="form-select @error('district_id') is-invalid @enderror">
+                            <option value="">Select District (Optional)</option>
+                        </select>
+                        @error('district_id')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Latitude</label>
+                        <input type="text" name="latitude" class="form-control @error('latitude') is-invalid @enderror" value="{{ old('latitude') }}" placeholder="-6.7924">
+                        <small class="form-text text-muted">Needed for map pin display.</small>
+                        @error('latitude')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Longitude</label>
+                        <input type="text" name="longitude" class="form-control @error('longitude') is-invalid @enderror" value="{{ old('longitude') }}" placeholder="39.2083">
+                        <small class="form-text text-muted">Needed for map pin display.</small>
+                        @error('longitude')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
                     <div class="col-12">
                         <label class="form-label">Business Address</label>
                         <textarea name="address" rows="3" class="form-control">{{ old('address') }}</textarea>
@@ -162,5 +199,52 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const regionSelect = document.getElementById('region_id');
+    const districtSelect = document.getElementById('district_id');
+    const oldDistrictId = "{{ old('district_id') }}";
+
+    if (regionSelect && districtSelect) {
+        regionSelect.addEventListener('change', function() {
+            const regionId = this.value;
+            districtSelect.innerHTML = '<option value="">Loading districts...</option>';
+            districtSelect.disabled = true;
+            
+            if (!regionId) {
+                districtSelect.innerHTML = '<option value="">Select District (Optional)</option>';
+                districtSelect.disabled = false;
+                return;
+            }
+            
+            fetch(`/regions/${regionId}/districts`)
+                .then(response => response.json())
+                .then(data => {
+                    let html = '<option value="">Select District (Optional)</option>';
+                    data.forEach(district => {
+                        html += `<option value="${district.id}">${district.district_name}</option>`;
+                    });
+                    districtSelect.innerHTML = html;
+                    districtSelect.disabled = false;
+                    if (oldDistrictId) {
+                        districtSelect.value = oldDistrictId;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching districts:', error);
+                    districtSelect.innerHTML = '<option value="">Error loading districts</option>';
+                    districtSelect.disabled = false;
+                });
+        });
+        
+        if (regionSelect.value) {
+            regionSelect.dispatchEvent(new Event('change'));
+        }
+    }
+});
+</script>
+@endpush
 
 

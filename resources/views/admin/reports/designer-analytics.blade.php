@@ -8,7 +8,7 @@
     <div class="print-only report-header">
         <div class="d-flex justify-content-between align-items-center">
             <div>
-                <img src="{{ asset('images/logo.webp') }}" alt="Logo" style="height: 50px;" onerror="this.style.display='none'">
+                @include('partials.logo-print')
                 <h1 class="fw-bold text-dark mt-2">Individual Performance Report</h1>
                 <p class="mb-0 text-dark">Staff: {{ $designer->name }} ({{ ucfirst($designer->role) }})</p>
                 <p class="mb-0 text-dark">Period: {{ \Carbon\Carbon::parse($dateFrom)->format('M d, Y') }} - {{ \Carbon\Carbon::parse($dateTo)->format('M d, Y') }}</p>
@@ -68,17 +68,17 @@
             </div>
         </div>
         <div class="col-md-4 text-md-end mt-3 mt-md-0">
-            <div class="btn-group shadow-sm me-2">
-                <button class="btn btn-primary btn-sm" onclick="window.print()">
-                    <i class="fas fa-print me-1"></i>Print
-                </button>
-                <a href="{{ route('admin.reports.design-tasks.export', ['type' => 'pdf', 'designer_id' => $designer->id, 'date_from' => $dateFrom, 'date_to' => $dateTo]) }}" class="btn btn-danger btn-sm" data-no-preloader data-no-global-handler title="Download PDF">
-                    <i class="fas fa-file-pdf me-1"></i>PDF
-                </a>
-                @php $designerPdfUrl = route('admin.reports.design-tasks.export', ['type' => 'pdf', 'designer_id' => $designer->id, 'date_from' => $dateFrom, 'date_to' => $dateTo]); @endphp
-                <a href="{{ $designerPdfUrl }}" target="_blank" rel="noopener" class="btn btn-success btn-sm share-pdf-btn" data-pdf-url="{{ $designerPdfUrl }}" data-pdf-filename="designer-{{ $designer->id }}-performance-{{ $dateFrom }}-{{ $dateTo }}.pdf" title="Share PDF">
-                    <i class="fas fa-share-alt me-1"></i>Share PDF
-                </a>
+            @php
+                $dPdfUrl   = route('admin.reports.design-tasks.export', ['type' => 'pdf',   'designer_id' => $designer->id, 'date_from' => $dateFrom, 'date_to' => $dateTo]);
+                $dExcelUrl = route('admin.reports.design-tasks.export', ['type' => 'excel', 'designer_id' => $designer->id, 'date_from' => $dateFrom, 'date_to' => $dateTo]);
+            @endphp
+            <div class="me-2 d-inline-block">
+                <x-report-export-menu
+                    :print-js="true"
+                    :pdf-url="$dPdfUrl"
+                    :excel-url="$dExcelUrl"
+                    label="Export"
+                />
             </div>
             <form method="GET" action="{{ route('admin.reports.designer-analytics', $designer->id) }}" class="d-inline-flex" data-no-preloader data-no-global-handler>
                 <div class="input-group input-group-sm">

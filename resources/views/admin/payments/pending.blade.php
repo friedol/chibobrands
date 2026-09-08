@@ -55,7 +55,7 @@
             <!-- Print Header -->
             <div class="print-header d-none text-center mb-4">
                 <div class="d-flex justify-content-center align-items-center mb-3">
-                    <img src="{{ asset('images/logo.webp') }}" alt="CHIBO BRAND" style="height: 60px; margin-right: 15px;">
+                    @include('partials.logo-print', ['logoStyle' => 'height:60px;margin-right:15px;object-fit:contain;'])
                     <div class="text-start">
                         <h2 class="fw-bold fs-3 mb-0 text-dark">CHIBO BRANDS CO.LTD</h2>
                         <p class="mb-0 text-muted small">Sales & Inventory Management System</p>
@@ -220,6 +220,14 @@
                             <option value="card">Card</option>
                             <option value="bank_transfer">Bank Transfer</option>
                         </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="payment_date" class="form-label">Payment Date <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white"><i class="fas fa-calendar-alt"></i></span>
+                            <input type="date" class="form-control" id="payment_date" name="payment_date" value="{{ date('Y-m-d') }}" required>
+                        </div>
                     </div>
 
                     <div class="mb-0">

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\DesignTask;
+use App\Models\Payment;
 use App\Models\TaskUpdate;
 use App\Models\Customer;
 use App\Models\User;
@@ -82,6 +83,11 @@ class DesignTaskController extends Controller
         // Filter by customer if provided
         if ($request->filled('customer_id')) {
             $query->where('customer_id', $request->customer_id);
+        }
+
+        // Filter by department if provided
+        if ($request->filled('department_id')) {
+            $query->where('department_id', $request->department_id);
         }
 
         // Filter by specific date if provided
@@ -233,6 +239,12 @@ class DesignTaskController extends Controller
             'loss' => (clone $statsBaseQuery)->where('is_loss', true)->count(),
         ];
         
+        $taskStats['departments'] = (clone $statsBaseQuery)
+            ->select('department_id', \DB::raw('count(*) as total'))
+            ->groupBy('department_id')
+            ->pluck('total', 'department_id')
+            ->toArray();
+        
         // Admin, SuperAdmin, and Accountant see revenue
         if (in_array($user->role, ['admin', 'super_admin', 'accountant'])) {
             $taskStats['revenue'] = (clone $statsBaseQuery)->sum('amount_paid');
@@ -290,6 +302,7 @@ class DesignTaskController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $customerId = null;
+        $selectedBusinessId = null;
         
         // Handle customer creation if new customer
         if ($request->input('customer_id') === 'new') {
@@ -333,6 +346,24 @@ class DesignTaskController extends Controller
                 'customer_id' => 'required|exists:customers,id',
             ]);
             $customerId = $validated['customer_id'];
+
+            if ($request->filled('customer_business_id')) {
+                $business = \App\Models\CustomerBusiness::where('id', $request->input('customer_business_id'))
+                    ->where('customer_id', $customerId)
+                    ->first();
+
+                if (!$business) {
+                    return redirect()->back()
+                        ->withErrors(['customer_business_id' => 'Selected business does not belong to this customer.'])
+                        ->withInput();
+                }
+
+                $selectedBusinessId = $business->id;
+            } else {
+                $selectedBusinessId = \App\Models\CustomerBusiness::where('customer_id', $customerId)
+                    ->orderByDesc('is_primary')
+                    ->value('id');
+            }
         }
         
         // Validate tasks array and global payment
@@ -394,6 +425,7 @@ class DesignTaskController extends Controller
                 'description' => $taskData['description'] ?? null,
                 'designer_instructions' => $taskData['designer_instructions'] ?? null,
                 'customer_id' => $customerId,
+                'customer_business_id' => $selectedBusinessId,
                 'receptionist_id' => $receptionistId,
                 'designer_id' => $taskData['designer_id'] ?? null,
                 'operator_id' => $taskData['operator_id'] ?? null,
@@ -440,6 +472,7 @@ class DesignTaskController extends Controller
                 \App\Models\Payment::create([
                     'design_task_id' => $task->id,
                     'customer_id' => $task->customer_id,
+                    'customer_business_id' => $task->customer_business_id,
                     'amount' => $task->amount_paid,
                     'payment_method' => $validated['payment_method'],
                     'date' => now(),
@@ -453,6 +486,16 @@ class DesignTaskController extends Controller
                     $analyticsService->recalculateCustomerAnalytics($task->customer_id);
                 } catch (\Exception $e) {
                     Log::error('Failed to update customer analytics on design task creation', ['error' => $e->getMessage()]);
+                }
+
+                // Auto-convert any pending leads for this customer
+                try {
+                    $taskCustomer = \App\Models\Customer::find($task->customer_id);
+                    if ($taskCustomer) {
+                        \App\Services\CustomerJourneyService::convertLeadsByCustomer($taskCustomer);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Failed to auto-convert leads on design task creation', ['error' => $e->getMessage()]);
                 }
             }
             
@@ -637,6 +680,30 @@ class DesignTaskController extends Controller
     }
 
     /**
+     * Get business profiles for a customer (AJAX endpoint).
+     */
+    public function getCustomerBusinesses($customerId)
+    {
+        $businesses = \App\Models\CustomerBusiness::where('customer_id', $customerId)
+            ->orderByDesc('is_primary')
+            ->orderBy('business_name')
+            ->get(['id', 'business_name', 'business_type', 'region_id', 'district_id', 'is_primary', 'address', 'phone', 'email'])
+            ->map(function ($business) {
+                return [
+                    'id' => $business->id,
+                    'name' => $business->business_name,
+                    'type' => $business->business_type,
+                    'is_primary' => (bool) $business->is_primary,
+                    'address' => $business->address,
+                    'phone' => $business->phone,
+                    'email' => $business->email,
+                ];
+            });
+
+        return response()->json(['businesses' => $businesses]);
+    }
+
+    /**
      * Show the form for editing the specified task.
      */
     public function edit(DesignTask $designTask): View
@@ -679,21 +746,24 @@ class DesignTaskController extends Controller
             'design_task_type_id' => 'nullable|exists:design_task_types,id',
             'delivery_cost' => 'nullable|numeric|min:0',
             'delivery_discount' => 'nullable|numeric|min:0',
+            'requires_receipt' => 'nullable|boolean',
             'deadline' => 'nullable|date',
             'edit_reason' => 'required|string|min:5|max:1000',
         ]);
 
         $oldValues = $designTask->getOriginal();
-        
+
         // Calculate new balance if price/qty/rate changed
         $qty = floatval($validated['qty']);
         $rate = floatval($validated['rate']);
         $deliveryCost = floatval($validated['delivery_cost'] ?? 0);
         $deliveryDiscount = floatval($validated['delivery_discount'] ?? 0);
+        $requiresReceipt = $request->boolean('requires_receipt');
         $basePrice = $qty * $rate;
-        $taskPriceWithVat = $designTask->requires_receipt ? ($basePrice * 1.18) + $deliveryCost - $deliveryDiscount : $basePrice + $deliveryCost - $deliveryDiscount;
+        $taskPriceWithVat = $requiresReceipt ? ($basePrice * 1.18) + $deliveryCost - $deliveryDiscount : $basePrice + $deliveryCost - $deliveryDiscount;
         
         $designTask->fill($validated);
+        $designTask->requires_receipt = $requiresReceipt;
         $designTask->price = $basePrice;
         $designTask->balance = $taskPriceWithVat - $designTask->amount_paid;
         
@@ -956,7 +1026,8 @@ class DesignTaskController extends Controller
         ]);
 
         // Notify customer about delivery status update (e.g. delivered)
-        if ($validated['delivery_status'] === 'delivered') {
+        // Hold off until ALL of this customer's tasks are done (e.g. bags + banner + signage)
+        if ($validated['delivery_status'] === 'delivered' && !$designTask->hasPendingSiblingTasks()) {
             try {
                 $designTask->load('customer');
                 $smsService = app(SmsApiService::class);
@@ -1056,6 +1127,117 @@ class DesignTaskController extends Controller
     }
 
     /**
+     * Move a design task to Trash Bin (soft delete).
+     */
+    public function destroy(DesignTask $designTask): RedirectResponse
+    {
+        if (!in_array(Auth::user()->role, ['admin', 'super_admin', 'manager', 'receptionist', 'accountant'])) {
+            abort(403, 'Unauthorized to delete tasks.');
+        }
+
+        $title = $designTask->title;
+
+        // Delete all payments linked to this task so they don't appear in collections
+        Payment::where('design_task_id', $designTask->id)->delete();
+
+        // Zero out billing figures so stale balances don't linger if the task is restored
+        // or picked up by a raw-SQL finance query that isn't scoped to non-trashed tasks
+        $designTask->update([
+            'amount_paid' => 0,
+            'balance' => $designTask->price,
+        ]);
+
+        $designTask->delete();
+
+        AuditLogService::log('deleted', 'Task moved to Trash Bin: ' . $title . ' (payments removed)', null);
+
+        return redirect()->back()->with('success', "Task \"{$title}\" moved to Trash Bin successfully.");
+    }
+
+    /**
+     * Display Design Tasks Trash Bin page.
+     */
+    public function trash(Request $request)
+    {
+        $query = DesignTask::onlyTrashed()
+            ->with(['customer:id,name,company_name', 'department:id,name', 'receptionist:id,name', 'designer:id,name', 'operator:id,name']);
+
+        if ($request->filled('search')) {
+            $search = $request->get('search');
+            $query->where(function($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('task_code', 'like', "%{$search}%");
+            });
+        }
+
+        $tasks = $query->latest('deleted_at')->paginate(25)->withQueryString();
+
+        return view('admin.design-tasks.trash', compact('tasks'));
+    }
+
+    /**
+     * Recycle / Restore a soft-deleted task back to active status.
+     */
+    public function restore($id): RedirectResponse
+    {
+        $task = DesignTask::onlyTrashed()->findOrFail($id);
+        $title = $task->title;
+
+        $task->restore();
+
+        AuditLogService::log('restored', 'Task recycled/restored from trash: ' . $title, $task);
+
+        return redirect()->back()->with('success', "Task \"{$title}\" has been recycled and restored successfully.");
+    }
+
+    /**
+     * Permanently delete a task from database (admin/super_admin).
+     */
+    public function forceDelete($id): RedirectResponse
+    {
+        if (!in_array(Auth::user()->role, ['admin', 'super_admin'])) {
+            abort(403, 'Only admins can permanently delete tasks.');
+        }
+
+        $task = DesignTask::onlyTrashed()->findOrFail($id);
+        $title = $task->title;
+
+        if ($task->file_path && Storage::disk('public')->exists($task->file_path)) {
+            Storage::disk('public')->delete($task->file_path);
+        }
+
+        $task->forceDelete();
+
+        AuditLogService::log('force_deleted', 'Task permanently deleted: ' . $title, null);
+
+        return redirect()->back()->with('success', "Task \"{$title}\" has been permanently deleted from system database.");
+    }
+
+    /**
+     * Empty entire Trash Bin permanently.
+     */
+    public function emptyTrash(): RedirectResponse
+    {
+        if (!in_array(Auth::user()->role, ['admin', 'super_admin'])) {
+            abort(403, 'Only admins can empty trash.');
+        }
+
+        $trashedTasks = DesignTask::onlyTrashed()->get();
+        $count = $trashedTasks->count();
+
+        foreach ($trashedTasks as $task) {
+            if ($task->file_path && Storage::disk('public')->exists($task->file_path)) {
+                Storage::disk('public')->delete($task->file_path);
+            }
+            $task->forceDelete();
+        }
+
+        AuditLogService::log('empty_trash', "Emptied trash bin ({$count} tasks permanently deleted)", null);
+
+        return redirect()->back()->with('success', "Trash Bin emptied successfully ({$count} tasks permanently deleted).");
+    }
+
+    /**
      * Update task status.
      */
     public function updateStatus(Request $request, DesignTask $designTask): RedirectResponse
@@ -1083,12 +1265,16 @@ class DesignTaskController extends Controller
         // If status is moving to super_completed, mark as ready for pickup and generate code if not already set
         // If status is moving to super_completed, auto-assign to delivery pool or mark as ready for pickup
         if ($validated['status'] === DesignTask::STATUS_SUPER_COMPLETED) {
+            // Dedicated timestamp for exactly when this task became super_completed —
+            // completed_at above may already be frozen from an earlier 'printed' transition.
+            $designTask->super_completed_at = $designTask->super_completed_at ?: now();
+
             if ($designTask->delivery_method === 'delivery') {
                 $designTask->delivery_status = 'assigned'; // Auto-move to Boda
             } else {
                 $designTask->delivery_status = 'ready_for_pickup';
             }
-            
+
             if (!$designTask->pickup_code) {
                 $designTask->pickup_code = str_pad(rand(1111, 9999), 4, '0', STR_PAD_LEFT);
                 \Log::info("Generated pickup code {$designTask->pickup_code} for task {$designTask->id}");
@@ -1190,8 +1376,10 @@ class DesignTaskController extends Controller
                     if ($statusKey === 'in_progress') {
                         $smsService->sendTaskNotification($designTask->customer, $designTask, 'in_progress');
                     } elseif ($statusKey === 'super_completed') {
-                        // Only send completion SMS on SUPER COMPLETED
-                        $smsService->sendTaskCompletion($designTask);
+                        // Only send completion SMS when ALL tasks for this customer are super_completed
+                        if (!$designTask->hasPendingSiblingTasks()) {
+                            $smsService->sendTaskCompletion($designTask);
+                        }
                     } elseif (in_array($statusKey, ['pending', 'rejected'])) {
                         $smsService->sendTaskNotification($designTask->customer, $designTask, 'status_changed');
                     }
@@ -1266,7 +1454,7 @@ class DesignTaskController extends Controller
     public function paid()
     {
         $user = Auth::user();
-        $query = DesignTask::with(['customer', 'receptionist', 'designer', 'saler'])
+        $query = DesignTask::activeFinance()->with(['customer', 'receptionist', 'designer', 'saler'])
             ->where('balance', '<=', 0)
             ->where('price', '>', 0);
 
@@ -1338,7 +1526,7 @@ class DesignTaskController extends Controller
         $tasks = $query->latest()->orderBy('id', 'desc')->paginate(20)->withQueryString();
         
         // Calculate stats (respecting all filters except status)
-        $statsBaseQuery = DesignTask::where('balance', '<=', 0)->where('price', '>', 0);
+        $statsBaseQuery = DesignTask::activeFinance()->where('balance', '<=', 0)->where('price', '>', 0);
         
         if ($user->role === 'designer') {
             $statsBaseQuery->where('designer_id', $user->id);
@@ -1391,6 +1579,12 @@ class DesignTaskController extends Controller
             'rejected' => (clone $statsBaseQuery)->where('status', DesignTask::STATUS_REJECTED)->count(),
         ];
         
+        $taskStats['departments'] = (clone $statsBaseQuery)
+            ->select('department_id', \DB::raw('count(*) as total'))
+            ->groupBy('department_id')
+            ->pluck('total', 'department_id')
+            ->toArray();
+        
         if (in_array($user->role, ['admin', 'super_admin'])) {
             $taskStats['revenue'] = (clone $statsBaseQuery)->sum('amount_paid');
         }
@@ -1413,7 +1607,7 @@ class DesignTaskController extends Controller
     public function pending()
     {
         $user = Auth::user();
-        $query = DesignTask::with(['customer', 'receptionist', 'designer', 'saler'])
+        $query = DesignTask::activeFinance()->with(['customer', 'receptionist', 'designer', 'saler'])
             ->where('balance', '>', 0);
 
         // Filter based on role
@@ -1484,7 +1678,7 @@ class DesignTaskController extends Controller
         $tasks = $query->latest()->orderBy('id', 'desc')->paginate(20)->withQueryString();
         
         // Calculate stats
-        $statsBaseQuery = DesignTask::where('balance', '>', 0);
+        $statsBaseQuery = DesignTask::activeFinance()->where('balance', '>', 0);
         
         if ($user->role === 'designer') {
             $statsBaseQuery->where('designer_id', $user->id);
@@ -1536,6 +1730,12 @@ class DesignTaskController extends Controller
             'delivered' => (clone $statsBaseQuery)->where('delivery_status', 'delivered')->count(),
             'rejected' => (clone $statsBaseQuery)->where('status', DesignTask::STATUS_REJECTED)->count(),
         ];
+        
+        $taskStats['departments'] = (clone $statsBaseQuery)
+            ->select('department_id', \DB::raw('count(*) as total'))
+            ->groupBy('department_id')
+            ->pluck('total', 'department_id')
+            ->toArray();
         
         if (in_array($user->role, ['admin', 'super_admin'])) {
             $taskStats['revenue'] = (clone $statsBaseQuery)->sum('amount_paid');
@@ -1756,6 +1956,7 @@ class DesignTaskController extends Controller
             'status_label' => $task->status_label,
             'delivery_cost' => $task->delivery_cost ?? 0,
             'delivery_discount' => $task->delivery_discount ?? 0,
+            'requires_receipt' => (bool) $task->requires_receipt,
         ]);
     }
 
@@ -1929,6 +2130,7 @@ class DesignTaskController extends Controller
         $request->validate([
             'amount' => 'required|numeric|min:0.01',
             'payment_method' => 'required|string',
+            'payment_date' => 'nullable|date',
             // Some screens use `notes`, others use `note`
             'note' => 'nullable|string',
             'notes' => 'nullable|string',
@@ -1939,6 +2141,7 @@ class DesignTaskController extends Controller
 
         $newAmount = $request->amount;
         $note = $request->input('notes') ?? $request->input('note');
+        $paymentDate = $request->filled('payment_date') ? $request->input('payment_date') : now();
 
         $additionalCost = floatval($request->input('additional_cost') ?? 0);
         $additionalReason = trim((string) ($request->input('additional_cost_reason') ?? ''));
@@ -1973,9 +2176,10 @@ class DesignTaskController extends Controller
         \App\Models\Payment::create([
             'design_task_id' => $designTask->id,
             'customer_id' => $designTask->customer_id,
+            'customer_business_id' => $designTask->customer_business_id,
             'amount' => $newAmount,
             'payment_method' => $request->payment_method,
-            'date' => now(),
+            'date' => $paymentDate,
             'seller_id' => auth()->id(),
             'department_id' => $designTask->department_id,
             'notes' => $note,
@@ -1990,6 +2194,18 @@ class DesignTaskController extends Controller
             }
         } catch (\Exception $e) {
             \Log::error('Failed to update customer analytics on design task payment', ['error' => $e->getMessage()]);
+        }
+
+        // Auto-convert any pending leads for this customer on first payment
+        try {
+            if ($designTask->customer_id) {
+                $customer = \App\Models\Customer::find($designTask->customer_id);
+                if ($customer) {
+                    \App\Services\CustomerJourneyService::convertLeadsByCustomer($customer);
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to auto-convert leads on design task payment', ['error' => $e->getMessage()]);
         }
 
         // Create task update for payment
@@ -2076,6 +2292,15 @@ class DesignTaskController extends Controller
                 ], 400);
             }
 
+            // Don't notify the customer until ALL of their tasks are super_completed —
+            // e.g. bags + banner + signage for one customer must all finish first.
+            if ($designTask->hasPendingSiblingTasks()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This customer still has other tasks in progress. The delivery/completion SMS is only sent once all of the customer\'s tasks are super completed.'
+                ], 400);
+            }
+
             // Check if customer has phone number
             if (!$designTask->customer || !$designTask->customer->phone) {
                 return response()->json([
@@ -2125,6 +2350,54 @@ class DesignTaskController extends Controller
                 'message' => 'An error occurred while sending the notification.'
             ], 500);
         }
+    }
+
+    /**
+     * Check for potential duplicate design task registrations.
+     */
+    public function checkDuplicate(Request $request): JsonResponse
+    {
+        $customerId = $request->get('customer_id');
+        $taskTypeId = $request->get('design_task_type_id');
+        $title = $request->get('title');
+        $assignedUser = $request->get('designer_id') ?: $request->get('operator_id');
+        $date = $request->get('date', now()->toDateString());
+
+        if (!$customerId) {
+            return response()->json(['duplicate' => false]);
+        }
+
+        $query = DesignTask::where('customer_id', $customerId)
+            ->whereDate('created_at', $date);
+
+        if ($taskTypeId) {
+            $query->where('design_task_type_id', $taskTypeId);
+        } elseif ($title) {
+            $query->where('title', 'like', "%{$title}%");
+        }
+
+        if ($assignedUser) {
+            $query->where(function($q) use ($assignedUser) {
+                $q->where('designer_id', $assignedUser)
+                  ->orWhere('operator_id', $assignedUser);
+            });
+        }
+
+        $existingTask = $query->first();
+
+        if ($existingTask) {
+            return response()->json([
+                'duplicate' => true,
+                'existing_task' => [
+                    'id' => $existingTask->id,
+                    'title' => $existingTask->title,
+                    'created_at' => $existingTask->created_at->format('d M Y, H:i'),
+                ],
+                'message' => 'A similar task for this customer and task type is already registered today.'
+            ]);
+        }
+
+        return response()->json(['duplicate' => false]);
     }
 }
 

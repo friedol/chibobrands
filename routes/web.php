@@ -43,6 +43,13 @@ Route::get('/login', [App\Http\Controllers\AuthController::class, 'showLoginForm
 Route::post('/login', [App\Http\Controllers\AuthController::class, 'login']);
 Route::post('/logout', [App\Http\Controllers\AuthController::class, 'logout'])->name('logout');
 
+// Region-District AJAX lookup
+Route::get('/regions/{regionId}/districts', [CustomerController::class, 'getDistrictsForRegion'])->name('regions.districts');
+
+// 2Factor Authentication Routes
+Route::get('/2fa', [App\Http\Controllers\AuthController::class, 'show2faForm'])->name('2fa.form');
+Route::post('/2fa', [App\Http\Controllers\AuthController::class, 'verify2fa'])->name('2fa.verify');
+
 // Password Reset Routes
 Route::get('/forgot-password', function () {
     return view('auth.forgot-password');
@@ -310,6 +317,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Settings
         Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
         Route::put('/settings', [AdminController::class, 'updateSettings'])->name('settings.update');
+        Route::post('/settings/toggle-2fa', [AdminController::class, 'toggle2fa'])->name('settings.toggle2fa');
         
         // Settings Routes (super_admin only)
         Route::middleware('admin.role:super_admin')->prefix('settings')->name('settings.')->group(function () {
@@ -317,10 +325,37 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('/sms', [App\Http\Controllers\Admin\SettingsController::class, 'updateSmsSettings'])->name('sms.update');
             Route::post('/sms/test', [App\Http\Controllers\Admin\SettingsController::class, 'testSms'])->name('sms.test');
             Route::get('/sms/diagnose', [App\Http\Controllers\Admin\SettingsController::class, 'diagnoseSms'])->name('sms.diagnose');
+            Route::get('/customer-sources', [\App\Http\Controllers\Admin\CustomerSourceController::class, 'index'])->name('customer-sources.index');
+            Route::post('/customer-sources', [\App\Http\Controllers\Admin\CustomerSourceController::class, 'store'])->name('customer-sources.store');
+            Route::post('/customer-sources/{source}/toggle', [\App\Http\Controllers\Admin\CustomerSourceController::class, 'toggle'])->name('customer-sources.toggle');
+            Route::delete('/customer-sources/{source}', [\App\Http\Controllers\Admin\CustomerSourceController::class, 'destroy'])->name('customer-sources.destroy');
+        });
+
+        // JSON helpers for lead source sub-dropdowns
+        Route::get('/api/campaigns-list', function () {
+            return response()->json(\App\Models\Campaign::select('id', 'title')->orderBy('title')->get());
+        })->name('api.campaigns-list');
+        Route::get('/api/programs-list', function () {
+            return response()->json(\App\Models\SalesProgram::active()->select('id', 'name')->get());
+        })->name('api.programs-list');
+
+        // Advanced Bulk SMS Management Routes
+        Route::prefix('bulk-sms')->name('bulk-sms.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\BulkSmsController::class, 'index'])->name('index');
+            Route::get('/customers', [\App\Http\Controllers\Admin\BulkSmsController::class, 'getCustomers'])->name('customers');
+            Route::post('/preview', [\App\Http\Controllers\Admin\BulkSmsController::class, 'preview'])->name('preview');
+            Route::post('/send', [\App\Http\Controllers\Admin\BulkSmsController::class, 'send'])->name('send');
+            Route::get('/stats', [\App\Http\Controllers\Admin\BulkSmsController::class, 'getStats'])->name('stats');
+            Route::get('/auto-settings', [\App\Http\Controllers\Admin\BulkSmsController::class, 'getAutoSettings'])->name('auto-settings.get');
+            Route::post('/auto-settings', [\App\Http\Controllers\Admin\BulkSmsController::class, 'saveAutoSettings'])->name('auto-settings.save');
+            Route::get('/balance', [\App\Http\Controllers\Admin\BulkSmsController::class, 'getBalance'])->name('balance');
+            Route::post('/test-send', [\App\Http\Controllers\Admin\BulkSmsController::class, 'testSend'])->name('test-send');
         });
         
         // Admin Management
         Route::get('/admins', [AdminController::class, 'adminsIndex'])->name('admins.index');
+        Route::get('/admins/create', [AdminController::class, 'createAdminPage'])->name('admins.create');
+        Route::get('/admins/{id}/edit', [AdminController::class, 'editAdminPage'])->name('admins.edit');
         Route::get('/admins/{id}', [AdminController::class, 'showAdmin'])->name('admins.show');
         Route::post('/admins', [AdminController::class, 'storeAdmin'])->name('admins.store');
         Route::put('/admins/{id}', [AdminController::class, 'updateAdmin'])->name('admins.update');
@@ -351,14 +386,24 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('/storage-setup/test', [App\Http\Controllers\StorageSetupController::class, 'testStorage'])->name('storage.test');
         Route::post('/storage-setup/run-artisan', [App\Http\Controllers\StorageSetupController::class, 'runArtisanCommand'])->name('storage.run-artisan');
         
+        // Sales Programs (Inside Programs admin)
+        Route::prefix('sales/programs')->name('sales.programs.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\SalesProgramController::class, 'index'])->name('index');
+            Route::post('/', [\App\Http\Controllers\Admin\SalesProgramController::class, 'store'])->name('store');
+            Route::put('/{program}', [\App\Http\Controllers\Admin\SalesProgramController::class, 'update'])->name('update');
+            Route::delete('/{program}', [\App\Http\Controllers\Admin\SalesProgramController::class, 'destroy'])->name('destroy');
+        });
+
         // Reports
         Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
         Route::get('/reports/daily', [AdminController::class, 'dailyReport'])->name('reports.daily');
         Route::get('/reports/monthly', [AdminController::class, 'monthlyReport'])->name('reports.monthly');
         Route::get('/reports/design-tasks', [AdminController::class, 'designTasksReport'])->name('reports.design-tasks');
         Route::get('/reports/design-tasks/export', [AdminController::class, 'exportDesignTasksReport'])->name('reports.design-tasks.export');
-        Route::get('/reports/operators', [AdminController::class, 'operatorsReport'])->name('reports.operators');
-        Route::get('/reports/operators/print', [AdminController::class, 'printOperatorsReport'])->name('reports.operators.print');
+        Route::get('/reports/operators', [App\Http\Controllers\Admin\OperatorPerformanceController::class, 'index'])->name('reports.operators');
+        Route::get('/reports/operators/export', [App\Http\Controllers\Admin\OperatorPerformanceController::class, 'exportCsv'])->name('reports.operators.export');
+        Route::get('/reports/operators/print', [App\Http\Controllers\Admin\OperatorPerformanceController::class, 'print'])->name('reports.operators.print');
+        Route::get('/reports/operators/pdf', [App\Http\Controllers\Admin\OperatorPerformanceController::class, 'exportPdf'])->name('reports.operators.pdf');
         Route::get('/reports/designer-analytics/{id}', [AdminController::class, 'designerAnalytics'])->name('reports.designer-analytics');
         
         // Security - Audit Logs
@@ -378,6 +423,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/orders/{order_code}/edit', [AdminController::class, 'editOrder'])->name('orders.edit');
         Route::put('/orders/{order_code}', [AdminController::class, 'updateOrder'])->name('orders.update');
         Route::delete('/orders/{order_code}', [AdminController::class, 'destroyOrder'])->name('orders.destroy');
+        Route::delete('/orders', [AdminController::class, 'destroyAllOrders'])->name('orders.destroy-all');
         
         // Notifications Management
         Route::get('/notifications', [AdminController::class, 'notifications'])->name('notifications.index');
@@ -413,10 +459,21 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('design-tasks/invoice-data/{id}', [DesignTaskController::class, 'getInvoiceData'])->name('design-tasks.invoice-data');
         Route::get('design-tasks/task-data/{id}', [DesignTaskController::class, 'getTaskData'])->name('design-tasks.task-data');
         Route::get('design-tasks/reports', [\App\Http\Controllers\Admin\DesignTaskReportController::class, 'index'])->name('design-tasks.reports');
+        Route::get('design-tasks/reports/print', [\App\Http\Controllers\Admin\DesignTaskReportController::class, 'print'])->name('design-tasks.reports.print');
+        Route::get('design-tasks/reports/pdf', [\App\Http\Controllers\Admin\DesignTaskReportController::class, 'pdf'])->name('design-tasks.reports.pdf');
+        Route::get('design-tasks/reports/excel', [\App\Http\Controllers\Admin\DesignTaskReportController::class, 'excel'])->name('design-tasks.reports.excel');
         Route::get('design-tasks/paid', [DesignTaskController::class, 'paid'])->name('design-tasks.paid');
         Route::get('design-tasks/pending', [DesignTaskController::class, 'pending'])->name('design-tasks.pending');
         Route::get('design-tasks/invoices', [DesignTaskController::class, 'invoices'])->name('design-tasks.invoices');
         Route::get('design-tasks/customer-tasks/{customerId}', [DesignTaskController::class, 'getCustomerTasks'])->name('design-tasks.customer-tasks');
+        Route::get('design-tasks/customer-businesses/{customerId}', [DesignTaskController::class, 'getCustomerBusinesses'])->name('design-tasks.customer-businesses');
+        Route::post('design-tasks/check-duplicate', [DesignTaskController::class, 'checkDuplicate'])->name('design-tasks.check-duplicate');
+
+        // Design Tasks Trash & Recycling Routes
+        Route::get('design-tasks/trash', [DesignTaskController::class, 'trash'])->name('design-tasks.trash');
+        Route::post('design-tasks/{id}/restore', [DesignTaskController::class, 'restore'])->name('design-tasks.restore');
+        Route::delete('design-tasks/{id}/force-delete', [DesignTaskController::class, 'forceDelete'])->name('design-tasks.force-delete');
+        Route::delete('design-tasks/empty-trash', [DesignTaskController::class, 'emptyTrash'])->name('design-tasks.empty-trash');
 
         // Design Task Types
         Route::resource('design-task-types', \App\Http\Controllers\Admin\DesignTaskTypeController::class);
@@ -546,6 +603,7 @@ Route::post('/admin/test-form-submission', function(\Illuminate\Http\Request $re
             Route::get('/', [SalerPerformanceController::class, 'index'])->name('index');
             Route::get('/export', [SalerPerformanceController::class, 'export'])->name('export');
             Route::get('/chart-data', [SalerPerformanceController::class, 'getChartData'])->name('chart-data');
+            Route::get('/print', [SalerPerformanceController::class, 'print'])->name('print');
             Route::get('/{id}', [SalerPerformanceController::class, 'show'])->name('show');
         });
 
@@ -564,6 +622,10 @@ Route::post('/admin/test-form-submission', function(\Illuminate\Http\Request $re
         // Saler Dashboard (for salespeople only)
         Route::middleware(['admin.role:saler'])->group(function () {
             Route::get('/my-dashboard', [App\Http\Controllers\SalerDashboardController::class, 'myDashboard'])->name('saler.my-dashboard');
+            Route::get('/saler-sales-report', [App\Http\Controllers\SalerSalesReportController::class, 'index'])->name('saler.sales-report');
+            Route::get('/saler-sales-report/print', [App\Http\Controllers\SalerSalesReportController::class, 'print'])->name('saler.sales-report.print');
+            Route::get('/saler-sales-report/pdf', [App\Http\Controllers\SalerSalesReportController::class, 'pdf'])->name('saler.sales-report.pdf');
+            Route::get('/saler-sales-report/excel', [App\Http\Controllers\SalerSalesReportController::class, 'excel'])->name('saler.sales-report.excel');
         });
 
         // Delivery Management Routes (for delivery users)
@@ -590,8 +652,9 @@ Route::post('/admin/test-form-submission', function(\Illuminate\Http\Request $re
         Route::prefix('leads')->name('leads.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\LeadController::class, 'index'])->name('index');
             Route::get('/overdue', [\App\Http\Controllers\Admin\LeadController::class, 'overdue'])->name('overdue');
-            Route::get('/follow-up-center', [\App\Http\Controllers\Admin\LeadController::class, 'followUpCenter'])->name('follow-up-center');
             Route::get('/print', [\App\Http\Controllers\Admin\LeadController::class, 'print'])->name('print');
+            Route::get('/pdf', [\App\Http\Controllers\Admin\LeadController::class, 'exportPdf'])->name('pdf');
+            Route::get('/excel', [\App\Http\Controllers\Admin\LeadController::class, 'exportExcel'])->name('excel');
             Route::post('/', [\App\Http\Controllers\Admin\LeadController::class, 'store'])->name('store');
             Route::put('/{lead}', [\App\Http\Controllers\Admin\LeadController::class, 'update'])->name('update');
             Route::patch('/{lead}/quick-edit', [\App\Http\Controllers\Admin\LeadController::class, 'quickEdit'])->name('quick-edit');
@@ -605,6 +668,14 @@ Route::post('/admin/test-form-submission', function(\Illuminate\Http\Request $re
             Route::get('/sales/pdf', [\App\Http\Controllers\Admin\SalesReportController::class, 'exportPdf'])->name('sales.pdf');
             Route::get('/sales/print', [\App\Http\Controllers\Admin\SalesReportController::class, 'print'])->name('sales.print');
             Route::get('/sales/excel', [\App\Http\Controllers\Admin\SalesReportController::class, 'exportExcel'])->name('sales.excel');
+            Route::get('/department-sales', [\App\Http\Controllers\Admin\DepartmentSalesReportController::class, 'index'])->name('department_sales');
+            Route::get('/department-sales/print', [\App\Http\Controllers\Admin\DepartmentSalesReportController::class, 'print'])->name('department_sales.print');
+            Route::get('/department-sales/pdf', [\App\Http\Controllers\Admin\DepartmentSalesReportController::class, 'pdf'])->name('department_sales.pdf');
+            Route::get('/department-sales/excel', [\App\Http\Controllers\Admin\DepartmentSalesReportController::class, 'excel'])->name('department_sales.excel');
+            Route::get('/customers', [\App\Http\Controllers\Admin\CustomerReportController::class, 'index'])->name('customers');
+            Route::get('/customers/print', [\App\Http\Controllers\Admin\CustomerReportController::class, 'print'])->name('customers.print');
+            Route::get('/customers/pdf', [\App\Http\Controllers\Admin\CustomerReportController::class, 'pdf'])->name('customers.pdf');
+            Route::get('/customers/excel', [\App\Http\Controllers\Admin\CustomerReportController::class, 'excel'])->name('customers.excel');
         });
 
         // HR Module
@@ -618,14 +689,21 @@ Route::post('/admin/test-form-submission', function(\Illuminate\Http\Request $re
             Route::post('/attendance/bulk', [\App\Http\Controllers\Admin\HRController::class, 'bulkAttendance'])->name('attendance.bulk');
             Route::post('/attendance/single', [\App\Http\Controllers\Admin\HRController::class, 'storeAttendance'])->name('attendance.store');
             Route::get('/attendance/report', [\App\Http\Controllers\Admin\HRController::class, 'attendanceReport'])->name('attendance.report');
+            Route::get('/attendance/report/print', [\App\Http\Controllers\Admin\HRController::class, 'attendanceReportPrint'])->name('attendance.report.print');
+            Route::get('/attendance/report/pdf', [\App\Http\Controllers\Admin\HRController::class, 'attendanceReportPdf'])->name('attendance.report.pdf');
+            Route::get('/attendance/report/excel', [\App\Http\Controllers\Admin\HRController::class, 'attendanceReportExcel'])->name('attendance.report.excel');
 
             Route::get('/leaves', [\App\Http\Controllers\Admin\HRController::class, 'leaves'])->name('leaves');
             Route::post('/leaves', [\App\Http\Controllers\Admin\HRController::class, 'storeLeave'])->name('leaves.store');
+            Route::put('/leaves/{leave}', [\App\Http\Controllers\Admin\HRController::class, 'updateLeave'])->name('leaves.update');
             Route::put('/leaves/{leave}/approve', [\App\Http\Controllers\Admin\HRController::class, 'approveLeave'])->name('leaves.approve');
             Route::put('/leaves/{leave}/reject', [\App\Http\Controllers\Admin\HRController::class, 'rejectLeave'])->name('leaves.reject');
 
             Route::get('/kpis', [\App\Http\Controllers\Admin\HRController::class, 'kpis'])->name('kpis');
             Route::post('/kpis', [\App\Http\Controllers\Admin\HRController::class, 'storeKpi'])->name('kpis.store');
+
+            Route::get('/create', [\App\Http\Controllers\Admin\HRController::class, 'create'])->name('create');
+            Route::get('/{employee}/edit', [\App\Http\Controllers\Admin\HRController::class, 'edit'])->name('edit');
 
             // Wildcard employee routes LAST
             Route::get('/{employee}', [\App\Http\Controllers\Admin\HRController::class, 'show'])->name('show');
@@ -638,26 +716,44 @@ Route::post('/admin/test-form-submission', function(\Illuminate\Http\Request $re
         // Finance Management
         Route::prefix('finance')->name('finance.')->group(function () {
             Route::get('/dashboard', [\App\Http\Controllers\Admin\FinanceController::class, 'dashboard'])->name('dashboard');
+            Route::get('/payroll', [\App\Http\Controllers\Admin\FinanceController::class, 'payroll'])->name('payroll');
+            Route::get('/payroll/print', [\App\Http\Controllers\Admin\FinanceController::class, 'payrollPrint'])->name('payroll.print');
+            Route::get('/payroll/pdf', [\App\Http\Controllers\Admin\FinanceController::class, 'payrollPdf'])->name('payroll.pdf');
+            Route::get('/payroll/excel', [\App\Http\Controllers\Admin\FinanceController::class, 'payrollExcel'])->name('payroll.excel');
+            Route::get('/payslip/pdf/{id}', [\App\Http\Controllers\Admin\FinanceController::class, 'payslipPdf'])->name('payslip.pdf');
             Route::get('/reports', [\App\Http\Controllers\Admin\FinanceController::class, 'reports'])->name('reports');
             Route::get('/profit-loss', [\App\Http\Controllers\Admin\FinanceController::class, 'profitLoss'])->name('profit-loss');
+            Route::get('/profit-loss/print', [\App\Http\Controllers\Admin\FinanceController::class, 'profitLossPrint'])->name('profit-loss.print');
             Route::get('/profit-loss/pdf', [\App\Http\Controllers\Admin\FinanceController::class, 'profitLossPdf'])->name('profit-loss.pdf');
+            Route::get('/profit-loss/excel', [\App\Http\Controllers\Admin\FinanceController::class, 'profitLossExcel'])->name('profit-loss.excel');
             Route::get('/daily-report', [\App\Http\Controllers\Admin\FinanceController::class, 'dailyReport'])->name('daily-report');
             Route::get('/daily-report/pdf', [\App\Http\Controllers\Admin\FinanceController::class, 'dailyReportPdf'])->name('daily-report.pdf');
             Route::get('/balance-sheet', [\App\Http\Controllers\Admin\FinanceController::class, 'balanceSheet'])->name('balance-sheet');
+            Route::get('/balance-sheet/print', [\App\Http\Controllers\Admin\FinanceController::class, 'balanceSheetPrint'])->name('balance-sheet.print');
             Route::get('/balance-sheet/pdf', [\App\Http\Controllers\Admin\FinanceController::class, 'balanceSheetPdf'])->name('balance-sheet.pdf');
+            Route::get('/balance-sheet/excel', [\App\Http\Controllers\Admin\FinanceController::class, 'balanceSheetExcel'])->name('balance-sheet.excel');
             Route::get('/expenses', [\App\Http\Controllers\Admin\FinanceController::class, 'expenses'])->name('expenses');
             Route::get('/expenses/print', [\App\Http\Controllers\Admin\FinanceController::class, 'printExpenses'])->name('expenses.print');
+            Route::get('/expenses/pdf', [\App\Http\Controllers\Admin\FinanceController::class, 'expensesPdf'])->name('expenses.pdf');
+            Route::get('/expenses/excel', [\App\Http\Controllers\Admin\FinanceController::class, 'expensesExcel'])->name('expenses.excel');
             Route::post('/expenses', [\App\Http\Controllers\Admin\FinanceController::class, 'storeExpense'])->name('expenses.store');
             Route::put('/expenses/{id}', [\App\Http\Controllers\Admin\FinanceController::class, 'updateExpense'])->name('expenses.update');
             Route::delete('/expenses/{id}', [\App\Http\Controllers\Admin\FinanceController::class, 'destroyExpense'])->name('expenses.destroy');
+            Route::delete('/payments/{id}', [\App\Http\Controllers\Admin\FinanceController::class, 'destroyPayment'])->name('payments.destroy');
             Route::get('/expenses/voucher/{id}', [\App\Http\Controllers\Admin\FinanceController::class, 'voucher'])->name('expenses.voucher');
             Route::get('/cash-flow', [\App\Http\Controllers\Admin\FinanceController::class, 'cashFlow'])->name('cash-flow');
             Route::get('/cash-flow/print', [\App\Http\Controllers\Admin\FinanceController::class, 'printCashFlow'])->name('cash-flow.print');
+            Route::get('/cash-flow/pdf', [\App\Http\Controllers\Admin\FinanceController::class, 'cashFlowPdf'])->name('cash-flow.pdf');
+            Route::get('/cash-flow/excel', [\App\Http\Controllers\Admin\FinanceController::class, 'cashFlowExcel'])->name('cash-flow.excel');
             Route::get('/audit', [\App\Http\Controllers\Admin\AuditController::class, 'index'])->name('audit');
             Route::get('/audit/print', [\App\Http\Controllers\Admin\AuditController::class, 'print'])->name('audit.print');
-            
+            Route::get('/audit/pdf', [\App\Http\Controllers\Admin\AuditController::class, 'pdf'])->name('audit.pdf');
+            Route::get('/audit/excel', [\App\Http\Controllers\Admin\AuditController::class, 'excel'])->name('audit.excel');
+
             Route::get('/pending-payments', [\App\Http\Controllers\Admin\FinanceController::class, 'pendingPayments'])->name('pending-payments');
             Route::get('/pending-payments/print', [\App\Http\Controllers\Admin\FinanceController::class, 'printPendingPayments'])->name('pending-payments.print');
+            Route::get('/pending-payments/pdf', [\App\Http\Controllers\Admin\FinanceController::class, 'pendingPaymentsPdf'])->name('pending-payments.pdf');
+            Route::get('/pending-payments/excel', [\App\Http\Controllers\Admin\FinanceController::class, 'pendingPaymentsExcel'])->name('pending-payments.excel');
             
             // Invoices & Receipts
             Route::get('/invoices/proforma/{order_code}', [\App\Http\Controllers\Admin\InvoiceController::class, 'proforma'])->name('invoices.proforma');
@@ -669,6 +765,10 @@ Route::post('/admin/test-form-submission', function(\Illuminate\Http\Request $re
             Route::get('/proforma/create', [\App\Http\Controllers\Admin\InvoiceController::class, 'createProforma'])->name('proforma.create');
             Route::post('/proforma/generate', [\App\Http\Controllers\Admin\InvoiceController::class, 'generateProforma'])->name('proforma.generate');
             Route::get('/proforma/customers/search', [\App\Http\Controllers\Admin\InvoiceController::class, 'searchCustomers'])->name('proforma.customers.search');
+            Route::get('/proforma/{id}/details', [\App\Http\Controllers\Admin\FinanceController::class, 'getProformaDetails'])->name('proforma.details');
+            Route::get('/proforma/{id}/edit-data', [\App\Http\Controllers\Admin\FinanceController::class, 'getProformaEditData'])->name('proforma.edit-data');
+            Route::match(['POST', 'PUT'], '/proforma/{id}/update', [\App\Http\Controllers\Admin\FinanceController::class, 'updateProforma'])->name('proforma.update');
+            Route::post('/proforma/{id}/convert-to-tasks', [\App\Http\Controllers\Admin\FinanceController::class, 'convertProformaToTasks'])->name('proforma.convert-to-tasks');
             
             // Department Management
             Route::resource('departments', \App\Http\Controllers\Admin\DepartmentController::class)->names('departments');
@@ -676,16 +776,46 @@ Route::post('/admin/test-form-submission', function(\Illuminate\Http\Request $re
             // Payment Requests
             Route::get('/payment-requests', [\App\Http\Controllers\Admin\PaymentRequestController::class, 'index'])->name('payment-requests.index');
             Route::get('/payment-requests/print', [\App\Http\Controllers\Admin\PaymentRequestController::class, 'print'])->name('payment-requests.print');
+            Route::get('/payment-requests/pdf', [\App\Http\Controllers\Admin\PaymentRequestController::class, 'exportPdf'])->name('payment-requests.pdf');
+            Route::get('/payment-requests/excel', [\App\Http\Controllers\Admin\PaymentRequestController::class, 'exportExcel'])->name('payment-requests.excel');
             Route::post('/payment-requests', [\App\Http\Controllers\Admin\PaymentRequestController::class, 'store'])->name('payment-requests.store');
             Route::put('/payment-requests/{paymentRequest}/status', [\App\Http\Controllers\Admin\PaymentRequestController::class, 'updateStatus'])->name('payment-requests.status');
+
+            // Reconciliation
+            Route::get('/reconciliation',                [\App\Http\Controllers\Admin\FinanceReconciliationController::class, 'index'])->name('reconciliation.index');
+            Route::get('/reconciliation/create',         [\App\Http\Controllers\Admin\FinanceReconciliationController::class, 'create'])->name('reconciliation.create');
+            Route::post('/reconciliation',               [\App\Http\Controllers\Admin\FinanceReconciliationController::class, 'store'])->name('reconciliation.store');
+            Route::get('/reconciliation/{id}',           [\App\Http\Controllers\Admin\FinanceReconciliationController::class, 'show'])->name('reconciliation.show');
+            Route::post('/reconciliation/fix-mismatches',[\App\Http\Controllers\Admin\FinanceReconciliationController::class, 'fixMismatches'])->name('reconciliation.fix-mismatches');
+            Route::get('/reconciliation/customers/search',[\App\Http\Controllers\Admin\FinanceReconciliationController::class, 'searchCustomers'])->name('reconciliation.customers.search');
+            Route::get('/reconciliation/tasks/search',   [\App\Http\Controllers\Admin\FinanceReconciliationController::class, 'searchTasks'])->name('reconciliation.tasks.search');
+
+            // Verification Dashboard
+            Route::get('/verification-dashboard', [\App\Http\Controllers\Admin\FinanceController::class, 'verificationDashboard'])->name('verification-dashboard');
+
+            // Finance Audit Trail
+            Route::get('/finance-audit-trail',       [\App\Http\Controllers\Admin\FinanceAuditTrailController::class, 'index'])->name('finance-audit-trail.index');
+            Route::get('/finance-audit-trail/print', [\App\Http\Controllers\Admin\FinanceAuditTrailController::class, 'print'])->name('finance-audit-trail.print');
+            Route::get('/finance-audit-trail/pdf',   [\App\Http\Controllers\Admin\FinanceAuditTrailController::class, 'pdf'])->name('finance-audit-trail.pdf');
+            Route::get('/finance-audit-trail/excel', [\App\Http\Controllers\Admin\FinanceAuditTrailController::class, 'excel'])->name('finance-audit-trail.excel');
+
+            // Zoho Comparison
+            Route::get('/zoho-comparison',  [\App\Http\Controllers\Admin\FinanceController::class, 'zohoComparison'])->name('zoho-comparison');
+            Route::post('/zoho-comparison', [\App\Http\Controllers\Admin\FinanceController::class, 'zohoCompare'])->name('zoho-compare');
         });
+
 
         // Sales Department
         Route::prefix('sales-dept')->name('sales-dept.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\SalesDepartmentController::class, 'index'])->name('index');
             Route::get('/reports', [\App\Http\Controllers\Admin\SalesDepartmentController::class, 'reports'])->name('reports');
+            Route::get('/reports/print', [\App\Http\Controllers\Admin\SalesDepartmentController::class, 'reportsPrint'])->name('reports.print');
+            Route::get('/reports/pdf', [\App\Http\Controllers\Admin\SalesDepartmentController::class, 'reportsPdf'])->name('reports.pdf');
+            Route::get('/reports/excel', [\App\Http\Controllers\Admin\SalesDepartmentController::class, 'reportsExcel'])->name('reports.excel');
             Route::get('/targets', [\App\Http\Controllers\Admin\SalesDepartmentController::class, 'targets'])->name('targets');
             Route::get('/targets/print', [\App\Http\Controllers\Admin\SalesDepartmentController::class, 'printTargets'])->name('targets.print');
+            Route::get('/targets/pdf', [\App\Http\Controllers\Admin\SalesDepartmentController::class, 'targetsPdf'])->name('targets.pdf');
+            Route::get('/targets/excel', [\App\Http\Controllers\Admin\SalesDepartmentController::class, 'targetsExcel'])->name('targets.excel');
             Route::post('/targets', [\App\Http\Controllers\Admin\SalesDepartmentController::class, 'storeTarget'])->name('targets.store');
             Route::put('/targets/{target}', [\App\Http\Controllers\Admin\SalesDepartmentController::class, 'updateTarget'])->name('targets.update');
             Route::delete('/targets/{target}', [\App\Http\Controllers\Admin\SalesDepartmentController::class, 'destroyTarget'])->name('targets.destroy');
@@ -694,15 +824,29 @@ Route::post('/admin/test-form-submission', function(\Illuminate\Http\Request $re
         // Transaction Control & Audit
         Route::get('/audit', [\App\Http\Controllers\Admin\AuditController::class, 'index'])->name('audit.index');
 
+        // Auto Follow-up page for sellers
+        Route::prefix('auto-followup')->name('auto-followup.')->middleware(['admin.role:saler,admin,super_admin,manager'])->group(function () {
+            Route::get('/', [App\Http\Controllers\Admin\AutoFollowupController::class, 'index'])->name('index');
+        });
+
         // Customer management
         Route::prefix('customers')->name('customers.')->group(function () {
             Route::get('/', [CustomerController::class, 'adminIndex'])->name('index');
+            Route::get('/map', [CustomerController::class, 'adminMap'])->name('map');
+            Route::post('/map/regions', [CustomerController::class, 'storeMapRegion'])->name('map.regions.store');
+            Route::post('/map/districts', [CustomerController::class, 'storeMapDistrict'])->name('map.districts.store');
+            Route::get('/export/excel', [CustomerController::class, 'exportExcel'])->name('export.excel');
+            Route::get('/export/pdf', [CustomerController::class, 'exportPdf'])->name('export.pdf');
             Route::get('/create', [CustomerController::class, 'create'])->name('create');
+            Route::get('/duplicates', [CustomerController::class, 'duplicates'])->name('duplicates');
+            Route::post('/merge', [CustomerController::class, 'merge'])->name('merge');
             Route::post('/', [CustomerController::class, 'store'])->name('store');
             Route::get('/{customer}', [CustomerController::class, 'adminShow'])->name('show');
             Route::get('/{customer}/edit', [CustomerController::class, 'edit'])->name('edit');
             Route::put('/{customer}', [CustomerController::class, 'update'])->name('update');
             Route::delete('/{customer}', [CustomerController::class, 'destroy'])->name('destroy');
+            Route::get('/{customer}/transfer-ownership', [CustomerController::class, 'transferOwnershipPage'])->name('transfer-ownership.page');
+            Route::post('/{customer}/transfer-ownership', [CustomerController::class, 'transferOwnership'])->name('transfer-ownership');
             Route::post('/{customer}/verify', [CustomerController::class, 'verify'])->name('verify')->withoutMiddleware(['web', 'auth', 'admin']);
             Route::post('/{customer}/unverify', [CustomerController::class, 'unverify'])->name('unverify');
             Route::put('/{customer}/status', [CustomerController::class, 'updateStatus'])->name('status.update');
@@ -710,6 +854,10 @@ Route::post('/admin/test-form-submission', function(\Illuminate\Http\Request $re
             // Design Gallery
             Route::post('/{customer}/designs', [App\Http\Controllers\Admin\CustomerDesignController::class, 'store'])->name('designs.store');
             Route::delete('/designs/{design}', [App\Http\Controllers\Admin\CustomerDesignController::class, 'destroy'])->name('designs.destroy');
+
+            // Business Profiles
+            Route::post('/{customer}/businesses', [CustomerController::class, 'storeBusiness'])->name('businesses.store');
+            Route::delete('/businesses/{business}', [CustomerController::class, 'destroyBusiness'])->name('businesses.destroy');
         });
 
         // Customer Data Center
@@ -719,6 +867,23 @@ Route::post('/admin/test-form-submission', function(\Illuminate\Http\Request $re
             Route::post('/{customer}/follow-up', [App\Http\Controllers\Admin\CustomerDataCenterController::class, 'storeFollowUp'])->name('follow-up.store');
             Route::put('/{customer}/follow-up-date', [App\Http\Controllers\Admin\CustomerDataCenterController::class, 'updateFollowUpDate'])->name('follow-up-date.update');
             Route::post('/{customer}/refresh', [App\Http\Controllers\Admin\CustomerDataCenterController::class, 'refreshAnalytics'])->name('refresh');
+        });
+        // Marketing Module
+        Route::prefix('marketing')->name('marketing.')->middleware(['admin.role:super_admin,admin,marketing_manager,manager'])->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\Marketing\MarketingDashboardController::class, 'index'])->name('dashboard');
+            
+            Route::resource('product-penetration', \App\Http\Controllers\Admin\Marketing\ProductPenetrationController::class);
+            Route::resource('theme-events', \App\Http\Controllers\Admin\Marketing\ThemeEventController::class);
+            Route::resource('campaigns', \App\Http\Controllers\Admin\Marketing\CampaignController::class);
+            Route::resource('campaign-activities', \App\Http\Controllers\Admin\Marketing\CampaignActivityController::class);
+            Route::resource('calendar', \App\Http\Controllers\Admin\Marketing\MarketingCalendarController::class);
+            Route::resource('ads', \App\Http\Controllers\Admin\Marketing\AdsController::class);
+            Route::resource('ad-performance', \App\Http\Controllers\Admin\Marketing\AdsPerformanceController::class);
+            
+            Route::get('reports', [\App\Http\Controllers\Admin\Marketing\MarketingReportController::class, 'index'])->name('reports.index');
+            Route::get('reports/print', [\App\Http\Controllers\Admin\Marketing\MarketingReportController::class, 'print'])->name('reports.print');
+            Route::get('reports/pdf', [\App\Http\Controllers\Admin\Marketing\MarketingReportController::class, 'pdf'])->name('reports.pdf');
+            Route::get('reports/export', [\App\Http\Controllers\Admin\Marketing\MarketingReportController::class, 'export'])->name('reports.export');
         });
     });
 });
@@ -1083,11 +1248,15 @@ Route::prefix('gatekeeper')->name('gatekeeper.')->middleware(['auth', 'admin.rol
     Route::get('/dashboard', [App\Http\Controllers\Gatekeeper\DashboardController::class, 'index'])->name('dashboard');
     Route::get('/movements', [App\Http\Controllers\Gatekeeper\ProductMovementController::class, 'index'])->name('movements.index');
     Route::get('/movements/print-filtered', [App\Http\Controllers\Gatekeeper\ProductMovementController::class, 'printFiltered'])->name('movements.print-filtered');
+    Route::get('/movements/pdf', [App\Http\Controllers\Gatekeeper\ProductMovementController::class, 'exportPdf'])->name('movements.pdf');
+    Route::get('/movements/excel', [App\Http\Controllers\Gatekeeper\ProductMovementController::class, 'exportExcel'])->name('movements.excel');
     Route::get('/movements/create', [App\Http\Controllers\Gatekeeper\ProductMovementController::class, 'create'])->name('movements.create');
     Route::get('/customers/search', [App\Http\Controllers\Gatekeeper\ProductMovementController::class, 'searchCustomers'])->name('customers.search');
     Route::get('/tasks/search', [App\Http\Controllers\Gatekeeper\ProductMovementController::class, 'searchTasks'])->name('tasks.search');
     Route::post('/movements', [App\Http\Controllers\Gatekeeper\ProductMovementController::class, 'store'])->name('movements.store');
     Route::get('/movements/{movement}', [App\Http\Controllers\Gatekeeper\ProductMovementController::class, 'show'])->name('movements.show');
+    Route::get('/deliver', [App\Http\Controllers\Gatekeeper\ProductMovementController::class, 'deliverIndex'])->name('deliver');
+    Route::post('/tasks/{task}/mark-delivered', [App\Http\Controllers\Gatekeeper\ProductMovementController::class, 'markDelivered'])->name('tasks.mark-delivered');
 });
 
 

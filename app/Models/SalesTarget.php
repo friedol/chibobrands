@@ -17,12 +17,16 @@ class SalesTarget extends Model
         'period', // monthly, quarterly, annual
         'start_date',
         'end_date',
+        'recurrence_enabled',
+        'recurrence_period',
+        'recurrence_source_id',
     ];
 
     protected $casts = [
         'target_amount' => 'decimal:2',
         'start_date' => 'date',
         'end_date' => 'date',
+        'recurrence_enabled' => 'boolean',
     ];
 
     public function seller(): BelongsTo

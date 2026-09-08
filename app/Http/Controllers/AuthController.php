@@ -7,6 +7,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
+use App\Models\UserDevice;
+use App\Models\VerificationCode;
 use App\Services\AuditLogService;
 
 class AuthController extends Controller
@@ -47,9 +49,65 @@ class AuthController extends Controller
                 'role' => $user->role
             ]);
 
+            // Check for 2FA on new devices
+            $twoFaEnabled = $this->get2faSetting();
+            $deviceId = $request->cookie('device_id');
+            $knownDevice = UserDevice::where('user_id', $user->id)
+                ->where('device_identifier', $deviceId)
+                ->whereNotNull('verified_at')
+                ->exists();
+
+            if ($twoFaEnabled && !$knownDevice) {
+                // Logout immediately to prevent access
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                // Generate code
+                $code = rand(100000, 999999);
+                
+                VerificationCode::create([
+                    'user_id' => $user->id,
+                    'code' => $code,
+                    'expires_at' => now()->addMinutes(10),
+                ]);
+
+                // Send code (Email)
+                \Log::info("2FA Code for User {$user->id}: {$code}");
+                
+                try {
+                    \Illuminate\Support\Facades\Mail::raw("Your CHIBO BRANDS Verification Code is: {$code}. Don't share it with anyone.", function ($message) use ($user) {
+                        $message->to($user->email)->subject('Your CHIBO BRANDS Verification Code');
+                    });
+                } catch (\Exception $e) {
+                    \Log::error("Failed to send 2FA email: " . $e->getMessage());
+                }
+
+                // Send code (SMS via Beem Africa)
+                if ($user->phone) {
+                    try {
+                        $smsService = app(\App\Services\SmsApiService::class);
+                        $result = $smsService->sendSMS($user->phone, "Your CHIBO BRANDS Verification Code is: {$code}. Don't share it with anyone.");
+                        
+                        if (isset($result['success']) && $result['success']) {
+                            \Log::info("2FA SMS sent to {$user->phone} via Beem Africa");
+                        } else {
+                            \Log::warning("Failed to send 2FA SMS: " . ($result['message'] ?? 'Unknown error'));
+                        }
+                    } catch (\Exception $e) {
+                        \Log::error("Failed to send 2FA SMS: " . $e->getMessage());
+                    }
+                }
+
+                // Store user ID in session for verification step
+                session(['2fa_user_id' => $user->id, '2fa_required' => true]);
+
+                return redirect()->route('2fa.form');
+            }
+
             // If user is staff/admin, also log them into the 'admin' guard
             // to satisfy middleware that requires auth:admin
-            $adminRoles = ['super_admin', 'admin', 'manager', 'receptionist', 'designer', 'saler', 'operator', 'delivery', 'gatekeeper', 'accountant'];
+            $adminRoles = ['super_admin', 'admin', 'manager', 'receptionist', 'designer', 'saler', 'operator', 'delivery', 'gatekeeper', 'accountant', 'marketing_manager', 'hr_officer'];
             if (in_array($user->role, $adminRoles)) {
                 Auth::guard('admin')->login($user, $request->boolean('remember'));
                 \Log::info('Also logged into admin guard for role: ' . $user->role);
@@ -151,6 +209,77 @@ class AuthController extends Controller
         ])->onlyInput('email');
     }
 
+    private function get2faSetting(): bool
+    {
+        $path = storage_path('app/system_settings.json');
+        if (!file_exists($path)) return true;
+        $data = json_decode(file_get_contents($path), true);
+        return $data['two_fa_enabled'] ?? true;
+    }
+
+    /**
+     * Show the 2FA verification form.
+     */
+    public function show2faForm(): View
+    {
+        return view('auth.2fa');
+    }
+
+    /**
+     * Verify the 2FA code.
+     */
+    public function verify2fa(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'code' => 'required|string',
+        ]);
+
+        $userId = session('2fa_user_id');
+        
+        if (!$userId) {
+            return redirect()->route('login');
+        }
+
+        $verification = VerificationCode::where('user_id', $userId)
+            ->where('code', $request->code)
+            ->where('expires_at', '>', now())
+            ->first();
+
+        if (!$verification) {
+            return back()->with('error', 'Invalid or expired verification code.');
+        }
+
+        // Delete code
+        $verification->delete();
+
+        // Mark device as verified
+        $user = User::find($userId);
+        
+        // Generate a device token
+        $deviceToken = \Illuminate\Support\Str::random(60);
+        
+        UserDevice::create([
+            'user_id' => $user->id,
+            'device_identifier' => $deviceToken,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'verified_at' => now(),
+        ]);
+
+        // Set cookie (valid for 30 days)
+        cookie()->queue('device_id', $deviceToken, 60 * 24 * 30);
+
+        // Log the user in
+        Auth::login($user);
+        
+        $request->session()->regenerate();
+        
+        // Clear session
+        session()->forget(['2fa_user_id', '2fa_required']);
+
+        return $this->redirectBasedOnRole($user);
+    }
+
     /**
      * Redirect user based on their role.
      */
@@ -164,6 +293,8 @@ class AuthController extends Controller
             case 'super_admin':
             case 'manager':
             case 'accountant':
+            case 'marketing_manager':
+            case 'hr_officer':
                 if (!$user->verified) {
                     Auth::logout();
                     return redirect()->route('login')->withErrors([

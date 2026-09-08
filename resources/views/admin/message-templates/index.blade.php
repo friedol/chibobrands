@@ -59,9 +59,9 @@
 
     <div class="row">
         <div class="col-12">
-            <div class="card border-0 shadow-sm overflow-hidden" style="border-radius: 15px;">
-                <div class="card-header border-0 d-flex justify-content-between align-items-center py-2" style="background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);">
-                    <h6 class="mb-0 fw-bold text-white"><i class="fas fa-list me-2"></i>Available Templates</h6>
+            <div class="card border-0 shadow-sm overflow-hidden" style="border-radius: 8px;">
+                <div class="card-header border-0 d-flex justify-content-between align-items-center py-2 bg-white border-bottom">
+                    <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-list me-2 text-danger"></i>Available Templates</h6>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -266,17 +266,17 @@
     <div class="modal fade" id="sendTemplateModal{{ $template->id }}" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content border-0 shadow-lg" style="border-radius: 20px; overflow: hidden;">
-                <div class="modal-header border-0 text-white py-3 px-4" style="background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);">
+                <div class="modal-header border-bottom py-3 px-4 bg-white">
                     <div class="d-flex align-items-center">
-                        <div class="bg-white bg-opacity-25 rounded-circle p-2 me-3">
-                            <i class="fas fa-paper-plane fs-5"></i>
+                        <div class="bg-light rounded-circle p-2 me-3">
+                            <i class="fas fa-paper-plane fs-5 text-danger"></i>
                         </div>
                         <div>
-                            <h5 class="modal-title fw-bold mb-0 text-white">Send "{{ $template->title }}"</h5>
-                            <p class="mb-0 small text-white-50">Select customers and broadcast this message</p>
+                            <h5 class="modal-title fw-bold mb-0 text-dark">Send "{{ $template->title }}"</h5>
+                            <p class="mb-0 small text-muted">Select customers and broadcast this message</p>
                         </div>
                     </div>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form action="{{ route('admin.message-templates.send') }}" method="POST" class="broadcast-form">
                     @csrf
@@ -380,9 +380,9 @@
     <div class="modal fade" id="editTemplateModal{{ $template->id }}" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
-                <div class="modal-header border-0 text-white py-3 px-4" style="background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);">
-                    <h5 class="modal-title fw-bold mb-0"><i class="fas fa-edit me-2"></i>Edit Template</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="modal-header border-bottom py-3 px-4 bg-white">
+                    <h5 class="modal-title fw-bold mb-0 text-dark"><i class="fas fa-edit me-2 text-danger"></i>Edit Template</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form action="{{ route('admin.message-templates.update', $template->id) }}" method="POST">
                     @csrf
@@ -416,9 +416,9 @@
 <div class="modal fade" id="createTemplateModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
-            <div class="modal-header border-0 text-white py-3 px-4" style="background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);">
-                <h5 class="modal-title fw-bold mb-0"><i class="fas fa-plus me-2"></i>Create New Template</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-header border-bottom py-3 px-4 bg-white">
+                <h5 class="modal-title fw-bold mb-0 text-dark"><i class="fas fa-plus me-2 text-danger"></i>Create New Template</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="{{ route('admin.message-templates.store') }}" method="POST">
                 @csrf

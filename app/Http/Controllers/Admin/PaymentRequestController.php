@@ -10,7 +10,11 @@ use Illuminate\Http\Request;
 
 class PaymentRequestController extends Controller
 {
-    public function index(Request $request)
+    /**
+     * Shared filtered query used by index(), print(), exportPdf() and exportExcel()
+     * so every report format is built from the exact same data.
+     */
+    private function buildPaymentRequestsQuery(Request $request)
     {
         $query = PaymentRequest::with(['department', 'createdBy']);
 
@@ -42,10 +46,15 @@ class PaymentRequestController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
-        $requests = $query->latest()->paginate(25)->withQueryString();
+        return $query;
+    }
+
+    public function index(Request $request)
+    {
+        $requests = $this->buildPaymentRequestsQuery($request)->latest()->paginate(25)->withQueryString();
         $departments = Department::all();
         $users = \App\Models\User::orderBy('name')->where('verified', true)->get();
-        
+
         return view('admin.finance.payment-requests', compact('requests', 'departments', 'users'));
     }
 
@@ -111,33 +120,50 @@ class PaymentRequestController extends Controller
     
     public function print(Request $request)
     {
-        $query = PaymentRequest::with(['department', 'createdBy']);
+        $requests = $this->buildPaymentRequestsQuery($request)->latest()->get();
 
-        if ($request->filled('search')) {
-            $query->where('reason', 'like', '%' . $request->search . '%');
-        }
-
-        if ($request->filled('approval_status') && $request->approval_status !== 'all') {
-            $query->where('approval_status', $request->approval_status);
-        }
-
-        if ($request->filled('payment_status') && $request->payment_status !== 'all') {
-            $query->where('payment_status', $request->payment_status);
-        }
-
-        if ($request->filled('department_id') && $request->department_id !== 'all') {
-            $query->where('department_id', $request->department_id);
-        }
-
-        if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
-        }
-        if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
-        }
-
-        $requests = $query->latest()->get();
-        
         return view('admin.finance.print-payment-requests', compact('requests'));
+    }
+
+    /**
+     * PDF export of the payment requests report — same filtered data as index()/print().
+     */
+    public function exportPdf(Request $request)
+    {
+        $requests = $this->buildPaymentRequestsQuery($request)->latest()->get();
+
+        $title    = 'Payment Requests Report';
+        $dateFrom = $request->date_from;
+        $dateTo   = $request->date_to;
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.reports.exports.payment-requests', compact('requests', 'title', 'dateFrom', 'dateTo'))
+            ->setPaper('a4', 'portrait');
+
+        return $pdf->download('payment-requests-report-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    /**
+     * Excel export of the payment requests report — same filtered data as index()/print().
+     */
+    public function exportExcel(Request $request)
+    {
+        $requests = $this->buildPaymentRequestsQuery($request)->latest()->get();
+
+        $headings = ['Date', 'Reason', 'Department', 'Requested By', 'Approval Status', 'Payment Status', 'Amount (TZS)'];
+
+        $rows = $requests->map(fn ($item) => [
+            $item->created_at?->format('Y-m-d'),
+            $item->reason,
+            $item->department->name ?? '-',
+            $item->createdBy->name ?? '-',
+            $item->approval_status,
+            $item->payment_status,
+            (float) $item->amount,
+        ])->toArray();
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\SimpleArrayExport($rows, $headings, 'Payment Requests'),
+            'payment-requests-report-' . now()->format('Y-m-d') . '.xlsx'
+        );
     }
 }

@@ -141,6 +141,7 @@ class DesignTaskReportController extends Controller
         // Designer Rankings
         $topDesigners = (clone $tasksQuery)
             ->whereNotNull('designer_id')
+            ->whereHas('designer', fn($q) => $q->where('role', 'designer'))
             ->select('designer_id', DB::raw('count(*) as task_count'), DB::raw('SUM(price) as total_revenue'))
             ->groupBy('designer_id')
             ->with('designer:id,name')
@@ -187,6 +188,8 @@ class DesignTaskReportController extends Controller
         $overdueTasks = (clone $tasksQuery)
             ->whereNull('completed_at')
             ->where('deadline', '<', Carbon::now())
+            ->where('status', '!=', DesignTask::STATUS_CANCELLED)
+            ->where(function ($q) { $q->where('is_loss', false)->orWhereNull('is_loss'); })
             ->count();
             
         // 4. Detailed List for Printing
@@ -205,6 +208,183 @@ class DesignTaskReportController extends Controller
             'printingTasks', 'revisionCount', 'overdueTasks',
             'recentTasks'
         ));
+    }
+
+    /**
+     * Clean printable version of the designer performance report.
+     */
+    public function print(Request $request)
+    {
+        $data = $this->buildPrintReportData($request);
+
+        return view('admin.design-tasks.reports-print', $data);
+    }
+
+    /**
+     * PDF export — same data as print(), rendered through the shared PDF layout.
+     */
+    public function pdf(Request $request)
+    {
+        $data = $this->buildPrintReportData($request);
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.reports.exports.design-tasks-report', $data)
+            ->download('design-task-report.pdf');
+    }
+
+    /**
+     * Excel export — multi-sheet XLSX matching the print/PDF content.
+     */
+    public function excel(Request $request)
+    {
+        $data = $this->buildPrintReportData($request);
+        $s    = $data['summary'];
+
+        // Sheet 1 — Summary
+        $summarySheet = [
+            'title'    => 'Summary',
+            'headings' => ['Metric', 'Value'],
+            'rows'     => [
+                ['Report Period',   $data['dateFrom'] . ' to ' . $data['dateTo']],
+                ['Generated',       now()->format('Y-m-d H:i')],
+                ['Total Tasks',     $s['total']],
+                ['Completed',       $s['completed']],
+                ['In Progress',     $s['in_progress']],
+                ['Awaiting',        $s['pending']],
+                ['Completion Rate', $s['completion_rate'] . '%'],
+            ],
+        ];
+
+        // Sheet 2 — Designer Breakdown
+        $breakdownRows = $data['tasksByDesigner']->map(fn($d) => [
+            $d['designer']->name ?? 'N/A',
+            $d['total'],
+            $d['in_progress'],
+            $d['completed'],
+            ($d['total'] > 0 ? round(($d['completed'] / $d['total']) * 100, 1) : 0) . '%',
+        ])->values()->toArray();
+
+        $breakdownSheet = [
+            'title'    => 'Designer Breakdown',
+            'headings' => ['Designer', 'Total Tasks', 'In Progress', 'Completed', 'Completion Rate'],
+            'rows'     => $breakdownRows,
+        ];
+
+        // Sheet 3 — Task Details
+        $taskRows = $data['tasks']->map(fn($task) => [
+            $task->task_code,
+            $task->title,
+            $task->customer->name ?? 'N/A',
+            $task->designer->name ?? 'Unassigned',
+            ucfirst(str_replace('_', ' ', $task->status)),
+            number_format($task->price, 2),
+            number_format($task->amount_paid, 2),
+            number_format($task->balance, 2),
+            optional($task->created_at)->format('Y-m-d H:i'),
+            optional($task->completed_at)->format('Y-m-d H:i'),
+        ])->toArray();
+
+        $taskSheet = [
+            'title'    => 'Task Details',
+            'headings' => ['Task Code', 'Title', 'Customer', 'Designer', 'Status', 'Price', 'Paid', 'Balance', 'Created At', 'Completed At'],
+            'rows'     => $taskRows,
+        ];
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\MultiSheetReportExport([$summarySheet, $breakdownSheet, $taskSheet]),
+            "design-task-report-{$data['dateFrom']}-to-{$data['dateTo']}.xlsx"
+        );
+    }
+
+    /**
+     * Shared data builder for print()/pdf()/excel() so all three exports show
+     * identical numbers (summary, per-designer breakdown, and task list) built
+     * from the exact same filtered query.
+     */
+    private function buildPrintReportData(Request $request): array
+    {
+        $dateFrom = $request->input('date_from', Carbon::now()->startOfYear()->format('Y-m-d'));
+        $dateTo   = $request->input('date_to',   Carbon::now()->endOfDay()->format('Y-m-d'));
+
+        if ($request->filled('filter_period')) {
+            $now = Carbon::now();
+            switch ($request->filter_period) {
+                case 'today':      $dateFrom = $now->startOfDay()->format('Y-m-d'); $dateTo = $now->format('Y-m-d'); break;
+                case 'week':       $dateFrom = $now->startOfWeek()->format('Y-m-d'); $dateTo = $now->endOfWeek()->format('Y-m-d'); break;
+                case 'month':      $dateFrom = $now->startOfMonth()->format('Y-m-d'); $dateTo = $now->endOfMonth()->format('Y-m-d'); break;
+                case 'half_year':  $dateFrom = $now->copy()->subMonths(6)->format('Y-m-d'); $dateTo = $now->format('Y-m-d'); break;
+                case 'year':       $dateFrom = $now->startOfYear()->format('Y-m-d'); $dateTo = $now->endOfYear()->format('Y-m-d'); break;
+            }
+        }
+
+        $tasksQuery = DesignTask::query()
+            ->whereBetween('created_at', [
+                Carbon::parse($dateFrom)->startOfDay(),
+                Carbon::parse($dateTo)->endOfDay(),
+            ]);
+
+        if ($request->filled('designer_id')) {
+            $tasksQuery->where('designer_id', $request->designer_id);
+        }
+        if ($request->filled('receptionist_id')) {
+            $tasksQuery->where('receptionist_id', $request->receptionist_id);
+        }
+        if ($request->filled('saler_id')) {
+            $tasksQuery->where('saler_id', $request->saler_id);
+        }
+        if ($request->filled('operator_id')) {
+            $tasksQuery->where('operator_id', $request->operator_id);
+        }
+        if ($request->filled('status')) {
+            $tasksQuery->where('status', $request->status);
+        }
+
+        // Same "completed" definition as index(), so print/PDF/Excel summaries match the on-screen one
+        $completedStatuses  = [DesignTask::STATUS_COMPLETED, DesignTask::STATUS_CONFIRMED, DesignTask::STATUS_SUPER_COMPLETED];
+        $inProgressStatuses = [DesignTask::STATUS_IN_PROGRESS, DesignTask::STATUS_IN_REVIEW, DesignTask::STATUS_PRINTING];
+
+        $totalTasks     = (clone $tasksQuery)->count();
+        $completedCount = (clone $tasksQuery)->whereIn('status', $completedStatuses)->count();
+        $inProgCount    = (clone $tasksQuery)->whereIn('status', $inProgressStatuses)->count();
+        $pendingCount   = (clone $tasksQuery)->where('status', DesignTask::STATUS_PENDING)->count();
+
+        $summary = [
+            'total'           => $totalTasks,
+            'completed'       => $completedCount,
+            'in_progress'     => $inProgCount,
+            'pending'         => $pendingCount,
+            'completion_rate' => $totalTasks > 0 ? round(($completedCount / $totalTasks) * 100, 1) : 0,
+        ];
+
+        $tasksByDesigner = (clone $tasksQuery)
+            ->with('designer')
+            ->whereNotNull('designer_id')
+            ->whereHas('designer', fn($q) => $q->where('role', 'designer'))
+            ->get()
+            ->groupBy('designer_id')
+            ->map(fn($group) => [
+                'designer'    => $group->first()->designer,
+                'total'       => $group->count(),
+                'completed'   => $group->filter(fn($t) => in_array($t->status, $completedStatuses))->count(),
+                'in_progress' => $group->filter(fn($t) => in_array($t->status, $inProgressStatuses))->count(),
+            ])
+            ->values();
+
+        $tasks = (clone $tasksQuery)
+            ->with(['customer', 'designer'])
+            ->latest()
+            ->limit(200)
+            ->get();
+
+        $designerName = $request->filled('designer_id')
+            ? (User::find($request->designer_id)?->name)
+            : null;
+
+        $title = $designerName ? "{$designerName} — Performance Report" : 'Designer Performance Report';
+
+        return compact(
+            'summary', 'tasksByDesigner', 'tasks',
+            'dateFrom', 'dateTo', 'title', 'designerName'
+        );
     }
 
     /**

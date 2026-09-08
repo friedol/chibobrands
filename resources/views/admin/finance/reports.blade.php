@@ -39,9 +39,11 @@
                         <span class="badge bg-primary ms-1">Active</span>
                     @endif
                 </button>
-                <button type="button" class="btn btn-dark btn-sm px-3 shadow-sm fw-bold" onclick="window.print()">
-                    <i class="fas fa-print me-1"></i> Print Report
-                </button>
+                <x-report-export-menu
+                    :printJs="true"
+                    :pdfJs="true"
+                    label="Export"
+                />
             </div>
         </div>
     </div>
@@ -102,7 +104,7 @@
     <div class="print-only report-header mb-4">
         <div class="d-flex justify-content-between align-items-center border-bottom pb-3">
             <div>
-                <img src="{{ asset('images/logo.webp') }}" alt="Logo" style="height: 50px;" onerror="this.style.display='none'">
+                @include('partials.logo-print', ['logoStyle' => 'height:50px;object-fit:contain;'])
                 <h2 class="fw-bold text-dark mt-2 mb-1">
                     {{ $currentDept ? $currentDept->name . ' - ' : '' }}Financial Performance Report
                 </h2>

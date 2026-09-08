@@ -9,80 +9,274 @@
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --report-primary: #3b82f6;
-            --report-success: #10b981;
-            --report-danger: #f87171;
-            --report-warning: #fbbf24;
-            --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            --brand-red: #dc2626;
+            --ink: #0f172a;
+            --muted: #64748b;
+            --line: #dbe3ef;
+            --panel: #f8fafc;
+            --ok: #15803d;
+            --warn: #b45309;
+            --info: #2563eb;
+            --danger: #b91c1c;
         }
-        body { font-family: 'Nunito Sans', sans-serif; background: #f8fafc; padding: 1rem 0; }
+
+        body {
+            font-family: 'Nunito Sans', sans-serif;
+            background: #f3f6fb;
+            color: var(--ink);
+            margin: 0;
+            padding: 12px 0;
+        }
+
+        .preview-toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 12;
+            background: #0f172a;
+            color: #fff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 14px;
+            border-radius: 10px;
+            margin: 0 auto 10px;
+            max-width: 1380px;
+        }
+
+        .preview-toolbar .toolbar-title {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+
+        .toolbar-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .toolbar-btn {
+            border: 1px solid #334155;
+            background: #1e293b;
+            color: #fff;
+            border-radius: 6px;
+            padding: 4px 11px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .toolbar-btn:hover {
+            background: #334155;
+        }
+
+        .toolbar-btn-primary {
+            background: var(--brand-red);
+            border-color: var(--brand-red);
+        }
+
+        .toolbar-btn-primary:hover {
+            background: #b91c1c;
+        }
+
+        .page-wrap {
+            max-width: 1380px;
+            margin: 0 auto;
+            padding: 0 8px;
+        }
+
         .report-container {
             background: white;
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: var(--card-shadow);
-            border: 1px solid rgba(0,0,0,0.02);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
         }
-        .report-table { border: none !important; margin-top: 20px; border-radius: 12px; overflow: hidden; border-collapse: separate !important; border-spacing: 0; }
-        .report-table tbody td { padding: 5px 10px !important; border: 1px solid #cbd5e1 !important; font-size: 13px; color: #1e293b; }
+
+        .report-header-banner {
+            border-bottom: 3px solid var(--brand-red);
+            padding-bottom: 12px;
+            margin-bottom: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 14px;
+        }
+
+        .company-title {
+            font-size: 16pt;
+            font-weight: 800;
+            color: var(--brand-red);
+            letter-spacing: 0.4px;
+            margin: 0;
+        }
+
+        .report-title {
+            color: var(--brand-red);
+            font-size: 11pt;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-bottom: 5px;
+        }
+
+        .report-meta {
+            text-align: right;
+            font-size: 8.7pt;
+            color: #334155;
+            min-width: 285px;
+        }
+
+        .report-meta strong {
+            color: #991b1b;
+        }
+
+        .report-table {
+            border: none !important;
+            margin-top: 12px;
+            border-radius: 8px;
+            overflow: hidden;
+            border-collapse: separate !important;
+            border-spacing: 0;
+        }
+
+        .report-table tbody td {
+            padding: 5px 8px !important;
+            border: 1px solid var(--line) !important;
+            font-size: 12px;
+            color: #0f172a;
+            background: #fff;
+        }
+
         .report-table thead th {
-            background: #f1f5f9 !important; color: #334155 !important; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px; padding: 7px 10px !important; border: 1px solid #94a3b8 !important;
+            background: #1f2937 !important;
+            color: #ffffff !important;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 9px;
+            padding: 7px 8px !important;
+            border: 1px solid #1f2937 !important;
         }
-        .report-table thead th:nth-child(7) { background: #fff5f5 !important; color: #9b1c1c !important; }
+
+        .report-table thead th:nth-child(7) {
+            background: #7f1d1d !important;
+            color: #ffffff !important;
+        }
+
         .report-table tbody tr:not(.total-row) td:nth-child(1),
         .report-table tbody tr:not(.total-row) td:nth-child(2),
-        .report-table tbody tr:not(.total-row) td:nth-child(7) { background-color: rgba(248, 250, 252, 0.8) !important; }
-        .report-table td:nth-child(6), .report-table th:nth-child(6) { border-right: 2px solid #94a3b8 !important; }
-        .description-cell { font-weight: 500; color: #1a202c !important; text-align: left !important; }
-        .amount-cell { text-align: right; font-family: 'Courier New', monospace; font-weight: 600; letter-spacing: -0.5px; }
-        .report-table tbody tr:not(.total-row) td.remain-cell { color: var(--report-primary) !important; background-color: rgba(67, 97, 238, 0.03) !important; }
-        .report-table tr.total-row td {
-            background-color: #f1f5f9 !important; color: #0f172a !important; font-weight: 800 !important; font-size: 13px !important; border: 1px solid #64748b !important; padding: 7px 10px !important;
+        .report-table tbody tr:not(.total-row) td:nth-child(7) {
+            background-color: #f8fafc !important;
         }
-        .x-small { font-size: 11px; font-weight: 600; }
+
+        .report-table td:nth-child(6), .report-table th:nth-child(6) {
+            border-right: 2px solid #94a3b8 !important;
+        }
+
+        .description-cell {
+            font-weight: 500;
+            color: #1a202c !important;
+            text-align: left !important;
+        }
+
+        .amount-cell {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+
+        .report-table tbody tr:not(.total-row) td.remain-cell {
+            color: var(--info) !important;
+            background-color: #eff6ff !important;
+        }
+
+        .report-table tr.total-row td {
+            background-color: var(--panel) !important;
+            color: #0f172a !important;
+            font-weight: 800 !important;
+            font-size: 12px !important;
+            border: 1px solid #94a3b8 !important;
+            padding: 7px 8px !important;
+        }
+
+        .x-small {
+            font-size: 11px;
+            font-weight: 600;
+        }
+
         .no-break { page-break-inside: avoid; break-inside: avoid; }
-        .shared-banner { background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: white; padding: 0.5rem 1rem; border-radius: 0 0 12px 12px; font-size: 0.85rem; }
+
         @media print {
-            .shared-banner { display: none !important; }
-            body { padding: 0; background: white; }
+            @page { size: A4 landscape; margin: 10mm; }
+            .preview-toolbar { display: none !important; }
+            body { background: #fff; padding: 0; }
+            .page-wrap { max-width: 100%; padding: 0; }
+            .report-container {
+                border: none;
+                border-radius: 0;
+                box-shadow: none;
+                padding: 0;
+            }
+            .report-header-banner {
+                flex-direction: row !important;
+                align-items: flex-start !important;
+            }
+            .report-meta {
+                text-align: right !important;
+            }
+            .report-table thead {
+                display: table-header-group;
+            }
+        }
+
+        @media screen and (max-width: 900px) {
+            .report-header-banner {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .report-meta {
+                min-width: 0;
+                width: 100%;
+                text-align: left;
+            }
+            .report-container {
+                padding: 14px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container-fluid">
-        <div class="shared-banner mb-0">
-            <i class="fas fa-share-alt me-2"></i>Shared finance report
-            @if($isRange)
-                — {{ $carbonFrom->format('M d, Y') }} to {{ $carbonTo->format('M d, Y') }}
-            @else
-                — {{ $carbonFrom->format('l, F d, Y') }}
-            @endif
-            <span class="ms-2 opacity-75">(view-only)</span>
+    <div class="page-wrap">
+        <div class="preview-toolbar">
+            <div class="toolbar-title"><i class="fas fa-share-alt me-1"></i> Finance Report Preview</div>
+            <div class="toolbar-actions">
+                <button class="toolbar-btn toolbar-btn-primary" onclick="window.print()">Print / Save PDF</button>
+                <button class="toolbar-btn" onclick="window.close()">Close</button>
+            </div>
         </div>
 
         <div class="report-container">
-            <div class="report-header mb-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div class="d-flex align-items-center">
-                        <img src="{{ asset('images/logo.webp') }}" alt="Logo" style="height: 60px; margin-right: 20px;" onerror="this.style.display='none'">
-                        <div>
-                            <h1 class="fw-bold mb-0 text-dark" style="letter-spacing: 0.5px;">Financial Report</h1>
-                            <p class="mb-0 x-small text-muted mt-1">Dar es Salaam, Tanzania | Tel: +255 655 392 319</p>
-                        </div>
-                    </div>
-                    <div class="text-end">
-                        <h3 class="fw-bold mb-1 text-dark">BUSINESS FINANCE SUMMARY</h3>
-                        <p class="mb-0 fw-bold fs-5 text-dark text-uppercase">
-                            @if($isRange)
-                                {{ $carbonFrom->format('d M') }} - {{ $carbonTo->format('d M Y') }}
-                            @else
-                                {{ $carbonFrom->format('d M Y') }}
-                            @endif
-                        </p>
-                        <p class="mb-0 x-small text-muted">Generated: {{ now()->format('M d, Y H:i') }}</p>
-                    </div>
+            <div class="report-header-banner">
+                <div>
+                    @include('partials.logo-print', ['logoStyle' => 'height:50px;width:auto;margin-bottom:4px;object-fit:contain;'])
+                    <h1 class="company-title">CHIBOBRAND CO. LTD.</h1>
+                    <p class="mb-0 x-small text-muted mt-1">Dar es Salaam, Tanzania | Tel: +255 655 392 319</p>
                 </div>
-                <div class="border-top border-2 border-dark mt-2 mb-3"></div>
+                <div class="report-meta">
+                    <div class="report-title">Business Finance Summary</div>
+                    <div>
+                        <strong>Period:</strong>
+                        @if($isRange)
+                            {{ $carbonFrom->format('d M, Y') }} - {{ $carbonTo->format('d M, Y') }}
+                        @else
+                            {{ $carbonFrom->format('d M, Y') }}
+                        @endif
+                    </div>
+                    <div><strong>Generated:</strong> {{ now()->format('d M Y, H:i') }} EAT</div>
+                    <div><strong>Source:</strong> Finance Analytics System</div>
+                </div>
             </div>
 
             @php
